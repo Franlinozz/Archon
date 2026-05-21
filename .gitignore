@@ -30,3 +30,5 @@ yarn-error.log*
 coverage
 .turbo
 .vercel
+
+*.tsbuildinfo
