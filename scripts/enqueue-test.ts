@@ -1,0 +1,12 @@
+import "dotenv/config";
+import { closeDb, db } from "../lib/db/client";
+import { enqueueScan, scanQueue } from "../lib/queue/scans";
+import { redis } from "../lib/queue/redis";
+const inserted = await db.query<{ id: string }>("insert into scans (source_kind, source_ref, source_code, scan_depth, status, created_at) values ('paste', 'phase-0-test', '// phase 0 test', 'deep', 'queued', now()) returning id");
+const scanId = inserted.rows[0]?.id;
+if (!scanId) throw new Error("failed to insert test scan");
+await enqueueScan(scanId);
+console.log(`enqueued ${scanId}`);
+await scanQueue.close();
+await redis.quit();
+await closeDb();

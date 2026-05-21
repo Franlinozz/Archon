@@ -1,0 +1,2 @@
+import { Shield } from "lucide-react";
+export function EmptyState({ title="No scans yet", action="Start scan" }) { return <section className="grid place-items-center rounded-card border border-dashed border-border-emphasis bg-surface-1 p-8 text-center"><Shield className="text-green-400" size={34}/><p className="mt-4 text-text-hi">{title}</p><button className="mt-4 rounded-control bg-green-500 px-4 py-2 text-sm font-semibold text-on-green">{action}</button></section>; }
