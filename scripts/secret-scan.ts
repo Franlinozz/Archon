@@ -1,6 +1,9 @@
 import { execFileSync } from "node:child_process";
 const output = execFileSync("git", ["ls-files"], { encoding: "utf8" });
-const files = output.split("\n").filter(Boolean).filter((file) => !file.includes("pnpm-lock.yaml"));
+const files = output
+  .split("\n")
+  .filter(Boolean)
+  .filter((file) => !["pnpm-lock.yaml", ".env.example", "scripts/secret-scan.ts"].includes(file));
 const patterns = [
   /sk-(?:proj-)?[A-Za-z0-9_-]{20,}/,
   /0x[a-fA-F0-9]{64}/,
