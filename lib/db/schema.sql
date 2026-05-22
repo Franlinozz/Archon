@@ -7,6 +7,7 @@ create table if not exists scans (
   source_code text,
   network text default 'mantle-mainnet',
   scan_depth text,
+  protocols jsonb default '[]'::jsonb,
   status text,
   progress int default 0,
   current_stage text,
@@ -15,6 +16,8 @@ create table if not exists scans (
   finished_at timestamptz,
   error text
 );
+
+alter table scans add column if not exists protocols jsonb default '[]'::jsonb;
 
 create table if not exists reports (
   id uuid primary key default gen_random_uuid(),

@@ -21,6 +21,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm secret-scan
+      - run: pnpm compile:contracts
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm build
