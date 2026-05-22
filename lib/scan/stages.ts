@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db/client";
+import { enrichFindingsForScan } from "@/lib/ai/enrichment";
 import type { PipelineStage, ScanContext, ScanFinding, ScanRecord, Severity } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -267,6 +268,11 @@ async function protocolRuleEngine(ctx: ScanContext) {
   return ctx;
 }
 
+async function aiReasoning(ctx: ScanContext) {
+  ctx.metadata.aiReasoning = await enrichFindingsForScan(ctx.scan.id);
+  return ctx;
+}
+
 async function passThrough(ctx: ScanContext) {
   return ctx;
 }
@@ -286,6 +292,14 @@ function riskScore(counts: Record<Severity, number>) {
 async function reportAssembly(ctx: ScanContext) {
   const counts = severityCounts(ctx.findings);
   const risk = riskScore(counts);
+  const enriched = await db.query<{ title: string; severity: string; summary: string | null; recommended_fix: string | null }>(
+    "select title, severity, summary, recommended_fix from findings where scan_id = $1 order by sort_index nulls last, id limit 5",
+    [ctx.scan.id],
+  );
+  const top = enriched.rows.find((row) => row.severity === "critical" || row.severity === "high") ?? enriched.rows[0];
+  const executiveSummary = top
+    ? `Archon completed a read-only Mantle Mainnet audit of ${ctx.contractName} and found ${ctx.findings.length} deterministic finding${ctx.findings.length === 1 ? "" : "s"}. The highest-priority issue is ${top.title}, with risk score ${risk}/100 based on severity-weighted findings. ${top.summary ?? "Each finding includes line-level traceability and recommended engineering remediation."} Review the recommended fixes and run regression tests before deployment.`
+    : `Archon completed a read-only Mantle Mainnet audit of ${ctx.contractName}. No deterministic findings were persisted for this scan, but this report should still be reviewed before relying on the result.`;
   const result = await db.query<{ id: string }>(
     `insert into reports (scan_id, contract_name, risk_score, severity_counts, scope, executive_summary, report_hash, created_at)
      values ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7, now()) returning id`,
@@ -294,8 +308,8 @@ async function reportAssembly(ctx: ScanContext) {
       ctx.contractName,
       risk,
       JSON.stringify(counts),
-      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [] }),
-      `Archon found ${ctx.findings.length} deterministic issue${ctx.findings.length === 1 ? "" : "s"} in ${ctx.contractName}.`,
+      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [], lineCount: ctx.sourceCode.split("\n").length }),
+      executiveSummary,
       createHash("sha256").update(`${ctx.scan.id}:${ctx.contractName}:${JSON.stringify(counts)}:${ctx.findings.length}`).digest("hex"),
     ],
   );
@@ -310,7 +324,7 @@ export const STAGES: StageDefinition[] = [
   { name: "Static Analysis", run: staticAnalysis },
   { name: "Mantle Context Fetch", run: mantleContextFetch },
   { name: "Protocol Rule Engine", run: protocolRuleEngine },
-  { name: "AI Reasoning", run: passThrough },
+  { name: "AI Reasoning", run: aiReasoning },
   { name: "Test Generation", run: passThrough },
   { name: "Report Assembly", run: reportAssembly },
 ];
