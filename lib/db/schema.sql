@@ -33,6 +33,7 @@ create table if not exists reports (
 
 create table if not exists findings (
   id uuid primary key default gen_random_uuid(),
+  scan_id uuid references scans(id),
   report_id uuid references reports(id),
   severity text,
   category text,
@@ -49,7 +50,23 @@ create table if not exists findings (
   confidence numeric,
   gas_impact text,
   status text default 'open',
-  sort_index int
+  sort_index int,
+  dedupe_key text,
+  created_at timestamptz default now()
+);
+
+alter table findings add column if not exists scan_id uuid references scans(id);
+alter table findings add column if not exists dedupe_key text;
+alter table findings add column if not exists created_at timestamptz default now();
+drop index if exists findings_scan_dedupe_key;
+create unique index if not exists findings_scan_dedupe_key on findings(scan_id, dedupe_key);
+
+create table if not exists scan_logs (
+  id uuid primary key default gen_random_uuid(),
+  scan_id uuid references scans(id),
+  level text,
+  message text,
+  created_at timestamptz
 );
 
 create table if not exists proofs (

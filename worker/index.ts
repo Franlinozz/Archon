@@ -1,17 +1,41 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
-import { closeDb, db } from "../lib/db/client";
+import { closeDb } from "../lib/db/client";
 import { redisConnection } from "../lib/queue/redis";
+import { runScan } from "../lib/scan/runner";
 import type { ScanJobPayload } from "../lib/queue/scans";
 
-const worker = new Worker<ScanJobPayload>("archon-scans", async (job) => {
-  const { scanId } = job.data;
-  console.log(`received scan ${scanId}`);
-  await db.query("update scans set status = 'running', started_at = now(), progress = 50, current_stage = 'Worker Skeleton' where id = $1", [scanId]);
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  await db.query("update scans set status = 'done', finished_at = now(), progress = 100, current_stage = 'Done' where id = $1", [scanId]);
-}, { ...redisConnection, concurrency: 2 });
+const worker = new Worker<ScanJobPayload>(
+  "archon-scans",
+  async (job) => {
+    const { scanId } = job.data;
+    console.log(`received scan ${scanId}`);
+    try {
+      await runScan(scanId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`scan ${scanId} failed: ${message}`);
+      throw new Error(message);
+    }
+  },
+  {
+    ...redisConnection,
+    concurrency: 2,
+    lockDuration: 180_000,
+    stalledInterval: 30_000,
+    maxStalledCount: 1,
+  },
+);
 
+worker.on("completed", (job) => console.log(`scan job ${job.id} completed`));
 worker.on("failed", (job, error) => console.error(`scan job ${job?.id ?? "unknown"} failed`, error));
-process.on("SIGTERM", async () => { await worker.close(); await closeDb(); process.exit(0); });
+
+async function shutdown() {
+  await worker.close();
+  await closeDb();
+  process.exit(0);
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 console.log("archon-worker ready");

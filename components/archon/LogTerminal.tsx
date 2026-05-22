@@ -1,1 +1,20 @@
-export function LogTerminal() { const lines=[['12:04:01','INFO','Queued scan'],['12:04:04','WARN','Explorer retry scheduled'],['12:04:06','ERROR','Demo error state']]; return <section className="rounded-card border border-border-subtle bg-terminal p-4 font-mono text-xs"><div className="mb-3 flex items-center justify-between text-text-low"><span>Live log</span><button className="text-green-400">View full log</button></div><div className="space-y-2">{lines.map(([time,level,msg])=><div key={`${time}-${level}`}><span className="text-text-low">{time}</span> <span className={level==="ERROR"?"text-danger":level==="WARN"?"text-warning":"text-info"}>{level}</span> <span className="text-text-code">{msg}</span></div>)}</div></section>; }
+type LogLine = { id?: string; createdAt?: string; level: string; message: string };
+
+export function LogTerminal({ lines }: { lines?: LogLine[] }) {
+  const fallback = [
+    { id: "fallback-1", createdAt: new Date().toISOString(), level: "INFO", message: "Waiting for scan events…" },
+  ];
+  const entries = lines?.length ? lines : fallback;
+  return <section className="rounded-card border border-border-subtle bg-terminal p-4 font-mono text-xs">
+    <div className="mb-3 flex items-center justify-between text-text-low"><span>Live log</span><button className="text-green-400">View full log</button></div>
+    <div className="max-h-72 space-y-2 overflow-auto pr-1">
+      {entries.map((line, index) => {
+        const time = line.createdAt ? new Date(line.createdAt).toLocaleTimeString([], { hour12: false }) : "--:--:--";
+        const level = line.level.toUpperCase();
+        return <div key={line.id ?? `${line.createdAt}-${index}`}>
+          <span className="text-text-low">{time}</span> <span className={level === "ERROR" ? "text-danger" : level === "WARN" ? "text-warning" : "text-info"}>{level}</span> <span className="text-text-code">{line.message}</span>
+        </div>;
+      })}
+    </div>
+  </section>;
+}

@@ -8,13 +8,31 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const params = paramsSchema.safeParse(await context.params);
   if (!params.success) return NextResponse.json({ error: "Invalid scan id." }, { status: 400 });
 
-  const result = await db.query(
+  const scanResult = await db.query(
     `select id, source_kind as "sourceKind", source_ref as "sourceRef", network, scan_depth as "scanDepth", protocols, status, progress, current_stage as "currentStage", created_at as "createdAt", started_at as "startedAt", finished_at as "finishedAt", error
      from scans where id = $1`,
     [params.data.id],
   );
 
-  const scan = result.rows[0];
+  const scan = scanResult.rows[0];
   if (!scan) return NextResponse.json({ error: "Scan not found." }, { status: 404 });
-  return NextResponse.json({ scan });
+
+  const [findingsResult, logsResult, reportResult] = await Promise.all([
+    db.query(
+      `select id, severity, category, title, file, line_start as "lineStart", line_end as "lineEnd", summary, status, sort_index as "sortIndex", created_at as "createdAt"
+       from findings where scan_id = $1 order by sort_index nulls last, id`,
+      [params.data.id],
+    ),
+    db.query(
+      `select id, level, message, created_at as "createdAt" from scan_logs where scan_id = $1 order by created_at asc, id asc limit 300`,
+      [params.data.id],
+    ),
+    db.query(
+      `select id, contract_name as "contractName", risk_score as "riskScore", severity_counts as "severityCounts", report_hash as "reportHash", created_at as "createdAt"
+       from reports where scan_id = $1 order by created_at desc limit 1`,
+      [params.data.id],
+    ),
+  ]);
+
+  return NextResponse.json({ scan, findings: findingsResult.rows, logs: logsResult.rows, report: reportResult.rows[0] ?? null });
 }
