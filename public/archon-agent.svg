@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Archon</title>
+  <desc id="desc">Archon audit agent mark</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7CFFB2"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#07110D"/>
+  <path d="M256 72 408 152v104c0 94-61 155-152 184-91-29-152-90-152-184V152L256 72Z" fill="none" stroke="url(#g)" stroke-width="28"/>
+  <path d="M166 310 236 140h40l70 170h-43l-13-36h-68l-13 36h-43Zm68-70h44l-22-62-22 62Z" fill="url(#g)"/>
+</svg>

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { Download, Lock, Search, Share2 } from "lucide-react";
+import { Download, Search, Share2 } from "lucide-react";
+import { GenerateProofModal } from "./GenerateProofModal";
 import { RiskScoreCard, SeverityPill } from "@/components/archon";
 import type { Severity } from "@/components/archon/severity";
 
@@ -43,7 +44,7 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
       <div className="flex flex-wrap gap-2">
         <button className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid"><Share2 size={15}/> Share Report</button>
         <a download={`archon-report-${report.id}.json`} href={`/api/reports/${report.id}`} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-green-400"><Download size={15}/> Download JSON</a>
-        <button disabled className="inline-flex cursor-not-allowed items-center gap-2 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning opacity-80"><Lock size={15}/> Generate Proof · available after proof setup</button>
+        <GenerateProofModal reportId={report.id} />
       </div>
     </div>
 

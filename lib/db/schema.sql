@@ -78,11 +78,18 @@ create table if not exists proofs (
   report_hash text,
   tx_hash text,
   metadata_uri text,
+  metadata jsonb,
   network text,
   logged_at timestamptz,
+  created_at timestamptz default now(),
   verification_status text,
   erc8004_ref jsonb
 );
+
+alter table proofs add column if not exists metadata jsonb;
+alter table proofs add column if not exists created_at timestamptz default now();
+create unique index if not exists proofs_report_hash_key on proofs(report_hash);
+create unique index if not exists proofs_report_id_key on proofs(report_id);
 
 create table if not exists ai_cache (
   cache_key text primary key,

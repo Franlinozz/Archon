@@ -8,5 +8,6 @@ export * from "./ProofCard";
 export * from "./Stepper";
 export * from "./CostMetricCard";
 export * from "./TestCoverageBar";
+export * from "./WalletChip";
 export * from "./LogTerminal";
 export * from "./EmptyState";
