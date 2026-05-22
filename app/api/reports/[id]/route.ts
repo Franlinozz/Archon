@@ -9,7 +9,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!params.success) return NextResponse.json({ error: "Invalid report id." }, { status: 400 });
 
   const reportResult = await db.query(
-    `select r.id, r.contract_name as "contractName", r.risk_score as "riskScore", r.severity_counts as "severityCounts", r.scope, r.executive_summary as "executiveSummary", r.report_hash as "reportHash", r.created_at as "createdAt",
+    `select r.id, r.contract_name as "contractName", r.risk_score as "riskScore", r.severity_counts as "severityCounts", r.scope, r.tests, r.executive_summary as "executiveSummary", r.report_hash as "reportHash", r.created_at as "createdAt",
             s.id as "scanId", s.network, s.scan_depth as "scanDepth", s.status as "scanStatus", s.started_at as "startedAt", s.finished_at as "finishedAt"
      from reports r join scans s on s.id = r.scan_id where r.id = $1`,
     [params.data.id],
@@ -36,6 +36,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       riskScore: report.riskScore,
       severityCounts: report.severityCounts,
       scope: report.scope,
+      tests: report.tests,
       executiveSummary: report.executiveSummary,
       reportHash: report.reportHash,
       createdAt: report.createdAt,

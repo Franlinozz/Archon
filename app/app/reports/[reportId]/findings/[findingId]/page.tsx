@@ -1,10 +1,11 @@
 import type React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Lock, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, MoreHorizontal } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { SeverityPill } from "@/components/archon";
 import type { Severity } from "@/components/archon/severity";
+import { GenerateFindingTestButton } from "./GenerateFindingTestButton";
 
 type Finding = {
   id: string; severity: Severity; category: string; title: string; file: string; lineStart: number | null; lineEnd: number | null; codeSnippet: string | null; summary: string | null; whyMantle: string | null; exploitScenario: string | null; recommendedFix: string | null; patchDiff: string | null; confidence: string | number | null; gasImpact: string | null; status: string;
@@ -46,7 +47,7 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
         </section>
 
         <section className="rounded-card border border-border-subtle bg-surface-1 p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold text-text-hi">Suggested Patch / Diff View</h2><button disabled className="inline-flex cursor-not-allowed items-center gap-2 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"><Lock size={15}/> Generate Test for This Finding · Session 4</button></div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold text-text-hi">Suggested Patch / Diff View</h2><GenerateFindingTestButton reportId={reportId} findingId={finding.id} /></div>
           {patchOk ? <DiffView diff={finding.patchDiff!} /> : <div className="grid gap-3 md:grid-cols-2"><pre className="overflow-auto rounded-card bg-terminal p-4 text-xs text-text-code">{finding.codeSnippet ?? "Original snippet unavailable"}</pre><pre className="overflow-auto rounded-card bg-terminal p-4 text-xs text-text-code">{finding.recommendedFix ?? "Apply the recommended fix and add a regression test."}</pre></div>}
         </section>
       </main>

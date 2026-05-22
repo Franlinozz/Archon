@@ -26,10 +26,13 @@ create table if not exists reports (
   risk_score int,
   severity_counts jsonb,
   scope jsonb,
+  tests jsonb,
   executive_summary text,
   report_hash text,
   created_at timestamptz
 );
+
+alter table reports add column if not exists tests jsonb;
 
 create table if not exists findings (
   id uuid primary key default gen_random_uuid(),
