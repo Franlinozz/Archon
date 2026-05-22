@@ -1,1 +1,5 @@
-export default function Page() { return <div className="p-8">Archon foundation page</div>; }
+import { CostGuardClient } from "./cost-guard-client";
+
+export default function Page() {
+  return <CostGuardClient />;
+}

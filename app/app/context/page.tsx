@@ -1,1 +1,5 @@
-export default function Page() { return <div className="p-8">Archon foundation page</div>; }
+import { ContextClient } from "./context-client";
+
+export default function Page() {
+  return <ContextClient />;
+}

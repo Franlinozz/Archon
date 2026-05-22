@@ -11,3 +11,4 @@ export * from "./TestCoverageBar";
 export * from "./WalletChip";
 export * from "./LogTerminal";
 export * from "./EmptyState";
+export * from "./ArchonAssistant";
