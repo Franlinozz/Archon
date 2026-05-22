@@ -69,11 +69,140 @@ function codeSnippet(source: string, lineStart: number | null, lineEnd: number |
   return lines.slice(start - 1, end).map((line, index) => `${start + index}: ${line}`).join("\n");
 }
 
+function buildDedupeKey(finding: Omit<ScanFinding, "dedupeKey"> & { dedupeKey?: string }) {
+  return finding.dedupeKey ?? createHash("sha256").update(`${finding.source}:${finding.category}:${finding.title}:${finding.file}:${finding.lineStart}:${finding.lineEnd}`).digest("hex");
+}
+
 function addFinding(ctx: ScanContext, finding: Omit<ScanFinding, "dedupeKey"> & { dedupeKey?: string }) {
-  const key = finding.dedupeKey ?? createHash("sha256").update(`${finding.source}:${finding.category}:${finding.title}:${finding.file}:${finding.lineStart}:${finding.lineEnd}`).digest("hex");
+  const key = buildDedupeKey(finding);
   if (ctx.findings.some((existing) => existing.dedupeKey === key)) return ctx;
   ctx.findings.push({ ...finding, dedupeKey: key });
   return ctx;
+}
+
+export function collectProtocolRuleFindings(source: string, sourceFile = "Contract.sol") {
+  const findings: ScanFinding[] = [];
+  const add = (finding: Omit<ScanFinding, "dedupeKey"> & { dedupeKey?: string }) => findings.push({ ...finding, dedupeKey: buildDedupeKey(finding) });
+  const basename = path.basename(sourceFile);
+  const firstLine = (needle: string | RegExp) => {
+    const lines = source.split("\n");
+    const index = typeof needle === "string" ? lines.findIndex((line) => line.includes(needle)) : lines.findIndex((line) => needle.test(line));
+    return index >= 0 ? index + 1 : null;
+  };
+
+  if (/\.call\s*\{\s*value:/m.test(source) && /balances\[msg\.sender\]\s*-=/m.test(source)) {
+    const line = firstLine(".call{value");
+    add({
+      severity: "critical",
+      category: "mantle-reentrancy-rule",
+      title: "External value transfer before balance update",
+      file: basename,
+      lineStart: line,
+      lineEnd: null,
+      codeSnippet: codeSnippet(source, line, null),
+      summary: "A value-transferring external call occurs before local accounting is finalized, creating a reentrancy window.",
+      whyMantle: "Mantle contracts still inherit EVM reentrancy risk; bridge and yield flows can amplify impact when vault balances represent liquid positions.",
+      exploitScenario: "An attacker contract re-enters withdraw() before its balance is reduced and drains repeated payouts.",
+      recommendedFix: "Apply checks-effects-interactions: decrement the balance before the call, or use a reentrancy guard and pull-payment pattern.",
+      confidence: 0.95,
+      source: "rule",
+    });
+  }
+
+  if (/minAmountOut/.test(source) && !/require\s*\(\s*amountOut\s*>=\s*minAmountOut/.test(source)) {
+    const line = firstLine("minAmountOut");
+    add({
+      severity: "high",
+      category: "mantle-missing-slippage-bound",
+      title: "Missing slippage enforcement for swap output",
+      file: basename,
+      lineStart: line,
+      lineEnd: null,
+      codeSnippet: codeSnippet(source, line, null),
+      summary: "The function accepts a minimum output parameter but does not enforce it against the received amount.",
+      whyMantle: "Mantle DeFi routes through DEX/liquid-staking liquidity where price movement and MEV can make unchecked output assumptions dangerous.",
+      exploitScenario: "A user submits a swap expecting bounded output, but receives materially less because minAmountOut is ignored.",
+      recommendedFix: "Require amountOut >= minAmountOut immediately after the swap result is known.",
+      confidence: 0.92,
+      source: "rule",
+    });
+  }
+
+  if (/\.length/.test(source) && /for\s*\(/.test(source) && /storage array|depositors\.length|recipients\.length/.test(source)) {
+    const line = firstLine(".length");
+    add({
+      severity: "medium",
+      category: "mantle-l1-data-fee-unaware-gas",
+      title: "Unbounded storage iteration can create runaway gas cost",
+      file: basename,
+      lineStart: line,
+      lineEnd: null,
+      codeSnippet: codeSnippet(source, line, null),
+      summary: "The contract loops over a storage array without a cap. This can become too expensive as the set grows.",
+      whyMantle: "Mantle execution is cheaper than L1, but unbounded loops still threaten UX and can become denial-of-service vectors under variable data fees.",
+      recommendedFix: "Track aggregates incrementally or process recipients in bounded batches with cursor state.",
+      confidence: 0.86,
+      gasImpact: "Potentially unbounded gas growth with each new depositor/recipient.",
+      source: "rule",
+    });
+  }
+
+  if (/latestAnswer\s*\(/.test(source) && !/block\.timestamp\s*-\s*[^;]+latestTimestamp|stale|heartbeat/i.test(source)) {
+    const line = firstLine("latestAnswer");
+    add({
+      severity: "medium",
+      category: "mantle-oracle-heartbeat",
+      title: "Oracle price read lacks freshness heartbeat check",
+      file: basename,
+      lineStart: line,
+      lineEnd: null,
+      codeSnippet: codeSnippet(source, line, null),
+      summary: "Oracle output is consumed without enforcing a maximum staleness window.",
+      whyMantle: "Protocol integrations should encode feed heartbeat assumptions explicitly so stale L2 reads do not drive collateral or swap decisions.",
+      recommendedFix: "Read the feed timestamp and require block.timestamp - updatedAt <= configuredHeartbeat.",
+      confidence: 0.82,
+      source: "rule",
+    });
+  }
+
+  if (/tx\.origin/.test(source)) {
+    const line = firstLine("tx.origin");
+    add({
+      severity: "high",
+      category: "mantle-origin-auth",
+      title: "tx.origin authorization can be phished through proxy calls",
+      file: basename,
+      lineStart: line,
+      lineEnd: null,
+      codeSnippet: codeSnippet(source, line, null),
+      summary: "Authorization relies on tx.origin instead of msg.sender, allowing malicious intermediary contracts to relay privileged calls from a real owner.",
+      whyMantle: "Mantle users interact through wallets, account abstractions, and app routers; origin-based auth breaks composability and increases phishing blast radius.",
+      exploitScenario: "The owner signs a call to an attacker-controlled contract, which then invokes the protected function while tx.origin still equals the owner.",
+      recommendedFix: "Use msg.sender with Ownable/AccessControl, or EIP-712 signatures scoped to an explicit action and nonce.",
+      confidence: 0.94,
+      source: "rule",
+    });
+  }
+
+  if (/block\.timestamp/.test(source) && /(deadline|settle|auction|expiry|unlock)/i.test(source) && !/(grace|buffer|maxDelay|minDelay)/i.test(source)) {
+    const line = firstLine("block.timestamp");
+    add({
+      severity: "medium",
+      category: "mantle-timestamp-assumption",
+      title: "Timestamp-sensitive settlement lacks explicit tolerance window",
+      file: basename,
+      lineStart: line,
+      lineEnd: null,
+      codeSnippet: codeSnippet(source, line, null),
+      summary: "Business logic depends on block.timestamp for settlement/deadline behavior without documenting or enforcing a tolerance window.",
+      whyMantle: "L2 timestamp and sequencing assumptions should be explicit for liquidations, auctions, and settlement flows so integrations know the accepted drift/grace policy.",
+      recommendedFix: "Add explicit min/max delay bounds, grace periods, and tests that cover boundary timestamps on a Mantle fork.",
+      confidence: 0.78,
+      source: "rule",
+    });
+  }
+
+  return findings;
 }
 
 function detectContractName(source: string) {
@@ -193,77 +322,7 @@ async function mantleContextFetch(ctx: ScanContext) {
 }
 
 async function protocolRuleEngine(ctx: ScanContext) {
-  const source = ctx.sourceCode;
-  if (/\.call\s*\{\s*value:/m.test(source) && /balances\[msg\.sender\]\s*-=/m.test(source)) {
-    addFinding(ctx, {
-      severity: "critical",
-      category: "mantle-reentrancy-rule",
-      title: "External value transfer before balance update",
-      file: path.basename(ctx.sourceFile),
-      lineStart: source.split("\n").findIndex((line) => line.includes(".call{value")) + 1 || null,
-      lineEnd: null,
-      codeSnippet: codeSnippet(source, source.split("\n").findIndex((line) => line.includes(".call{value")) + 1 || null, null),
-      summary: "A value-transferring external call occurs before local accounting is finalized, creating a reentrancy window.",
-      whyMantle: "Mantle contracts still inherit EVM reentrancy risk; bridge and yield flows can amplify impact when vault balances represent liquid positions.",
-      exploitScenario: "An attacker contract re-enters withdraw() before its balance is reduced and drains repeated payouts.",
-      recommendedFix: "Apply checks-effects-interactions: decrement the balance before the call, or use a reentrancy guard and pull-payment pattern.",
-      confidence: 0.95,
-      source: "rule",
-    });
-  }
-
-  if (/minAmountOut/.test(source) && !/require\s*\(\s*amountOut\s*>=\s*minAmountOut/.test(source)) {
-    addFinding(ctx, {
-      severity: "high",
-      category: "mantle-missing-slippage-bound",
-      title: "Missing slippage enforcement for swap output",
-      file: path.basename(ctx.sourceFile),
-      lineStart: source.split("\n").findIndex((line) => line.includes("minAmountOut")) + 1 || null,
-      lineEnd: null,
-      codeSnippet: codeSnippet(source, source.split("\n").findIndex((line) => line.includes("minAmountOut")) + 1 || null, null),
-      summary: "The function accepts a minimum output parameter but does not enforce it against the received amount.",
-      whyMantle: "Mantle DeFi routes through DEX/liquid-staking liquidity where price movement and MEV can make unchecked output assumptions dangerous.",
-      exploitScenario: "A user submits a swap expecting bounded output, but receives materially less because minAmountOut is ignored.",
-      recommendedFix: "Require amountOut >= minAmountOut immediately after the swap result is known.",
-      confidence: 0.92,
-      source: "rule",
-    });
-  }
-
-  if (/\.length/.test(source) && /for\s*\(/.test(source) && /storage array|depositors\.length|recipients\.length/.test(source)) {
-    addFinding(ctx, {
-      severity: "medium",
-      category: "mantle-l1-data-fee-unaware-gas",
-      title: "Unbounded storage iteration can create runaway gas cost",
-      file: path.basename(ctx.sourceFile),
-      lineStart: source.split("\n").findIndex((line) => line.includes(".length")) + 1 || null,
-      lineEnd: null,
-      codeSnippet: codeSnippet(source, source.split("\n").findIndex((line) => line.includes(".length")) + 1 || null, null),
-      summary: "The contract loops over a storage array without a cap. This can become too expensive as the set grows.",
-      whyMantle: "Mantle execution is cheaper than L1, but unbounded loops still threaten UX and can become denial-of-service vectors under variable data fees.",
-      recommendedFix: "Track aggregates incrementally or process recipients in bounded batches with cursor state.",
-      confidence: 0.86,
-      gasImpact: "Potentially unbounded gas growth with each new depositor/recipient.",
-      source: "rule",
-    });
-  }
-
-  if (/latestAnswer\s*\(/.test(source) && !/block\.timestamp\s*-\s*[^;]+latestTimestamp|stale|heartbeat/i.test(source)) {
-    addFinding(ctx, {
-      severity: "medium",
-      category: "mantle-oracle-heartbeat",
-      title: "Oracle price read lacks freshness heartbeat check",
-      file: path.basename(ctx.sourceFile),
-      lineStart: source.split("\n").findIndex((line) => line.includes("latestAnswer")) + 1 || null,
-      lineEnd: null,
-      codeSnippet: codeSnippet(source, source.split("\n").findIndex((line) => line.includes("latestAnswer")) + 1 || null, null),
-      summary: "Oracle output is consumed without enforcing a maximum staleness window.",
-      whyMantle: "Protocol integrations should encode feed heartbeat assumptions explicitly so stale L2 reads do not drive collateral or swap decisions.",
-      recommendedFix: "Read the feed timestamp and require block.timestamp - updatedAt <= configuredHeartbeat.",
-      confidence: 0.82,
-      source: "rule",
-    });
-  }
+  for (const finding of collectProtocolRuleFindings(ctx.sourceCode, ctx.sourceFile)) addFinding(ctx, finding);
 
   ctx.metadata.rules = { findingCount: ctx.findings.filter((finding) => finding.source === "rule").length };
   return ctx;

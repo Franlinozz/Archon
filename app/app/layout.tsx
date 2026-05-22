@@ -3,7 +3,7 @@ import { Bell, Search } from "lucide-react";
 import { ArchonAssistant, ArchonLogo, MainnetBadge, WalletChip } from "@/components/archon";
 
 const nav = [
-  ["Overview", "/app"], ["Audit Studio", "/app/audit/new"], ["Contract Context", "/app/context"], ["Reports", "/app"], ["Findings", "/app"], ["Generated Tests", "/app"], ["Cost Guard", "/app/cost-guard"], ["On-chain Proof", "/app/proofs"], ["Settings", "/app#settings"],
+  ["Overview", "/app"], ["Audit Studio", "/app/audit/new"], ["Contract Context", "/app/context"], ["Reports", "/app"], ["Findings", "/app/findings"], ["Generated Tests", "/app/tests"], ["Cost Guard", "/app/cost-guard"], ["On-chain Proof", "/app/proofs"], ["Validation", "/app/validation"], ["Settings", "/app#settings"],
 ] as const;
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
