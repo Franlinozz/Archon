@@ -42,7 +42,7 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
         <p className="mt-2 text-text-mid">{report.contractName} · Mantle Mainnet · Chain ID 5000 · Scan {report.scanId}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid"><Share2 size={15}/> Share Report</button>
+        <button onClick={() => navigator.clipboard.writeText(window.location.href)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid"><Share2 size={15}/> Copy Report Link</button>
         <a download={`archon-report-${report.id}.json`} href={`/api/reports/${report.id}`} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-green-400"><Download size={15}/> Download JSON</a>
         <GenerateProofModal reportId={report.id} />
       </div>

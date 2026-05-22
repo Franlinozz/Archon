@@ -79,7 +79,7 @@ export function AuditStudioClient({ initialSource }: Props) {
         <div className="overflow-hidden rounded-card border border-border-subtle bg-surface-1">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-surface-1 p-3">
             <div className="flex flex-wrap gap-2">
-              <button className="rounded-pill border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-medium text-green-400">Paste Code</button>
+              <span className="rounded-pill border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-medium text-green-400">Paste Code</span>
               {[["Upload File", "file"], ["GitHub Repo", "github"]].map(([label, key]) => <button key={key} disabled className="cursor-not-allowed rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-low opacity-80">{label} <span className="ml-2 rounded-pill border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-warning">Coming soon</span></button>)}
             </div>
             <div className="flex items-center gap-2">
