@@ -6,7 +6,7 @@ Accepted
 ## Context
 Francis confirmed the Mantle Mainnet ERC-8004 registry addresses against the official ERC-8004 team repository (`github.com/erc-8004/erc-8004-contracts`). That README publishes Mantle Mainnet addresses for IdentityRegistry and ReputationRegistry only. It does not publish a Mantle Mainnet ValidationRegistry address, and the ERC-8004 docs describe Validation as still under active revision.
 
-Archon also needs public Mantle RPC access and free-tier IPFS pinning for proof metadata. Secrets must remain server-side and out of git.
+Archon also needs public Mantle RPC access and free-tier IPFS pinning for proof metadata. Secrets must remain server-side and out of git. Francis provided a Pinata JWT for the VPS runtime, so production proof metadata can use real `ipfs://` URIs instead of the HTTPS fallback.
 
 ## Decision
 - Use Mantle Mainnet public RPC: `https://rpc.mantle.xyz`.
@@ -16,7 +16,7 @@ Archon also needs public Mantle RPC access and free-tier IPFS pinning for proof 
 - Scope Session 5 to Identity + Reputation only.
 - Keep `ERC8004_VALIDATION_REGISTRY` unset. Validation/challenge UI must degrade gracefully and not show dead controls.
 - Use ABIs copied directly from the official repo `abis/` folder; do not hand-write ABI fragments.
-- Continue using free-tier Web3.Storage-compatible IPFS pinning via `IPFS_PIN_PROVIDER=web3storage` and server-only `IPFS_PIN_TOKEN`. If no token is configured, Archon stores canonical metadata in Postgres and returns an HTTPS metadata endpoint (`/api/reports/[id]/proof/metadata`) so verification remains deterministic without bloating on-chain calldata.
+- Use free-tier Pinata IPFS pinning via `IPFS_PIN_PROVIDER=pinata` and server-only `IPFS_PIN_TOKEN` for production proof metadata. If no token is configured, Archon stores canonical metadata in Postgres and returns an HTTPS metadata endpoint (`/api/reports/[id]/proof/metadata`) so verification remains deterministic without bloating on-chain calldata.
 
 ## Consequences
 - Archon can prepare and simulate identity minting without a Validation Registry.
