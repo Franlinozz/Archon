@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowUpRight, Search } from "lucide-react";
 import { db } from "@/lib/db/client";
-import { SeverityPill } from "@/components/archon";
+import { logger } from "@/lib/logger";
+import { DegradedNotice, SeverityPill } from "@/components/archon";
 import type { Severity } from "@/components/archon/severity";
 
 type FindingRow = {
@@ -40,19 +41,27 @@ export default async function FindingsIndexPage({ searchParams }: { searchParams
     where.push(`(f.title ilike $${values.length} or f.category ilike $${values.length} or f.file ilike $${values.length} or r.contract_name ilike $${values.length})`);
   }
   const whereSql = where.length ? `where ${where.join(" and ")}` : "";
-  const [findingsResult, countsResult] = await Promise.all([
-    db.query<FindingRow>(
-      `select f.id, f.report_id as "reportId", f.scan_id as "scanId", r.contract_name as "contractName", f.severity, f.category, f.title, f.file, f.line_start as "lineStart", f.line_end as "lineEnd", f.confidence, f.status, f.created_at as "createdAt", r.risk_score as "riskScore"
-       from findings f join reports r on r.id=f.report_id
-       ${whereSql}
-       order by case f.severity when 'critical' then 1 when 'high' then 2 when 'medium' then 3 when 'low' then 4 else 5 end, f.created_at desc
-       limit 100`,
-      values,
-    ),
-    db.query<CountRow>(`select severity, count(*)::text as count from findings where report_id is not null group by severity`),
-  ]);
-  const counts = Object.fromEntries(countsResult.rows.map((row) => [row.severity, row.count]));
-  const rows = findingsResult.rows;
+  let rows: FindingRow[] = [];
+  let counts: Record<string, string> = {};
+  let degraded = false;
+  try {
+    const [findingsResult, countsResult] = await Promise.all([
+      db.query<FindingRow>(
+        `select f.id, f.report_id as "reportId", f.scan_id as "scanId", r.contract_name as "contractName", f.severity, f.category, f.title, f.file, f.line_start as "lineStart", f.line_end as "lineEnd", f.confidence, f.status, f.created_at as "createdAt", r.risk_score as "riskScore"
+         from findings f join reports r on r.id=f.report_id
+         ${whereSql}
+         order by case f.severity when 'critical' then 1 when 'high' then 2 when 'medium' then 3 when 'low' then 4 else 5 end, f.created_at desc
+         limit 100`,
+        values,
+      ),
+      db.query<CountRow>(`select severity, count(*)::text as count from findings where report_id is not null group by severity`),
+    ]);
+    counts = Object.fromEntries(countsResult.rows.map((row) => [row.severity, row.count]));
+    rows = findingsResult.rows;
+  } catch (error) {
+    degraded = true;
+    logger.error({ err: error instanceof Error ? error.message : String(error) }, "findings page data fetch failed; rendering degraded state");
+  }
   return <div className="space-y-6">
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -63,8 +72,10 @@ export default async function FindingsIndexPage({ searchParams }: { searchParams
       <Link href="/app/audit/new" className="rounded-control bg-green-400 px-4 py-2 text-sm font-semibold text-canvas">Run new audit</Link>
     </header>
 
+    {degraded ? <DegradedNotice resource="Findings data"/> : null}
+
     <section className="grid gap-3 md:grid-cols-5">
-      {(["critical", "high", "medium", "low", "info"] as Severity[]).map((item) => <Link key={item} href={`/app/findings?severity=${item}`} className="rounded-card border border-border-subtle bg-surface-1 p-4 hover:border-green-400/40"><p className="text-xs uppercase tracking-[0.12em] text-text-low">{item}</p><p className="mt-2 text-3xl font-bold text-text-hi">{counts[item] ?? "0"}</p></Link>)}
+      {(["critical", "high", "medium", "low", "info"] as Severity[]).map((item) => <Link key={item} href={`/app/findings?severity=${item}`} className="rounded-card border border-border-subtle bg-surface-1 p-4 hover:border-green-400/40"><p className="text-xs uppercase tracking-[0.12em] text-text-low">{item}</p><p className="mt-2 text-3xl font-bold text-text-hi">{degraded ? "—" : counts[item] ?? "0"}</p></Link>)}
     </section>
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5">

@@ -1,8 +1,9 @@
 import { db } from "@/lib/db/client";
+import { logger } from "@/lib/logger";
 import { deterministicReportHash } from "@/lib/proof/canonical";
 import { explorerTxUrl, validationRegistryStatus } from "@/lib/chain/mantle";
 import { ExternalLink, ShieldCheck } from "lucide-react";
-import { CopyButton } from "@/components/archon";
+import { CopyButton, DegradedNotice } from "@/components/archon";
 
 export const dynamic = "force-dynamic";
 
@@ -11,17 +12,24 @@ type ProofRow = {
 };
 
 export default async function Page() {
-  const proofs = await db.query<ProofRow>(
-    `select p.id, p.report_id as "reportId", r.contract_name as "contractName", r.risk_score as "riskScore", p.report_hash as "reportHash", p.tx_hash as "txHash", p.metadata_uri as "metadataUri", p.metadata, p.network, p.logged_at as "loggedAt", p.verification_status as "verificationStatus"
-     from proofs p join reports r on r.id=p.report_id order by p.logged_at desc nulls last, p.created_at desc limit 25`,
-  );
-  const rows = proofs.rows;
+  let rows: ProofRow[] = [];
+  let degraded = false;
+  try {
+    const proofs = await db.query<ProofRow>(
+      `select p.id, p.report_id as "reportId", r.contract_name as "contractName", r.risk_score as "riskScore", p.report_hash as "reportHash", p.tx_hash as "txHash", p.metadata_uri as "metadataUri", p.metadata, p.network, p.logged_at as "loggedAt", p.verification_status as "verificationStatus"
+       from proofs p join reports r on r.id=p.report_id order by p.logged_at desc nulls last, p.created_at desc limit 25`,
+    );
+    rows = proofs.rows;
+  } catch (error) {
+    degraded = true;
+    logger.error({ err: error instanceof Error ? error.message : String(error) }, "proofs page data fetch failed; rendering degraded state");
+  }
   const selected = rows[0] ?? null;
   const rederived = selected?.metadata ? deterministicReportHash(selected.metadata) : null;
   const verified = Boolean(selected && rederived === selected.reportHash && (selected.txHash || selected.verificationStatus === "prepared"));
   const validation = validationRegistryStatus();
   return <div className="space-y-6">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-4xl font-bold tracking-tight text-text-hi">On-chain Proof & Reports</h1><p className="mt-2 max-w-3xl text-text-mid">Verify Archon audit reports against deterministic report hashes, stored metadata, and ERC-8004 Identity/Reputation proof records.</p></div><span className="rounded-pill border border-warning/30 bg-warning/10 px-3 py-1 text-sm text-warning">Mantle proof path · Identity + Reputation only</span></div>{!validation.available ? <p className="rounded-card border border-border-subtle bg-surface-1 p-3 text-sm text-text-mid">{validation.note} Validation/challenge flows are hidden until an official address is published.</p> : null}
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-4xl font-bold tracking-tight text-text-hi">On-chain Proof & Reports</h1><p className="mt-2 max-w-3xl text-text-mid">Verify Archon audit reports against deterministic report hashes, stored metadata, and ERC-8004 Identity/Reputation proof records.</p></div><span className="rounded-pill border border-warning/30 bg-warning/10 px-3 py-1 text-sm text-warning">Mantle proof path · Identity + Reputation only</span></div>{degraded ? <DegradedNotice resource="On-chain proof records"/> : null}{!validation.available ?<p className="rounded-card border border-border-subtle bg-surface-1 p-3 text-sm text-text-mid">{validation.note} Validation/challenge flows are hidden until an official address is published.</p> : null}
     <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
       <section className="rounded-card border border-border-subtle bg-surface-1 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2"><span className="rounded-pill border border-green-400/35 bg-green-400/10 px-3 py-1.5 text-sm text-green-400">Report History</span><span className="rounded-pill border border-border-subtle bg-surface-2 px-3 py-1.5 text-sm text-text-mid">Proof Verification</span></div><input placeholder="Search contract, hash, tx hash…" className="min-w-72 rounded-control border-border-subtle bg-terminal text-sm text-text-hi placeholder:text-text-low" /></div>

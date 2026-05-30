@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity, ArrowRight, FileText, ShieldCheck, Zap } from "lucide-react";
 import { db } from "@/lib/db/client";
+import { logger } from "@/lib/logger";
 import { EmptyReportsState } from "@/components/archon";
 
 type ReportRow = { id: string; contractName: string; riskScore: number; createdAt: string; proofTx: string | null };
@@ -9,16 +10,29 @@ type ScanRow = { id: string; status: string; progress: number; currentStage: str
 export const dynamic = "force-dynamic";
 
 export default async function AppOverview() {
-  const [reportsResult, scansResult, countsResult] = await Promise.all([
-    db.query<ReportRow>(`select r.id, r.contract_name as "contractName", r.risk_score as "riskScore", r.created_at as "createdAt", p.tx_hash as "proofTx" from reports r left join proofs p on p.report_id=r.id order by r.created_at desc limit 5`),
-    db.query<ScanRow>(`select id,status,progress,current_stage as "currentStage",created_at as "createdAt" from scans order by created_at desc limit 5`),
-    db.query<{ reports: string; critical: string; proofs: string }>(`select (select count(*) from reports)::text as reports, (select count(*) from findings where severity='critical')::text as critical, (select count(*) from proofs where tx_hash is not null)::text as proofs`),
-  ]);
-  const reports = reportsResult.rows;
-  const scans = scansResult.rows;
-  const counts = countsResult.rows[0] ?? { reports: "0", critical: "0", proofs: "0" };
+  // Degrade inline: the resilient db layer auto-retries a transient blip, but if the
+  // database is genuinely unreachable we show honest "—" KPIs + a banner rather than a
+  // 500 (the segment error boundary is the last resort). No fabricated zeros.
+  let reports: ReportRow[] = [];
+  let scans: ScanRow[] = [];
+  let counts = { reports: "—", critical: "—", proofs: "—" };
+  let degraded = false;
+  try {
+    const [reportsResult, scansResult, countsResult] = await Promise.all([
+      db.query<ReportRow>(`select r.id, r.contract_name as "contractName", r.risk_score as "riskScore", r.created_at as "createdAt", p.tx_hash as "proofTx" from reports r left join proofs p on p.report_id=r.id order by r.created_at desc limit 5`),
+      db.query<ScanRow>(`select id,status,progress,current_stage as "currentStage",created_at as "createdAt" from scans order by created_at desc limit 5`),
+      db.query<{ reports: string; critical: string; proofs: string }>(`select (select count(*) from reports)::text as reports, (select count(*) from findings where severity='critical')::text as critical, (select count(*) from proofs where tx_hash is not null)::text as proofs`),
+    ]);
+    reports = reportsResult.rows;
+    scans = scansResult.rows;
+    counts = countsResult.rows[0] ?? { reports: "0", critical: "0", proofs: "0" };
+  } catch (error) {
+    degraded = true;
+    logger.error({ err: error instanceof Error ? error.message : String(error) }, "app overview data fetch failed; rendering degraded state");
+  }
   return <div className="space-y-6">
     <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.14em] text-green-400">Workspace Overview</p><h1 className="mt-2 text-4xl font-bold tracking-tight text-text-hi">Archon command center</h1><p className="mt-2 text-text-mid">Live audit activity, proof status, and next actions for Mantle Mainnet reports.</p></div><span className="rounded-pill border border-success/30 bg-success/10 px-3 py-1 text-sm text-success">Mantle Mainnet · Live</span></header>
+    {degraded ? <div className="flex items-center gap-3 rounded-card border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning"><Activity size={16}/><span>Live workspace data is temporarily unavailable — values show “—” until the connection recovers. No scan or on-chain action was affected.</span></div> : null}
     <section className="grid gap-4 md:grid-cols-4"><Kpi title="Audits This Week" value={counts.reports} note="live reports"/><Kpi title="Critical Findings Prevented" value={counts.critical} note="live findings"/><Kpi title="Estimated Gas Saved" value="$86" note="sample cost guard" sample/><Kpi title="Proofs Logged On-chain" value={counts.proofs} note="live proofs"/></section>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <main className="space-y-6"><section className="rounded-card border border-border-subtle bg-surface-1 p-5"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold text-text-hi">Recent Reports</h2><input placeholder="Filter reports…" className="rounded-control border-border-subtle bg-terminal text-sm text-text-hi placeholder:text-text-low"/></div>{reports.length ? <div className="overflow-hidden rounded-card border border-border-subtle"><table className="w-full text-left text-sm"><thead className="bg-surface-2 text-text-low"><tr><th className="p-3">Contract</th><th className="p-3">Risk</th><th className="p-3">Proof</th><th className="p-3">Action</th></tr></thead><tbody>{reports.map((r) => <tr key={r.id} className="border-t border-border-subtle"><td className="p-3 text-text-hi">{r.contractName}</td><td className="p-3 text-warning">{r.riskScore}</td><td className="p-3 text-text-mid">{r.proofTx ? "Logged" : "Pending"}</td><td className="p-3"><Link className="text-green-400" href={`/app/reports/${r.id}`}>Open</Link></td></tr>)}</tbody></table></div> : <EmptyReportsState/>}</section>

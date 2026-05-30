@@ -1,9 +1,11 @@
 import type React from "react";
+import type { QueryResultRow } from "pg";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, MoreHorizontal } from "lucide-react";
 import { db } from "@/lib/db/client";
-import { SeverityPill } from "@/components/archon";
+import { logger } from "@/lib/logger";
+import { DegradedNotice, SeverityPill } from "@/components/archon";
 import type { Severity } from "@/components/archon/severity";
 import { GenerateFindingTestButton } from "./GenerateFindingTestButton";
 
@@ -13,15 +15,26 @@ type Finding = {
 
 export default async function Page({ params }: { params: Promise<{ reportId: string; findingId: string }> }) {
   const { reportId, findingId } = await params;
-  const reportResult = await db.query(`select r.id, r.contract_name as "contractName", r.scope, s.source_code as "sourceCode" from reports r join scans s on s.id=r.scan_id where r.id=$1`, [reportId]);
-  const report = reportResult.rows[0];
+  let report: QueryResultRow | undefined;
+  let findings: Finding[] = [];
+  let degraded = false;
+  try {
+    const reportResult = await db.query(`select r.id, r.contract_name as "contractName", r.scope, s.source_code as "sourceCode" from reports r join scans s on s.id=r.scan_id where r.id=$1`, [reportId]);
+    report = reportResult.rows[0];
+    if (report) {
+      const findingsResult = await db.query<Finding>(
+        `select id, severity, category, title, file, line_start as "lineStart", line_end as "lineEnd", code_snippet as "codeSnippet", summary, why_mantle as "whyMantle", exploit_scenario as "exploitScenario", recommended_fix as "recommendedFix", patch_diff as "patchDiff", confidence, gas_impact as "gasImpact", status
+         from findings where report_id=$1 order by sort_index nulls last, id`,
+        [reportId],
+      );
+      findings = findingsResult.rows;
+    }
+  } catch (error) {
+    degraded = true;
+    logger.error({ err: error instanceof Error ? error.message : String(error), reportId, findingId }, "finding detail data fetch failed; rendering degraded state");
+  }
+  if (degraded) return <div className="space-y-6"><DegradedNotice resource="This finding"/></div>;
   if (!report) notFound();
-  const findingsResult = await db.query<Finding>(
-    `select id, severity, category, title, file, line_start as "lineStart", line_end as "lineEnd", code_snippet as "codeSnippet", summary, why_mantle as "whyMantle", exploit_scenario as "exploitScenario", recommended_fix as "recommendedFix", patch_diff as "patchDiff", confidence, gas_impact as "gasImpact", status
-     from findings where report_id=$1 order by sort_index nulls last, id`,
-    [reportId],
-  );
-  const findings = findingsResult.rows;
   const index = findings.findIndex((finding) => finding.id === findingId);
   const finding = findings[index];
   if (!finding) notFound();
