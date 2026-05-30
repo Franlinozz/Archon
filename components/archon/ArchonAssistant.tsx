@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Bot, Send, Sparkles, X } from "lucide-react";
 
 type Role = "user" | "assistant";
@@ -18,6 +19,7 @@ const canned = ["Explain this finding", "What is the L1 data fee?", "How do I ge
 const storageKey = "archon-assistant-v1";
 
 export function ArchonAssistant() {
+  const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -89,7 +91,14 @@ export function ArchonAssistant() {
     <button aria-label="Open Archon Assistant" onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-green-400/40 bg-green-400 text-canvas shadow-[0_0_0_0_rgba(63,217,138,0.35)] transition hover:scale-105 motion-safe:animate-pulse">
       <Bot size={24}/>
     </button>
-    <div className={open ? "fixed bottom-24 right-6 z-50 h-[580px] w-[min(380px,calc(100vw-2rem))] origin-bottom-right scale-100 opacity-100 transition-all duration-300 ease-out" : "pointer-events-none fixed bottom-24 right-6 z-50 h-[580px] w-[min(380px,calc(100vw-2rem))] origin-bottom-right scale-90 opacity-0 transition-all duration-200 ease-in"}>
+    <motion.div
+      className="fixed bottom-24 right-6 z-50 h-[580px] w-[min(380px,calc(100vw-2rem))] origin-bottom-right"
+      initial={false}
+      animate={open ? { scale: 1, opacity: 1 } : { scale: 0.9, opacity: 0 }}
+      transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 26 }}
+      style={{ pointerEvents: open ? "auto" : "none", willChange: "transform, opacity" }}
+      aria-hidden={!open}
+    >
       <section className="flex h-full flex-col overflow-hidden rounded-card border border-border-subtle bg-surface-1 shadow-2xl shadow-black/40">
         <header className="flex items-start justify-between border-b border-border-subtle bg-surface-2 p-4">
           <div><p className="flex items-center gap-2 text-sm font-semibold text-text-hi"><Sparkles size={15} className="text-green-400"/> Archon Assistant</p><p className="mt-1 text-xs text-text-low">Contextual help for Mantle audit reports.</p></div>
@@ -97,7 +106,7 @@ export function ArchonAssistant() {
         </header>
         <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto p-4">
           {!messages.length ? <div className="space-y-3"><p className="rounded-card border border-border-subtle bg-terminal p-3 text-sm leading-6 text-text-mid">Ask about the page you are viewing. I can explain findings, proof status, Mantle context, and how to navigate Archon.</p><div className="flex flex-wrap gap-2">{canned.map((item) => <button key={item} onClick={() => submit(item)} className="rounded-pill border border-green-400/30 bg-green-400/10 px-3 py-1.5 text-xs text-green-400">{item}</button>)}</div></div> : null}
-          {messages.map((message, index) => <div key={`${index}-${message.role}`} className={message.role === "user" ? "ml-8 rounded-card bg-green-400 px-3 py-2 text-sm text-canvas" : "mr-8 rounded-card border border-border-subtle bg-terminal px-3 py-2 text-sm leading-6 text-text-mid will-change-[opacity] animate-in fade-in"}>{message.content || <ThinkingDots/>}</div>)}
+          {messages.map((message, index) => <motion.div key={`${index}-${message.role}`} initial={reduce ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }} style={{ willChange: "opacity, transform" }} className={message.role === "user" ? "ml-8 rounded-card bg-green-400 px-3 py-2 text-sm text-canvas" : "mr-8 rounded-card border border-border-subtle bg-terminal px-3 py-2 text-sm leading-6 text-text-mid"}>{message.content || <ThinkingDots/>}</motion.div>)}
           {loading && messages.at(-1)?.content ? <ThinkingDots/> : null}
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="border-t border-border-subtle p-3">
@@ -105,11 +114,11 @@ export function ArchonAssistant() {
           <p className="mt-2 text-center text-[11px] text-text-low">Archon Assistant · Mantle Mainnet · {footerTx}</p>
         </form>
       </section>
-    </div>
+    </motion.div>
   </>;
 }
 
-function ThinkingDots() { return <span className="inline-flex gap-1 p-1"><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-low"/><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-low [animation-delay:120ms]"/><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-low [animation-delay:240ms]"/></span>; }
+function ThinkingDots() { return <span className="inline-flex gap-1 p-1"><span className="h-1.5 w-1.5 rounded-full bg-text-low motion-safe:animate-bounce"/><span className="h-1.5 w-1.5 rounded-full bg-text-low motion-safe:animate-bounce [animation-delay:120ms]"/><span className="h-1.5 w-1.5 rounded-full bg-text-low motion-safe:animate-bounce [animation-delay:240ms]"/></span>; }
 
 async function buildContext(): Promise<RouteContext> {
   const route = window.location.pathname;

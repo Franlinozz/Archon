@@ -6,4 +6,18 @@
   --border-subtle: rgba(255,255,255,0.06); --border-emphasis: #2C3630; --green-500: #27B567; --green-400: #3FD98A; --green-300: #73E7AC; --on-green: #06140E;
   --text-hi: #F3F6F4; --text-mid: #AEB8B2; --text-low: #6B756F; --text-code: #C8D2CC; --danger: #FF5C5C; --high: #FF8A4C; --warning: #F5B544; --success: #3FD98A; --info: #5BA8FF;
 }
+/* Non-essential motion gated behind reduced-motion. transform/opacity only. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes archon-pop { from { transform: scale(0.55); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .archon-pop { animation: archon-pop 0.24s cubic-bezier(0.22, 0.61, 0.36, 1); }
+}
+/* App-wide micro-interactions: smooth colour transitions on interactive elements and a
+   subtle press on buttons. Colour transitions are harmless under reduced motion; the
+   transform press is gated above via the no-preference block. */
+button, a, [role="button"], summary { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
+tbody tr { transition: background-color 0.15s ease; }
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled) { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }
+  button:not(:disabled):active { transform: scale(0.98); }
+}
 * { box-sizing: border-box; } html { background: var(--canvas); color: var(--text-hi); } body { margin: 0; background: var(--canvas); color: var(--text-hi); font-family: var(--font-ui), Inter, sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; } a { color: inherit; text-decoration: none; }
