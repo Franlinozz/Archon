@@ -126,7 +126,7 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
   if (!scan) return <div className="rounded-card border border-border-subtle bg-surface-1 p-8 text-text-mid">Loading live scan…</div>;
 
   return <div className="space-y-6">
-    <header className="rounded-card border border-border-subtle bg-surface-1 p-6">
+    <header className="rounded-card border border-border-subtle bg-surface-1 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-green-400">Live Scan Progress</p>
@@ -168,7 +168,7 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
         </div>
         {report ? <div className="mt-4 flex items-center justify-between rounded-card border border-green-400/25 bg-green-400/10 p-4"><div><p className="text-sm text-text-mid">Report assembled</p><p className="font-mono text-2xl text-green-400">Risk {report.riskScore}/100</p></div><Link href={`/app/reports/${report.id}`} className="rounded-control bg-green-500 px-4 py-2 text-sm font-semibold text-on-green hover:bg-green-400">View Report</Link></div> : null}
         <div className="mt-5 max-h-[680px] space-y-3 overflow-auto pr-1">
-          {visibleFindings.length ? visibleFindings.map((finding) => <FindingCard key={finding.id} severity={finding.severity} title={finding.title} location={`${finding.file}:${finding.lineStart ?? "?"}`} status={finding.status} />) : <div className="rounded-card border border-border-subtle bg-terminal p-6 text-sm text-text-low">No findings in this filter yet.</div>}
+          {visibleFindings.length ? visibleFindings.map((finding) => <FindingCard key={finding.id} severity={finding.severity} title={finding.title} location={`${finding.file}:${finding.lineStart ?? "?"}`} status={finding.status} />) : <div className="rounded-card border border-border-subtle bg-terminal p-5 text-sm text-text-low">No findings in this filter yet.</div>}
         </div>
       </section>
     </div>
