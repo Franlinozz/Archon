@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
+import { logger } from "@/lib/logger";
 import { enqueueScan } from "@/lib/queue/scans";
+import { redisReady } from "@/lib/queue/redis";
 
 const MAX_SOURCE_BYTES = 350_000;
 const scanDepths = ["quick", "deep", "gas-cost", "full-report"] as const;
@@ -63,6 +65,9 @@ export async function POST(request: Request) {
   const sourceCode = input.sourceKind === "paste" ? input.sourceCode!.trim() : null;
   const sourceRef = input.sourceKind === "address" ? input.sourceRef!.trim() : null;
 
+  // Step 1: persist the scan. The resilient db layer already retries a transient blip;
+  // a failure here means the database is genuinely unreachable.
+  let scanId: string | undefined;
   try {
     const result = await db.query<{ id: string }>(
       `insert into scans (source_kind, source_ref, source_code, network, scan_depth, protocols, status, progress, current_stage, created_at)
@@ -70,14 +75,41 @@ export async function POST(request: Request) {
        returning id`,
       [input.sourceKind, sourceRef, sourceCode, input.scanDepth, JSON.stringify(input.protocols)],
     );
-
-    const scanId = result.rows[0]?.id;
+    scanId = result.rows[0]?.id;
     if (!scanId) throw new Error("Scan insert did not return an id");
-
-    await enqueueScan(scanId);
-    return NextResponse.json({ scanId }, { status: 201 });
   } catch (error) {
-    console.error("create scan failed", error);
-    return NextResponse.json({ error: "Unable to create scan. Check database and queue connectivity." }, { status: 500 });
+    logger.error({ err: error instanceof Error ? error.message : String(error) }, "create scan: database insert failed");
+    return NextResponse.json(
+      { error: "Audit database is temporarily unavailable. Your audit was not started — please retry in a moment." },
+      { status: 503 },
+    );
   }
+
+  // Step 2: enqueue the worker job. Fail fast if Redis isn't live (otherwise the enqueue
+  // sits in ioredis's offline queue and the request hangs); also cap a slow enqueue. If
+  // this fails the row exists but would hang at "queued" forever, so we mark it failed to
+  // avoid an orphan and report precisely.
+  try {
+    if (!redisReady()) throw new Error("Redis connection is not ready");
+    await Promise.race([
+      enqueueScan(scanId),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("enqueue timeout")), 4_000)),
+    ]);
+  } catch (error) {
+    logger.error({ err: error instanceof Error ? error.message : String(error), scanId }, "create scan: enqueue failed");
+    try {
+      await db.query(
+        "update scans set status='failed', error=$2, current_stage='Failed', finished_at=now() where id=$1",
+        [scanId, "Scan queue was unavailable at submission time."],
+      );
+    } catch (cleanupError) {
+      logger.error({ err: cleanupError instanceof Error ? cleanupError.message : String(cleanupError), scanId }, "create scan: failed to mark orphan scan as failed");
+    }
+    return NextResponse.json(
+      { error: "Scan queue is temporarily unavailable. Your audit was not started — please retry in a moment." },
+      { status: 503 },
+    );
+  }
+
+  return NextResponse.json({ scanId }, { status: 201 });
 }
