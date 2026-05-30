@@ -20,6 +20,7 @@ type FindingRow = {
   status: string;
   createdAt: string;
   riskScore: number;
+  occurrences: number;
 };
 
 type CountRow = { severity: Severity; count: string };
@@ -45,16 +46,25 @@ export default async function FindingsIndexPage({ searchParams }: { searchParams
   let counts: Record<string, string> = {};
   let degraded = false;
   try {
+    // Dedup identical findings (same title/file/severity/category) to their most recent
+    // occurrence so the same contract scanned repeatedly doesn't spam the index; an
+    // `occurrences` count surfaces how many reports share each finding. The severity KPI
+    // cards count distinct findings the same way so the numbers stay consistent.
     const [findingsResult, countsResult] = await Promise.all([
       db.query<FindingRow>(
-        `select f.id, f.report_id as "reportId", f.scan_id as "scanId", r.contract_name as "contractName", f.severity, f.category, f.title, f.file, f.line_start as "lineStart", f.line_end as "lineEnd", f.confidence, f.status, f.created_at as "createdAt", r.risk_score as "riskScore"
-         from findings f join reports r on r.id=f.report_id
-         ${whereSql}
-         order by case f.severity when 'critical' then 1 when 'high' then 2 when 'medium' then 3 when 'low' then 4 else 5 end, f.created_at desc
+        `select * from (
+           select distinct on (f.title, f.file, f.severity, f.category)
+             f.id, f.report_id as "reportId", f.scan_id as "scanId", r.contract_name as "contractName", f.severity, f.category, f.title, f.file, f.line_start as "lineStart", f.line_end as "lineEnd", f.confidence, f.status, f.created_at as "createdAt", r.risk_score as "riskScore",
+             count(*) over (partition by f.title, f.file, f.severity, f.category)::int as occurrences
+           from findings f join reports r on r.id=f.report_id
+           ${whereSql}
+           order by f.title, f.file, f.severity, f.category, f.created_at desc
+         ) d
+         order by case d.severity when 'critical' then 1 when 'high' then 2 when 'medium' then 3 when 'low' then 4 else 5 end, d."createdAt" desc
          limit 100`,
         values,
       ),
-      db.query<CountRow>(`select severity, count(*)::text as count from findings where report_id is not null group by severity`),
+      db.query<CountRow>(`select severity, count(*)::text as count from (select distinct title, file, severity, category from findings where report_id is not null) d group by severity`),
     ]);
     counts = Object.fromEntries(countsResult.rows.map((row) => [row.severity, row.count]));
     rows = findingsResult.rows;
@@ -67,7 +77,7 @@ export default async function FindingsIndexPage({ searchParams }: { searchParams
       <div>
         <p className="text-xs uppercase tracking-[0.14em] text-green-400">Findings Index</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight text-text-hi">All audit findings</h1>
-        <p className="mt-2 max-w-3xl text-text-mid">Cross-report triage for deterministic Slither and Mantle-specific rule findings. This is a review queue, not an auto-remediation surface.</p>
+        <p className="mt-2 max-w-3xl text-text-mid">Cross-report triage for deterministic Slither and Mantle-specific rule findings, deduplicated to unique issues. This is a review queue, not an auto-remediation surface.</p>
       </div>
       <Link href="/app/audit/new" className="rounded-control bg-green-400 px-4 py-2 text-sm font-semibold text-canvas">Run new audit</Link>
     </header>
@@ -88,7 +98,7 @@ export default async function FindingsIndexPage({ searchParams }: { searchParams
       <div className="mt-5 overflow-hidden rounded-card border border-border-subtle">
         <table className="w-full text-left text-sm">
           <thead className="bg-surface-2 text-text-low"><tr><th className="p-3">Severity</th><th className="p-3">Finding</th><th className="p-3">Contract</th><th className="p-3">Location</th><th className="p-3">Confidence</th><th className="p-3">Action</th></tr></thead>
-          <tbody>{rows.map((finding) => <tr key={finding.id} className="border-t border-border-subtle hover:bg-surface-2"><td className="p-3"><SeverityPill severity={finding.severity} size="sm"/></td><td className="p-3"><p className="font-semibold text-text-hi">{finding.title}</p><p className="mt-1 font-mono text-xs text-text-low">{finding.category}</p></td><td className="p-3"><p className="text-text-hi">{finding.contractName}</p><p className="text-xs text-warning">risk {finding.riskScore}</p></td><td className="p-3 font-mono text-text-low">{finding.file}:{finding.lineStart ?? "?"}{finding.lineEnd && finding.lineEnd !== finding.lineStart ? `-${finding.lineEnd}` : ""}</td><td className="p-3 text-green-400">{Math.round(Number(finding.confidence ?? 0) * 100)}%</td><td className="p-3"><Link href={`/app/reports/${finding.reportId}/findings/${finding.id}`} className="inline-flex items-center gap-1 text-green-400">Open <ArrowUpRight size={14}/></Link></td></tr>)}{!rows.length ? <tr><td colSpan={6} className="p-8 text-center text-text-low"><AlertTriangle className="mx-auto mb-2 text-warning"/>No findings match this filter.</td></tr> : null}</tbody>
+          <tbody>{rows.map((finding) => <tr key={finding.id} className="border-t border-border-subtle hover:bg-surface-2"><td className="p-3"><SeverityPill severity={finding.severity} size="sm"/></td><td className="p-3"><p className="font-semibold text-text-hi">{finding.title}{finding.occurrences > 1 ? <span className="ml-2 rounded-pill border border-border-subtle bg-surface-2 px-2 py-0.5 align-middle text-[10px] font-normal text-text-low">seen in {finding.occurrences} reports</span> : null}</p><p className="mt-1 font-mono text-xs text-text-low">{finding.category}</p></td><td className="p-3"><p className="text-text-hi">{finding.contractName}</p><p className="text-xs text-warning">risk {finding.riskScore}</p></td><td className="p-3 font-mono text-text-low">{finding.file}:{finding.lineStart ?? "?"}{finding.lineEnd && finding.lineEnd !== finding.lineStart ? `-${finding.lineEnd}` : ""}</td><td className="p-3 text-green-400">{Math.round(Number(finding.confidence ?? 0) * 100)}%</td><td className="p-3"><Link href={`/app/reports/${finding.reportId}/findings/${finding.id}`} className="inline-flex items-center gap-1 text-green-400">Open <ArrowUpRight size={14}/></Link></td></tr>)}{!rows.length ? <tr><td colSpan={6} className="p-8 text-center text-text-low"><AlertTriangle className="mx-auto mb-2 text-warning"/>No findings match this filter.</td></tr> : null}</tbody>
         </table>
       </div>
     </section>
