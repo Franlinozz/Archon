@@ -51,7 +51,7 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
       </div>
     </header>
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_420px]">
+    <div className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-[minmax(0,1.2fr)_420px]">
       <main className="space-y-4">
         <section className="rounded-card border border-border-subtle bg-terminal p-4">
           <div className="mb-3 flex items-center justify-between text-sm"><span className="text-text-mid">CodePanel · highlighted vulnerable range</span><span className="font-mono text-text-low">{finding.file}</span></div>
