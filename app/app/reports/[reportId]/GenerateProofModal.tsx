@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useAccount } from "wagmi";
+import { useChainModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { CheckCircle2, Copy, Lock, X } from "lucide-react";
-import { explorerTxUrl } from "@/lib/chain/mantle";
-import { shortenAddress, useWallet } from "@/lib/chain/useWallet";
+import { explorerTxUrl, MANTLE_CHAIN_ID } from "@/lib/chain/mantle";
+import { shortenAddress } from "@/lib/chain/useWallet";
 
 type PreparedProof = { proofId: string; reportHash: string; metadataUri: string; chainId: number; network: string; configured: boolean; blocker: string | null; gasEstimate: string | null };
 
 export function GenerateProofModal({ reportId }: { reportId: string }) {
-  const wallet = useWallet();
+  const { address, isConnected, chainId } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { openChainModal } = useChainModal();
+  const onMantle = isConnected && chainId === MANTLE_CHAIN_ID;
   const [open, setOpen] = useState(false);
   const [prepared, setPrepared] = useState<PreparedProof | null>(null);
   const [checked, setChecked] = useState(false);
@@ -27,7 +32,8 @@ export function GenerateProofModal({ reportId }: { reportId: string }) {
     finally { setLoading(false); }
   }
 
-  const canSign = Boolean(prepared?.configured && checked && !loading && !txHash);
+  // Network guard: the write stays disabled until a wallet is connected on Mantle Mainnet.
+  const canSign = Boolean(prepared?.configured && checked && !loading && !txHash && onMantle);
 
   async function signAndLog() {
     if (!canSign || !prepared) return;
@@ -52,10 +58,10 @@ export function GenerateProofModal({ reportId }: { reportId: string }) {
           <Row label="Report hash" value={prepared.reportHash} copy/>
           <Row label="Network" value="Mantle Mainnet · Chain ID 5000"/>
           <Row label="Estimated gas" value={prepared.gasEstimate ?? "Blocked until ERC-8004 simulation is configured"}/>
-          <Row label="Connected wallet" value={wallet.address ? shortenAddress(wallet.address) : "Not connected"}/>
+          <Row label="Connected wallet" value={address ? shortenAddress(address) : "Not connected"}/>
           <Row label="Metadata URI" value={prepared.metadataUri.slice(0, 54) + "…"} copyValue={prepared.metadataUri}/>
-          {!wallet.address ? <button onClick={wallet.connect} className="rounded-control bg-green-400 px-3 py-2 text-sm font-semibold text-canvas">Connect wallet for ownership context</button> : null}
-          {wallet.address && !wallet.isMantle ? <button onClick={wallet.switchToMantle} className="rounded-control bg-warning px-3 py-2 text-sm font-semibold text-canvas">Switch to Mantle Mainnet</button> : null}
+          {!isConnected ? <button onClick={openConnectModal} className="rounded-control bg-green-400 px-3 py-2 text-sm font-semibold text-on-green">Connect wallet on Mantle to enable proof logging</button> : null}
+          {isConnected && !onMantle ? <button onClick={openChainModal} className="rounded-control bg-warning px-3 py-2 text-sm font-semibold text-canvas">Switch to Mantle Mainnet</button> : null}
           {prepared.blocker ? <p className="rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-warning">{prepared.blocker}</p> : <p className="rounded-control border border-success/30 bg-success/10 px-3 py-2 text-success">Server-side proof signer is configured. The Reputation entry is submitted by Archon’s dedicated non-owner client wallet to satisfy ERC-8004 self-feedback rules.</p>}
         </div> : null}
         <label className="mt-5 flex items-start gap-3 rounded-card border border-border-subtle bg-surface-2 p-4 text-sm text-text-mid"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} className="mt-1 rounded border-border-subtle bg-terminal text-green-400 focus:ring-green-400"/> <span>I understand this will log a report proof on Mantle Mainnet</span></label>

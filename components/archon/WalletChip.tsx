@@ -1,36 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { Wallet, X } from "lucide-react";
-import { shortenAddress, useWallet } from "@/lib/chain/useWallet";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { AlertTriangle, Wallet } from "lucide-react";
 
+// RainbowKit-driven wallet control, Mantle Mainnet only. The wagmi config registers chain
+// 5000 as the sole supported chain, so any other network surfaces as `chain.unsupported`
+// and we render a "Switch to Mantle" guard. Writes elsewhere gate on useOnMantle().
 export function WalletChip() {
-  const wallet = useWallet();
-  const [open, setOpen] = useState(false);
-  const label = wallet.address ? shortenAddress(wallet.address) : "Connect wallet";
-  return <>
-    <button onClick={() => setOpen(true)} className={wallet.address && wallet.isMantle ? "flex items-center gap-2 rounded-pill border border-success/30 bg-success/10 px-3 py-2 text-xs text-success" : "flex items-center gap-2 rounded-pill border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"}>
-      <Wallet size={14}/>{label}{wallet.address && !wallet.isMantle ? " · Switch to Mantle" : ""}
-    </button>
-    {open ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-card border border-border-subtle bg-surface-1 p-5 shadow-2xl">
-        <div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.14em] text-green-400">Wallet Connect</p><h2 className="mt-2 text-2xl font-semibold text-text-hi">Mantle Mainnet wallet</h2><p className="mt-2 text-sm text-text-mid">Archon only enables proof signing when your wallet is connected to Mantle Mainnet (chain ID 5000).</p></div><button onClick={() => setOpen(false)} className="rounded-control border border-border-subtle bg-surface-2 p-2 text-text-mid"><X size={16}/></button></div>
-        <div className="mt-5 space-y-3 rounded-card border border-border-subtle bg-terminal p-4 text-sm">
-          <Row label="Address" value={wallet.address ?? "Not connected"}/>
-          <Row label="Network" value={wallet.chainId ? wallet.chainId === 5000 ? "Mantle Mainnet · 5000" : `Wrong network · ${wallet.chainId}` : "Unknown"}/>
-          {wallet.error ? <p className="rounded-control border border-danger/30 bg-danger/10 px-3 py-2 text-danger">{wallet.error}</p> : null}
-        </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
-          {wallet.address ? <button onClick={wallet.disconnect} className="rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid">Disconnect</button> : null}
-          {!wallet.address ? <button disabled={wallet.connecting} onClick={wallet.connect} className="rounded-control bg-green-400 px-3 py-2 text-sm font-semibold text-canvas disabled:opacity-60">{wallet.connecting ? "Connecting…" : "Connect wallet"}</button> : null}
-          {wallet.address && !wallet.isMantle ? <button onClick={wallet.switchToMantle} className="rounded-control bg-warning px-3 py-2 text-sm font-semibold text-canvas">Switch to Mantle Mainnet</button> : null}
-          {wallet.address && wallet.isMantle ? <button onClick={() => setOpen(false)} className="rounded-control bg-green-400 px-3 py-2 text-sm font-semibold text-canvas">Ready</button> : null}
-        </div>
-      </div>
-    </div> : null}
-  </>;
+  return (
+    <ConnectButton.Custom>
+      {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+        const ready = mounted;
+        const connected = ready && account && chain;
+        return (
+          <div aria-hidden={!ready} className={!ready ? "pointer-events-none opacity-0" : ""}>
+            {(() => {
+              if (!connected) {
+                return (
+                  <button onClick={openConnectModal} className="inline-flex items-center gap-2 rounded-pill border border-green-400/40 bg-green-400/10 px-3 py-1.5 text-xs font-medium text-green-400 transition-colors hover:bg-green-400/15">
+                    <Wallet size={14} /> Connect wallet
+                  </button>
+                );
+              }
+              if (chain.unsupported) {
+                return (
+                  <button onClick={openChainModal} className="inline-flex items-center gap-2 rounded-pill border border-warning/40 bg-warning/10 px-3 py-1.5 text-xs font-medium text-warning transition-colors hover:bg-warning/15">
+                    <AlertTriangle size={14} /> Switch to Mantle
+                  </button>
+                );
+              }
+              return (
+                <button onClick={openAccountModal} className="inline-flex items-center gap-2 rounded-pill border border-success/30 bg-success/10 px-3 py-1.5 text-xs font-medium text-success transition-colors hover:bg-success/15">
+                  <span className="size-1.5 rounded-full bg-success" />
+                  <span className="font-mono">{account.displayName}</span>
+                </button>
+              );
+            })()}
+          </div>
+        );
+      }}
+    </ConnectButton.Custom>
+  );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-center justify-between gap-4"><span className="text-text-low">{label}</span><span className="font-mono text-text-hi">{value}</span></div>;
-}
+// Write-gate helper: true only when a wallet is connected AND on Mantle Mainnet (5000).
+export { useOnMantle } from "@/lib/chain/useOnMantle";

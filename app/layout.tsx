@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const display = localFont({
   src: "./fonts/SpaceGrotesk-Bold.woff2",
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${display.variable} ${ui.variable} ${mono.variable}`}>{children}</body>
+      <body className={`${display.variable} ${ui.variable} ${mono.variable}`}><Providers>{children}</Providers></body>
     </html>
   );
 }

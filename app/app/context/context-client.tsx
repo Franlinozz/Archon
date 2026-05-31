@@ -50,7 +50,7 @@ export function ContextClient() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <main className="space-y-4">
           <Panel title="Contract Metadata"><JsonRows object={data.metadata}/><AddressLine label="Address" value={data.address}/></Panel>
-          <Panel title="ABI Preview" action={<button onClick={() => navigator.clipboard.writeText(fullAbi)} className="rounded-pill border border-border-subtle px-3 py-1 text-xs text-green-400">View Full ABI</button>}><pre className="max-h-56 overflow-auto rounded-card bg-terminal p-3 text-xs text-text-code">{fullAbi}</pre></Panel>
+          <Panel title="ABI Preview" action={<button onClick={() => navigator.clipboard.writeText(fullAbi)} className="rounded-pill border border-border-subtle px-3 py-1 text-xs text-green-400 transition-colors hover:border-green-400/40">Copy ABI</button>}><pre className="max-h-56 overflow-auto rounded-card bg-terminal p-3 text-xs text-text-code">{fullAbi}</pre></Panel>
           <Panel title="External Dependencies">{data.dependencies.map((dep) => <div key={dep.label} className="rounded-control border border-border-subtle bg-surface-2 p-3"><AddressLine label={dep.label} value={dep.address}/><p className="mt-1 text-sm text-text-low">{dep.note}</p></div>)}</Panel>
           <Panel title="Known Protocol Interactions"><List items={data.protocolInteractions.map((item) => `${item.name} · ${item.category} · ${item.confidence}% confidence`)}/></Panel>
           <Panel title="Token Exposure"><List items={data.tokenExposure.map((item) => `${item.asset}: ${item.exposure}`)}/></Panel>

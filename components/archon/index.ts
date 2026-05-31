@@ -9,6 +9,7 @@ export * from "./Stepper";
 export * from "./CostMetricCard";
 export * from "./TestCoverageBar";
 export * from "./WalletChip";
+export * from "./NotificationBell";
 export * from "./LogTerminal";
 export * from "./EmptyState";
 export * from "./ArchonAssistant";
