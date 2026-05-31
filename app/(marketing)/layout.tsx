@@ -13,7 +13,7 @@ export default function MarketingLayout({ children }: Readonly<{ children: React
             <Link href="/app/audit/new" className="transition-colors hover:text-text-hi">Audit Studio</Link>
             <Link href="/app/cost-guard" className="transition-colors hover:text-text-hi">Cost Guard</Link>
             <Link href="/app/proofs" className="transition-colors hover:text-text-hi">Reports</Link>
-            <Link href="/#docs" className="transition-colors hover:text-text-hi">Docs</Link>
+            <Link href="/docs" className="transition-colors hover:text-text-hi">Docs</Link>
           </nav>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block"><MainnetBadge /></span>

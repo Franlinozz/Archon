@@ -2,7 +2,7 @@
 
 Archon is a Mantle-native, ERC-8004 trustless smart-contract auditor. It ingests verified or pasted Solidity, runs a seven-stage read-only analysis pipeline, generates audit reports and Foundry regression tests, then lets a user explicitly log a proof of the report to Mantle Mainnet through ERC-8004 Reputation.
 
-Live app: https://archonaudit.xyz
+Live app: https://archonaudit.xyz · Docs: https://archonaudit.xyz/docs
 
 Public verified report example: https://archonaudit.xyz/r/5ec46389-918a-4c90-858a-c14da0667a46
 
@@ -53,11 +53,14 @@ The scan pipeline is read-only. The only intended transaction path is the explic
 
 Archon uses official ERC-8004 contract ABIs and the official Mantle Mainnet Identity and Reputation registries. Validation Registry support is intentionally disabled until an official Mantle Mainnet Validation Registry address is published.
 
-Current production identity:
+Current production identity and registries (Mantle Mainnet, chain `5000`):
 
+- Identity Registry: `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`
+- Reputation Registry: `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`
 - Archon Agent ID: `97`
-- Agent file: https://archonaudit.xyz/.well-known/archon-agent.json
 - Agent identity reference: `eip155:5000:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432:97`
+- Agent file: https://archonaudit.xyz/.well-known/archon-agent.json
+- Example proof tx: `0xfe5a2b6bc9e311227ea54eaad2fc2ce46a32bdea2ff7808528108d61569099cb`
 
 ## Safety invariants
 
