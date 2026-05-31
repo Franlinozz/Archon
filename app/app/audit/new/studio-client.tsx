@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Check, Expand, FileCode2, Info, RefreshCcw, ShieldCheck } from "lucide-react";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { archonMonacoTheme, defineArchonMonacoThemes } from "@/components/theme/monacoThemes";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -26,6 +28,7 @@ type ApiIssue = { path: string; message: string };
 
 export function AuditStudioClient({ initialSource }: Props) {
   const router = useRouter();
+  const { theme } = useTheme();
   const [sourceCode, setSourceCode] = useState(initialSource);
   const [scanDepth, setScanDepth] = useState<ScanDepth>("deep");
   const [selectedProtocols, setSelectedProtocols] = useState<string[]>([...protocols]);
@@ -95,7 +98,8 @@ export function AuditStudioClient({ initialSource }: Props) {
               height={isFullscreen ? "calc(100vh - 210px)" : "620px"}
               defaultLanguage="sol"
               language="sol"
-              theme="vs-dark"
+              theme={archonMonacoTheme(theme)}
+              beforeMount={defineArchonMonacoThemes}
               value={sourceCode}
               onChange={(value) => setSourceCode(value ?? "")}
               options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: "JetBrains Mono, monospace", lineNumbers: "on", scrollBeyondLastLine: false, wordWrap: "on", padding: { top: 16 }, automaticLayout: true }}

@@ -1,23 +1,209 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-:root {
-  --canvas: #0A0E0C; --surface-1: #10150F; --surface-2: #161C17; --surface-3: #1E2620; --terminal: #070908;
-  --border-subtle: rgba(255,255,255,0.06); --border-emphasis: #2C3630; --green-500: #27B567; --green-400: #3FD98A; --green-300: #73E7AC; --on-green: #06140E;
-  --text-hi: #F3F6F4; --text-mid: #AEB8B2; --text-low: #6B756F; --text-code: #C8D2CC; --danger: #FF5C5C; --high: #FF8A4C; --warning: #F5B544; --success: #3FD98A; --info: #5BA8FF;
+
+/* ============================================================================
+   THEME TOKENS
+   Two themes live side by side. Marble (light, premium, green) is the DEFAULT
+   and is mirrored onto :root so an un-themed document still renders correctly.
+   Obsidian (the original dense dark operator console) is preserved verbatim.
+
+   Every token referenced by Tailwind / components exists in BOTH themes, so
+   toggling the html class flips every surface, text, border, badge, chart
+   colour, and code panel. Components reference these only via Tailwind tokens
+   (bg-surface-1, text-ink, border-subtle, …) — never a raw hex.
+   ============================================================================ */
+
+/* Marble — light, premium, green. THIS IS THE DEFAULT. */
+:root,
+.theme-marble {
+  /* surfaces */
+  --canvas:        #F4F8F5;  /* page background, faint green-white */
+  --surface-1:     #FFFFFF;  /* cards, panels */
+  --surface-2:     #EEF4F0;  /* inputs, raised elements, hover rows */
+  --surface-3:     #E3EFE8;  /* active/selected rows, popovers, menus */
+  --code-surface:  #FBFDFC;  /* Monaco / inline code editor background */
+  /* NOTE: across the app `bg-terminal` is reused as the generic recessed/inset
+     surface (inputs, code previews, JSON rows, quick-action tiles), not only the
+     Live Log. In Marble it must therefore be a LIGHT recessed surface so those
+     stay readable. The actual Live Log stays dark by scoping itself to
+     theme-obsidian (see LogTerminal), independent of this value. */
+  --terminal:      #E4EEE8;
+
+  /* text */
+  --ink:    #0B1A14;  /* headings / high-contrast */
+  --body:   #46544D;  /* body copy */
+  --muted:  #6B7A73;  /* table metadata, captions, placeholders */
+  --on-brand: #FFFFFF;
+
+  /* borders + focus */
+  --border-subtle:   rgba(11,26,20,0.08);
+  --border-emphasis: #CFE0D7;
+  --ring:            rgba(22,160,107,0.38);
+
+  /* brand green ramp */
+  --brand-50:  #EFF8F3;
+  --brand-100: #E0F1E9;  /* active-nav background, soft badges */
+  --brand-200: #C2E5D5;
+  --brand-500: #16A06B;  /* accent: active indicator, links, focus, charts */
+  --brand-600: #0E815A;  /* primary button fill */
+  --brand-700: #0A6647;  /* primary hover/pressed, strong brand text */
+
+  /* status (with pill tints) */
+  --success: #15A05B;  --success-bg: #E4F6EC;
+  --warning: #E08A00;  --warning-bg: #FBF0DD;
+  --danger:  #D64545;  --danger-bg:  #FBE6E6;
+  --info:    #2563EB;  --info-bg:    #E5EDFD;
+
+  /* elevation — premium soft shadows */
+  --shadow-sm:    0 1px 2px rgba(11,26,20,0.04);
+  --shadow-card:  0 1px 3px rgba(11,26,20,0.06), 0 8px 24px -12px rgba(11,26,20,0.10);
+  --shadow-lift:  0 2px 6px rgba(11,26,20,0.08), 0 18px 40px -16px rgba(11,26,20,0.18);
+  --glow-brand:   0 0 0 1px var(--brand-200), 0 8px 24px -10px rgba(22,160,107,0.35);
+
+  /* radii */
+  --r-card: 12px; --r-input: 10px; --r-chip: 999px;
+
+  /* ---- legacy aliases: keep pre-existing component tokens working, now
+          driven by the theme so they flip automatically ---- */
+  --green-500: var(--brand-500);
+  --green-400: var(--brand-600);
+  --green-300: var(--brand-700);
+  --on-green:  var(--on-brand);
+  --text-hi:   var(--ink);
+  --text-mid:  var(--body);
+  --text-low:  var(--muted);
+  --text-code: #2A3A32;       /* dark code text on the near-white code surface */
+  --high:      #D9730A;       /* "High" severity — deeper orange than warning */
 }
-/* Non-essential motion gated behind reduced-motion. transform/opacity only. */
+
+/* Obsidian — the original dark operator console. Values preserved verbatim,
+   with the new canonical tokens added as dark-mode equivalents so every token
+   a component might reference exists here too. */
+.theme-obsidian {
+  /* surfaces */
+  --canvas:        #0A0E0C;
+  --surface-1:     #10150F;
+  --surface-2:     #161C17;
+  --surface-3:     #1E2620;
+  --code-surface:  #070908;
+  --terminal:      #070908;
+
+  /* text */
+  --ink:    #F3F6F4;
+  --body:   #AEB8B2;
+  --muted:  #6B756F;
+  --on-brand: #04150D;
+
+  /* borders + focus */
+  --border-subtle:   rgba(255,255,255,0.06);
+  --border-emphasis: #2C3630;
+  --ring:            rgba(39,181,103,0.38);
+
+  /* brand green ramp — higher = brighter on dark (mirrors original green-*) */
+  --brand-50:  rgba(39,181,103,0.08);
+  --brand-100: rgba(39,181,103,0.14);
+  --brand-200: rgba(39,181,103,0.24);
+  --brand-500: #27B567;
+  --brand-600: #3FD98A;
+  --brand-700: #73E7AC;
+
+  /* status */
+  --success: #3FD98A;  --success-bg: rgba(39,181,103,0.12);
+  --warning: #F5B544;  --warning-bg: rgba(247,144,9,0.14);
+  --danger:  #FF5C5C;  --danger-bg:  rgba(217,45,32,0.14);
+  --info:    #5BA8FF;  --info-bg:    rgba(46,144,250,0.14);
+
+  /* elevation — deep shadows for the dark surface */
+  --shadow-sm:    0 1px 2px rgba(0,0,0,0.5);
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.6), 0 12px 32px -16px rgba(0,0,0,0.8);
+  --shadow-lift:  0 2px 6px rgba(0,0,0,0.6), 0 24px 48px -18px rgba(0,0,0,0.9);
+  --glow-brand:   0 0 0 1px rgba(39,181,103,0.4), 0 8px 24px -10px rgba(39,181,103,0.45);
+
+  /* radii (original Obsidian card radius was 14px) */
+  --r-card: 14px; --r-input: 10px; --r-chip: 999px;
+
+  /* ---- legacy aliases (original Obsidian values) ---- */
+  --green-500: var(--brand-500);
+  --green-400: var(--brand-600);
+  --green-300: var(--brand-700);
+  --on-green:  #06140E;
+  --text-hi:   var(--ink);
+  --text-mid:  var(--body);
+  --text-low:  var(--muted);
+  --text-code: #C8D2CC;
+  --high:      #FF8A4C;
+}
+
+/* ============================================================================
+   ATMOSPHERE
+   Marble must not read as flat white: a whisper-quiet radial mint mesh anchored
+   top-right plus a faint grain. Obsidian keeps its plain dark canvas.
+   ============================================================================ */
+.theme-marble body {
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(58rem 38rem at 94% -10%, rgba(22,160,107,0.10), transparent 60%),
+    radial-gradient(46rem 32rem at -8% 8%, rgba(22,160,107,0.05), transparent 60%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+/* faint grain overlay (~2.5%) — static, safe under reduced motion */
+.theme-marble body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* keep real content above the grain layer */
+.theme-marble body > * { position: relative; z-index: 1; }
+
+/* Thin arch/column line-art watermark, opt-in behind heroes / empty areas. */
+.archon-arch {
+  position: relative;
+}
+.archon-arch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: min(640px, 90%) auto;
+  /* two slender columns + an arch, drawn in the brand line colour */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360' fill='none' stroke='%23C2E5D5' stroke-width='2'%3E%3Cpath d='M120 350V120a200 200 0 0 1 400 0v230'/%3E%3Cline x1='150' y1='130' x2='150' y2='350'/%3E%3Cline x1='490' y1='130' x2='490' y2='350'/%3E%3Cline x1='100' y1='350' x2='540' y2='350'/%3E%3Cline x1='100' y1='120' x2='540' y2='120'/%3E%3C/svg%3E");
+}
+.archon-arch > * { position: relative; z-index: 1; }
+.theme-obsidian .archon-arch::before { display: none; }
+
+/* ============================================================================
+   MOTION (unchanged) — non-essential motion gated behind reduced-motion.
+   transform/opacity only.
+   ============================================================================ */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes archon-pop { from { transform: scale(0.55); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   .archon-pop { animation: archon-pop 0.24s cubic-bezier(0.22, 0.61, 0.36, 1); }
 }
-/* App-wide micro-interactions: smooth colour transitions on interactive elements and a
-   subtle press on buttons. Colour transitions are harmless under reduced motion; the
-   transform press is gated above via the no-preference block. */
+/* App-wide micro-interactions: smooth colour transitions on interactive elements
+   and a subtle press on buttons. Colour transitions are harmless under reduced
+   motion; the transform press is gated below via the no-preference block. */
 button, a, [role="button"], summary { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
 tbody tr { transition: background-color 0.15s ease; }
 @media (prefers-reduced-motion: no-preference) {
   button:not(:disabled) { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }
   button:not(:disabled):active { transform: scale(0.98); }
+  /* cross-fade the canvas/ink when the theme is toggled (no initial-paint flash:
+     the pre-paint script sets the class before first paint, so this only
+     animates subsequent changes). */
+  html, body { transition: background-color 0.3s ease, color 0.3s ease; }
 }
-* { box-sizing: border-box; } html { background: var(--canvas); color: var(--text-hi); } body { margin: 0; background: var(--canvas); color: var(--text-hi); font-family: var(--font-ui), Inter, sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; } a { color: inherit; text-decoration: none; }
+
+* { box-sizing: border-box; }
+html { background: var(--canvas); color: var(--text-hi); }
+body { margin: 0; background: var(--canvas); color: var(--text-hi); font-family: var(--font-ui), Inter, sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+a { color: inherit; text-decoration: none; }

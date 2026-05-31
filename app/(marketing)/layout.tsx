@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArchonLogo, MainnetBadge } from "@/components/archon";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 // Single source of the public-site header. The landing page must NOT render its own nav.
 export default function MarketingLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -17,6 +18,7 @@ export default function MarketingLayout({ children }: Readonly<{ children: React
           </nav>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block"><MainnetBadge /></span>
+            <ThemeToggle />
             <Link
               href="/app/audit/new"
               className="rounded-control bg-green-400 px-3.5 py-2 text-sm font-semibold text-on-green transition-colors hover:bg-green-300"

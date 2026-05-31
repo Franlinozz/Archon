@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
+import { NO_FLASH_SCRIPT } from "@/components/theme/theme";
 
 const display = localFont({
   src: "./fonts/SpaceGrotesk-Bold.woff2",
@@ -32,7 +33,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Runs before first paint: sets the theme class from localStorage (or
+            prefers-color-scheme, then Marble) so there is no flash of the wrong
+            theme on reload. */}
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
+      </head>
       <body className={`${display.variable} ${ui.variable} ${mono.variable}`}><Providers>{children}</Providers></body>
     </html>
   );
