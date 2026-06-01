@@ -85,7 +85,11 @@
    a component might reference exists here too. */
 .theme-obsidian {
   /* surfaces */
-  --canvas:        #0A0E0C;
+  /* LOCKED: founder-approved grey dark background — do not darken back to
+     near-black (#0A0E0C). This grey was previously only an artifact of the
+     texture screen-blend; it is now baked into the token so the dark theme is
+     this mature grey even with the texture overlay removed (Session 13.0). */
+  --canvas:        #1C201E;
   --surface-1:     #10150F;
   --surface-2:     #161C17;
   --surface-3:     #1E2620;
@@ -175,11 +179,18 @@ body::after {
   z-index: 0;
   pointer-events: none;
   background-image: url("/dotted-texture.jpg");
-  background-repeat: repeat;
-  background-size: 420px;
+  /* Session 13: the asset is 3125×2083 — a small tile shrank it into tiny pepper.
+     One big copy via cover gives Apogee-scale, sharp dots with zero repeat seams
+     (it's a fixed full-viewport layer, so cover always fills the viewport). */
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
 }
-.theme-marble body::after { mix-blend-mode: multiply; opacity: 0.09; }
-.theme-obsidian body::after { mix-blend-mode: screen; opacity: 0.08; }
+/* ~2× Apogee via opacity/contrast (NOT more dots). Marble: grey dots darken via
+   multiply. Obsidian: soft-light keeps the locked grey base intact while lifting
+   the dots to crisp light specks (screen would wash the grey lighter). */
+.theme-marble body::after { mix-blend-mode: multiply; opacity: 0.18; }
+.theme-obsidian body::after { mix-blend-mode: soft-light; opacity: 0.16; }
 
 /* keep real content above the grain + texture layers (BOTH themes) */
 body > * { position: relative; z-index: 1; }
