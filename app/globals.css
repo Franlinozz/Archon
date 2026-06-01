@@ -45,6 +45,8 @@
   --brand-50:  #EFF8F3;
   --brand-100: #E0F1E9;  /* active-nav background, soft badges */
   --brand-200: #C2E5D5;
+  --brand-300: #8AD2B6;  /* chart fills (lighter green/teal) */
+  --brand-400: #3DB389;  /* chart fills (Infrastructure series) */
   --brand-500: #16A06B;  /* accent: active indicator, links, focus, charts */
   --brand-600: #0E815A;  /* primary button fill */
   --brand-700: #0A6647;  /* primary hover/pressed, strong brand text */
@@ -60,6 +62,7 @@
   --shadow-card:  0 1px 3px rgba(11,26,20,0.06), 0 8px 24px -12px rgba(11,26,20,0.10);
   --shadow-lift:  0 2px 6px rgba(11,26,20,0.08), 0 18px 40px -16px rgba(11,26,20,0.18);
   --glow-brand:   0 0 0 1px var(--brand-200), 0 8px 24px -10px rgba(22,160,107,0.35);
+  --chart-shadow: rgba(11,26,20,0.20);  /* SVG feDropShadow flood under 2.5D charts */
 
   /* radii */
   --r-card: 12px; --r-input: 10px; --r-chip: 999px;
@@ -104,6 +107,8 @@
   --brand-50:  rgba(39,181,103,0.08);
   --brand-100: rgba(39,181,103,0.14);
   --brand-200: rgba(39,181,103,0.24);
+  --brand-300: #1F8E55;  /* chart fills (dimmer green for dark) */
+  --brand-400: #2EA76A;  /* chart fills (Infrastructure series) */
   --brand-500: #27B567;
   --brand-600: #3FD98A;
   --brand-700: #73E7AC;
@@ -119,6 +124,7 @@
   --shadow-card:  0 1px 3px rgba(0,0,0,0.6), 0 12px 32px -16px rgba(0,0,0,0.8);
   --shadow-lift:  0 2px 6px rgba(0,0,0,0.6), 0 24px 48px -18px rgba(0,0,0,0.9);
   --glow-brand:   0 0 0 1px rgba(39,181,103,0.4), 0 8px 24px -10px rgba(39,181,103,0.45);
+  --chart-shadow: rgba(0,0,0,0.55);  /* deeper flood so 2.5D depth reads on dark */
 
   /* radii (original Obsidian card radius was 14px) */
   --r-card: 14px; --r-input: 10px; --r-chip: 999px;

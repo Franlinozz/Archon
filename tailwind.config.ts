@@ -13,7 +13,7 @@ const config: Config = {
         "text-hi": "var(--text-hi)", "text-mid": "var(--text-mid)", "text-low": "var(--text-low)", "text-code": "var(--text-code)",
         // canonical Session-1 tokens
         ink: "var(--ink)", body: "var(--body)", muted: "var(--muted)", "on-brand": "var(--on-brand)",
-        "brand-50": "var(--brand-50)", "brand-100": "var(--brand-100)", "brand-200": "var(--brand-200)", "brand-500": "var(--brand-500)", "brand-600": "var(--brand-600)", "brand-700": "var(--brand-700)",
+        "brand-50": "var(--brand-50)", "brand-100": "var(--brand-100)", "brand-200": "var(--brand-200)", "brand-300": "var(--brand-300)", "brand-400": "var(--brand-400)", "brand-500": "var(--brand-500)", "brand-600": "var(--brand-600)", "brand-700": "var(--brand-700)",
         danger: "var(--danger)", "danger-bg": "var(--danger-bg)", high: "var(--high)", warning: "var(--warning)", "warning-bg": "var(--warning-bg)", success: "var(--success)", "success-bg": "var(--success-bg)", info: "var(--info)", "info-bg": "var(--info-bg)"
       },
       boxShadow: { sm: "var(--shadow-sm)", card: "var(--shadow-card)", lift: "var(--shadow-lift)", "glow-brand": "var(--glow-brand)" },
@@ -41,7 +41,7 @@ const config: Config = {
     { pattern: /(bg|text|border)-(danger|high|warning|success|info)/ },
     { pattern: /(bg|text|border)-(danger|warning|success|info)-bg/ },
     { pattern: /(bg|text|border)-green-(300|400|500)/ },
-    { pattern: /(bg|text|border)-brand-(50|100|200|500|600|700)/ }
+    { pattern: /(bg|text|border)-brand-(50|100|200|300|400|500|600|700)/ }
   ],
   plugins: [require("@tailwindcss/forms")]
 };
