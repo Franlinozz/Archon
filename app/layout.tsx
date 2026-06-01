@@ -27,8 +27,26 @@ const mono = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://archonaudit.xyz"),
   title: "Archon",
   description: "Mantle-native ERC-8004 trustless smart-contract auditor agent.",
+  icons: {
+    // The tab bar can be light or dark — serve the mark variant that has contrast
+    // against each. (Marble mark on light tabs, Obsidian mark on dark tabs.)
+    icon: [
+      { url: "/favicon-light-32.png", media: "(prefers-color-scheme: light)", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-dark-32.png", media: "(prefers-color-scheme: dark)", type: "image/png", sizes: "32x32" },
+      { url: "/icon-64.png", type: "image/png", sizes: "64x64" },
+    ],
+    apple: "/apple-touch.png",
+  },
+  openGraph: {
+    title: "Archon — ERC-8004 trustless auditor on Mantle",
+    description: "Read-only smart-contract audits with verifiable on-chain proofs on Mantle Mainnet.",
+    url: "https://archonaudit.xyz",
+    siteName: "Archon",
+    images: [{ url: "/hero-dark.png", width: 2172, height: 724, alt: "Archon" }],
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

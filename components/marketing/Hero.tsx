@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { EASE, fadeUp, instant, wordContainer, wordItem } from "@/lib/motion";
 
 // "Mantle Mainnet" (the last two words) carries the brand accent.
@@ -69,78 +70,96 @@ export function Hero() {
 }
 
 function HeroSeal({ reduce }: { reduce: boolean }) {
-  // Pointer parallax, clamped to ±8px and spring-smoothed.
-  const px = useMotionValue(0);
-  const py = useMotionValue(0);
-  const x = useSpring(px, { stiffness: 120, damping: 20 });
-  const y = useSpring(py, { stiffness: 120, damping: 20 });
+  // Pointer tilt: normalized -1..1, spring-smoothed, mapped to ≤8° rotate + ≤8px
+  // translate. Skipped on touch / reduced-motion.
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const sx = useSpring(mx, { stiffness: 150, damping: 18 });
+  const sy = useSpring(my, { stiffness: 150, damping: 18 });
+  const rotateY = useTransform(sx, [-1, 1], [-8, 8]);
+  const rotateX = useTransform(sy, [-1, 1], [8, -8]);
+  const translateX = useTransform(sx, [-1, 1], [-8, 8]);
+  const translateY = useTransform(sy, [-1, 1], [-8, 8]);
 
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (reduce) return;
+    if (reduce || (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches)) return;
     const r = e.currentTarget.getBoundingClientRect();
-    const dx = ((e.clientX - (r.left + r.width / 2)) / (r.width / 2)) * 8;
-    const dy = ((e.clientY - (r.top + r.height / 2)) / (r.height / 2)) * 8;
-    px.set(Math.max(-8, Math.min(8, dx)));
-    py.set(Math.max(-8, Math.min(8, dy)));
+    mx.set(Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 2))));
+    my.set(Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (r.height / 2))));
   };
-  const onLeave = () => {
-    px.set(0);
-    py.set(0);
-  };
+  const onLeave = () => { mx.set(0); my.set(0); };
 
-  const draw = reduce
-    ? { pathLength: 1, opacity: 1 }
-    : { pathLength: 1, opacity: 1, transition: { pathLength: { duration: 1.1, ease: EASE }, opacity: { duration: 0.2 } } };
+  const ringDraw = reduce
+    ? { pathLength: 1, opacity: 0.6 }
+    : { pathLength: 1, opacity: 0.6, transition: { pathLength: { duration: 1.1, ease: EASE, delay: 0.25 }, opacity: { duration: 0.3, delay: 0.25 } } };
 
   return (
     <motion.div
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
       className="relative rounded-card border border-border-subtle bg-surface-1 p-5 shadow-card"
       initial={reduce ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: EASE, delay: reduce ? 0 : 0.2 }}
+      transition={{ duration: 0.5, ease: EASE, delay: reduce ? 0 : 0.15 }}
     >
-      {/* "Built for Mantle Mainnet · Live" card with a pulsing dot. */}
-      <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-pill border border-success/30 bg-success/10 px-2.5 py-1 text-xs text-success">
+      {/* "Built for Mantle Mainnet · Live" card, floats in after the mark. */}
+      <motion.div
+        className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-pill border border-success/30 bg-success/10 px-2.5 py-1 text-xs text-success"
+        initial={reduce ? false : { opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: EASE, delay: reduce ? 0 : 0.9 }}
+      >
         <span className="relative flex size-1.5">
           {!reduce ? <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-75" /> : null}
           <span className="relative inline-flex size-1.5 rounded-full bg-success" />
         </span>
         Built for Mantle Mainnet · Live
-      </div>
+      </motion.div>
 
-      <div className="mt-10 grid place-items-center rounded-card border border-brand-500/20 bg-terminal p-8">
-        <motion.div style={{ x, y }} className="relative">
-          {/* breathing glow */}
-          {!reduce ? (
-            <motion.div
-              aria-hidden
-              className="pointer-events-none absolute left-1/2 top-1/2 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-500/25 blur-2xl"
-              animate={{ opacity: [0.25, 0.55, 0.25], scale: [0.9, 1.05, 0.9] }}
-              transition={{ duration: 4, ease: "easeInOut", repeat: Infinity }}
-            />
-          ) : null}
+      <div className="mt-10 grid place-items-center rounded-card border border-brand-500/20 bg-terminal p-8" style={{ perspective: 900 }}>
+        {/* Tilt layer (pointer parallax) + entrance scale. */}
+        <motion.div
+          onMouseMove={onMove}
+          onMouseLeave={onLeave}
+          className="relative grid place-items-center"
+          style={{ rotateX, rotateY, x: translateX, y: translateY, transformStyle: "preserve-3d" }}
+          initial={reduce ? false : { opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 140, damping: 16, delay: reduce ? 0 : 0.1 }}
+        >
+          {/* Idle float (gentle, the whole composition). */}
+          <motion.div
+            className="relative grid size-52 place-items-center"
+            animate={reduce ? undefined : { y: [0, -6, 0] }}
+            transition={reduce ? undefined : { duration: 4, ease: "easeInOut", repeat: Infinity }}
+          >
+            {/* breathing brand glow */}
+            {!reduce ? (
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute size-44 rounded-full bg-brand-500/25 blur-2xl"
+                animate={{ opacity: [0.3, 0.5, 0.3] }}
+                transition={{ duration: 3, ease: "easeInOut", repeat: Infinity }}
+              />
+            ) : null}
 
-          <svg width="208" height="208" viewBox="0 0 240 240" fill="none" className="relative text-brand-500">
-            {/* outer ring draws on */}
-            <motion.circle cx="120" cy="120" r="110" stroke="var(--brand-500)" strokeOpacity="0.5" strokeWidth="2"
-              initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={draw} />
-            {/* cross guides draw on */}
-            <motion.line x1="120" y1="14" x2="120" y2="226" stroke="var(--brand-500)" strokeOpacity="0.35" strokeWidth="1.5"
-              initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={draw} />
-            <motion.line x1="14" y1="120" x2="226" y2="120" stroke="var(--brand-500)" strokeOpacity="0.35" strokeWidth="1.5"
-              initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={draw} />
-            {/* inner square draws on */}
-            <motion.rect x="58" y="58" width="124" height="124" rx="10" stroke="var(--border-emphasis)" strokeWidth="1.5"
-              initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={draw} />
-            {/* slowly rotating dashed seal ring */}
-            <motion.circle cx="120" cy="120" r="86" stroke="var(--brand-500)" strokeOpacity="0.6" strokeWidth="2" strokeDasharray="6 10" strokeLinecap="round"
-              style={{ transformOrigin: "120px 120px" }}
-              animate={reduce ? undefined : { rotate: 360 }}
-              transition={reduce ? undefined : { duration: 28, ease: "linear", repeat: Infinity }} />
-            <text x="120" y="146" textAnchor="middle" className="fill-brand-600 font-display" style={{ fontSize: 84 }}>Α</text>
-          </svg>
+            {/* faint outer ring, slow rotation + entrance draw */}
+            <svg width="220" height="220" viewBox="0 0 220 220" fill="none" className="absolute" aria-hidden>
+              <motion.circle cx="110" cy="110" r="104" stroke="var(--brand-500)" strokeWidth="1.5" strokeDasharray="4 9" strokeLinecap="round"
+                style={{ transformOrigin: "110px 110px", willChange: "transform" }}
+                initial={reduce ? { pathLength: 1, opacity: 0.5 } : { pathLength: 0, opacity: 0 }}
+                animate={reduce ? { rotate: 0 } : { pathLength: 1, opacity: 0.5, rotate: 360 }}
+                transition={reduce ? undefined : { pathLength: { duration: 1.1, ease: EASE }, opacity: { duration: 0.3 }, rotate: { duration: 22, ease: "linear", repeat: Infinity } }} />
+              {/* crisp inner ring draws around the mark */}
+              <motion.circle cx="110" cy="110" r="92" stroke="var(--brand-500)" strokeWidth="2"
+                initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={ringDraw} style={{ transformOrigin: "110px 110px" }} />
+            </svg>
+
+            {/* The real mark, theme-correct, clipped tile with a scan-beam sweep. */}
+            <div className="relative size-36 overflow-hidden rounded-2xl shadow-card" style={{ backfaceVisibility: "hidden" }}>
+              <Image src="/mark-light.png" alt="Archon" width={144} height={144} priority className="only-marble size-36 object-cover" />
+              <Image src="/mark-dark.png" alt="" aria-hidden width={144} height={144} priority className="only-obsidian size-36 object-cover" />
+              {!reduce ? <span className="archon-scan-beam" aria-hidden /> : null}
+            </div>
+          </motion.div>
         </motion.div>
       </div>
     </motion.div>

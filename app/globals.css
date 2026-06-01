@@ -255,6 +255,29 @@ tbody tr { transition: background-color 0.15s ease; }
 }
 @keyframes archon-shimmer { 100% { transform: translateX(100%); } }
 
+/* Hero mark scan-beam: a soft brand-green bar sweeps across the mark (~5s),
+   clipped to the mark container. "this thing scans/audits." Motion-gated. */
+@media (prefers-reduced-motion: no-preference) {
+  .archon-scan-beam {
+    position: absolute; left: 0; right: 0; top: 0; height: 45%;
+    background: linear-gradient(180deg, transparent 0%, rgba(22,160,107,0.30) 50%, transparent 100%);
+    mix-blend-mode: screen; pointer-events: none;
+    animation: archon-scan 5s ease-in-out infinite;
+    will-change: transform;
+  }
+}
+@keyframes archon-scan {
+  0% { transform: translateY(-110%); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(230%); opacity: 0; }
+}
+
+/* Theme-scoped visibility for dual-theme raster assets (logo/mark) — class is set
+   pre-paint on <html>, so the correct variant shows with no flash or JS. */
+.theme-marble .only-obsidian { display: none !important; }
+.theme-obsidian .only-marble { display: none !important; }
+
 * { box-sizing: border-box; }
 html { background: var(--canvas); color: var(--text-hi); }
 body { margin: 0; background: var(--canvas); color: var(--text-hi); font-family: var(--font-ui), Inter, sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }

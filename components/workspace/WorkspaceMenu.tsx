@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, ChevronDown, Copy, ExternalLink, Plus, Settings } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, Home, Plus, Settings } from "lucide-react";
 import { copyText } from "@/components/archon/CopyButton";
 import { MANTLE_CHAIN_ID, MANTLE_EXPLORER_URL } from "@/lib/chain/mantle";
 
@@ -120,6 +120,9 @@ export function WorkspaceMenu({ agentId, identityRegistry }: { agentId: string; 
               <a role="menuitem" href={agentExplorerHref} target="_blank" rel="noreferrer" onClick={() => close(false)} className="flex items-center gap-2.5 rounded-control px-3 py-2 text-sm text-body outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:text-ink">
                 <ExternalLink size={15} /> View Agent on Explorer
               </a>
+              <Link role="menuitem" href="/" onClick={() => close(false)} className="flex items-center gap-2.5 rounded-control px-3 py-2 text-sm text-body outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:text-ink">
+                <Home size={15} /> Archon home
+              </Link>
             </div>
 
             {/* Disabled: single-workspace MVP */}
