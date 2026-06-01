@@ -4,7 +4,8 @@ import Link from "next/link";
 // The brand logo always links to the landing page "/" — everywhere it appears,
 // dashboard included (Session 12 supersedes the earlier app→/app default). The
 // "go to workspace" affordance is the Overview sidebar item, not the brand mark.
-// The mark is the founder's real asset, theme-swapped via .theme-* (no JS flash).
+// Both the mark AND the "ARCHON" wordmark are the founder's real artwork
+// (extracted from the committed logo, transparent), theme-swapped via .theme-*.
 export function ArchonLogo({ href = "/", compact = false }: { href?: string; compact?: boolean }) {
   return (
     <Link
@@ -16,7 +17,12 @@ export function ArchonLogo({ href = "/", compact = false }: { href?: string; com
         <Image src="/mark-light-cut.png" alt="Archon" width={474} height={611} className="only-marble h-8 w-auto object-contain" priority />
         <Image src="/mark-dark-cut.png" alt="" aria-hidden width={462} height={590} className="only-obsidian h-8 w-auto object-contain" priority />
       </span>
-      {!compact && <span className="font-display text-xl tracking-[-0.04em] text-ink transition-colors group-hover:text-brand-600">ARCHON</span>}
+      {!compact && (
+        <span className="relative flex items-center transition-[filter] duration-150 group-hover:brightness-110">
+          <Image src="/wordmark-light.png" alt="Archon" width={662} height={60} className="only-marble h-3.5 w-auto object-contain" priority />
+          <Image src="/wordmark-dark.png" alt="" aria-hidden width={662} height={66} className="only-obsidian h-3.5 w-auto object-contain" priority />
+        </span>
+      )}
     </Link>
   );
 }

@@ -190,7 +190,7 @@ body::after {
    multiply. Obsidian: soft-light keeps the locked grey base intact while lifting
    the dots to crisp light specks (screen would wash the grey lighter). */
 .theme-marble body::after { mix-blend-mode: multiply; opacity: 0.18; }
-.theme-obsidian body::after { mix-blend-mode: soft-light; opacity: 0.16; }
+.theme-obsidian body::after { mix-blend-mode: soft-light; opacity: 0.2; }
 
 /* keep real content above the grain + texture layers (BOTH themes) */
 body > * { position: relative; z-index: 1; }
