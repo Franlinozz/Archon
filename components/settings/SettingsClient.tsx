@@ -6,6 +6,7 @@ import { useAccount, useDisconnect, useSwitchChain } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { AlertTriangle, Check, ExternalLink, Link2, ShieldCheck, Wallet } from "lucide-react";
 import { CopyButton } from "@/components/archon/CopyButton";
+import { useSiwe } from "@/components/auth/SiweProvider";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import type { ThemePreference } from "@/components/theme/theme";
 import { MANTLE_CHAIN_ID, MANTLE_EXPLORER_URL } from "@/lib/chain/mantle";
@@ -42,7 +43,7 @@ export function SettingsClient({ config }: { config: IdentityConfig }) {
 
       <section className="flex items-start gap-3 rounded-card border border-success/30 bg-success/10 p-4 text-sm text-text-mid">
         <ShieldCheck size={16} className="mt-0.5 shrink-0 text-success" />
-        <p>Archon never stores wallet secrets in the browser. Proof transactions are submitted by Archon&rsquo;s dedicated server-side client wallet after explicit approval; your connected wallet is used for ownership context and the Mantle network guard only.</p>
+        <p>Connecting your wallet signs a free message to prove ownership (no gas, no transaction). You can let Archon&rsquo;s server wallet anchor proofs for you, or log a proof yourself from your wallet for a small Mantle gas fee — your choice, per proof. Archon never stores wallet secrets in the browser.</p>
       </section>
 
       <DangerRow />
@@ -122,13 +123,14 @@ function WalletCard() {
   const { openConnectModal } = useConnectModal();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending } = useSwitchChain();
+  const { signedIn, signIn, status: siweStatus } = useSiwe();
   const onMantle = isConnected && chainId === MANTLE_CHAIN_ID;
 
   return (
     <Card title="Wallet">
       {!mounted || !isConnected || !address ? (
         <>
-          <p className="text-text-mid">Connect a wallet to enable user-approved proof logging. Mantle Mainnet (chain {MANTLE_CHAIN_ID}) only.</p>
+          <p className="text-text-mid">Connect a wallet to prove ownership with a free signature (no gas) and enable proof logging. Mantle Mainnet (chain {MANTLE_CHAIN_ID}) only.</p>
           <button
             onClick={() => openConnectModal?.()}
             disabled={!mounted || !openConnectModal}
@@ -156,6 +158,14 @@ function WalletCard() {
               <span className="inline-flex items-center gap-1.5 rounded-pill border border-success/30 bg-success/10 px-2.5 py-1 text-xs text-success"><span className="size-1.5 rounded-full bg-success" /> Mantle {MANTLE_CHAIN_ID}</span>
             ) : (
               <button onClick={() => switchChain({ chainId: MANTLE_CHAIN_ID })} disabled={isPending} className="inline-flex items-center gap-1.5 rounded-pill border border-warning/40 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning transition-colors hover:bg-warning/15 disabled:opacity-50"><AlertTriangle size={13} /> Wrong network — switch</button>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-text-low">Sign-in (SIWE)</span>
+            {signedIn ? (
+              <span className="inline-flex items-center gap-1.5 rounded-pill border border-success/30 bg-success/10 px-2.5 py-1 text-xs text-success"><Check size={13} /> Signed in</span>
+            ) : (
+              <button onClick={() => void signIn()} disabled={!onMantle || siweStatus === "signing"} className="rounded-pill border border-border-subtle bg-surface-2 px-2.5 py-1 text-xs text-text-mid transition-colors hover:text-green-400 disabled:opacity-50">{siweStatus === "signing" ? "Check wallet…" : "Sign in (free)"}</button>
             )}
           </div>
           <button onClick={() => disconnect()} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-1.5 text-sm text-text-mid transition-colors hover:border-danger/40 hover:text-danger">Disconnect</button>

@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { upsertPreparedProof } from "@/lib/proof/report";
-import { logPreparedProofOnReputation } from "@/lib/proof/reputation";
+import { giveFeedbackParams, logPreparedProofOnReputation, verifyAndRecordUserProof } from "@/lib/proof/reputation";
+import { getSession } from "@/lib/auth/session";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const completeSchema = z.union([
   z.object({ action: z.literal("log") }),
+  z.object({ action: z.literal("record-self-custody"), txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/) }),
   z.object({ txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/), metadataUri: z.string().min(1).optional() }),
 ]);
 
@@ -14,6 +16,27 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const params = paramsSchema.safeParse(await context.params);
   if (!params.success) return NextResponse.json({ error: "Invalid report id." }, { status: 400 });
   const prepared = await upsertPreparedProof(params.data.id);
+
+  // Surface the exact giveFeedback params so a connected wallet can submit the
+  // identical call itself (self-custody). Only when registries are configured.
+  let selfCustody = null;
+  if (prepared.configured) {
+    try {
+      const p = giveFeedbackParams(prepared);
+      selfCustody = {
+        reputationRegistry: p.reputationRegistry,
+        agentId: p.agentId.toString(),
+        value: p.value,
+        valueDecimals: p.valueDecimals,
+        tag1: p.tag1,
+        tag2: p.tag2,
+        endpoint: p.endpoint,
+      };
+    } catch {
+      selfCustody = null;
+    }
+  }
+
   return NextResponse.json({
     proofId: prepared.proofId,
     reportHash: prepared.reportHash,
@@ -24,19 +47,41 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     configured: prepared.configured,
     blocker: prepared.blocker,
     gasEstimate: prepared.configured ? null : "Unavailable until verified ERC-8004 registries are configured.",
+    selfCustody,
   });
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const params = paramsSchema.safeParse(await context.params);
   if (!params.success) return NextResponse.json({ error: "Invalid report id." }, { status: 400 });
+
+  // Logging a proof (either mode) requires a SIWE session — a free signature, not
+  // a transaction. This is the only thing the session gates.
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Sign in with your wallet to log a proof." }, { status: 401 });
+
   const body = completeSchema.safeParse(await request.json());
-  if (!body.success) return NextResponse.json({ error: "Invalid transaction hash." }, { status: 400 });
+  if (!body.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const data = body.data;
+
+  // Mode 1 — Archon's server wallet anchors the proof (gasless for the user).
   if ("action" in data && data.action === "log") {
     const result = await logPreparedProofOnReputation(params.data.id);
     return NextResponse.json(result);
   }
+
+  // Mode 2 — the user already submitted giveFeedback from their own wallet; verify
+  // and record it. The session address must match the on-chain submitter.
+  if ("action" in data && data.action === "record-self-custody") {
+    try {
+      const result = await verifyAndRecordUserProof(params.data.id, data.txHash as `0x${string}`, session.address);
+      return NextResponse.json(result);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Could not verify the proof transaction." }, { status: 400 });
+    }
+  }
+
+  // Legacy: record a bare tx hash.
   if (!("txHash" in data)) return NextResponse.json({ error: "Invalid transaction hash." }, { status: 400 });
   const result = await db.query(
     `update proofs set tx_hash=$2, metadata_uri=coalesce($3,metadata_uri), verification_status='proof_logged', logged_at=now()

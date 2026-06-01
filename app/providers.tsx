@@ -7,6 +7,7 @@ import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowki
 import "@rainbow-me/rainbowkit/styles.css";
 import { wagmiConfig } from "@/lib/chain/wagmi";
 import { ThemeProvider, useTheme } from "@/components/theme/ThemeProvider";
+import { SiweProvider } from "@/components/auth/SiweProvider";
 
 // Obsidian-matched RainbowKit theme: bright green accent on dark surfaces.
 const obsidianWalletTheme = darkTheme({
@@ -34,7 +35,7 @@ function WalletThemeBridge({ children }: { children: React.ReactNode }) {
   );
   return (
     <RainbowKitProvider theme={walletTheme} modalSize="compact">
-      {children}
+      <SiweProvider>{children}</SiweProvider>
     </RainbowKitProvider>
   );
 }
