@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DocsToc, ReadingProgress, type TocSection } from "@/components/docs/DocsReader";
 
 export const metadata: Metadata = {
   title: "Archon Docs",
   description: "How Archon works: the seven-stage read-only audit pipeline, the read-only safety model, ERC-8004 on Mantle, and how anyone can verify a proof.",
 };
 
-const nav = [
-  ["What is Archon", "overview"],
-  ["How it works", "how-it-works"],
-  ["Read-only safety model", "safety"],
-  ["ERC-8004 on Mantle", "erc8004"],
-  ["Run a scan", "run-a-scan"],
-  ["Proofs & verification", "proofs"],
-  ["Architecture", "architecture"],
-  ["FAQ", "faq"],
-] as const;
+const sections: TocSection[] = [
+  { label: "What is Archon", id: "overview" },
+  { label: "How it works", id: "how-it-works" },
+  { label: "Read-only safety model", id: "safety" },
+  { label: "ERC-8004 on Mantle", id: "erc8004" },
+  { label: "Run a scan", id: "run-a-scan" },
+  { label: "Proofs & verification", id: "proofs" },
+  { label: "Architecture", id: "architecture" },
+  { label: "FAQ", id: "faq" },
+];
 
 const stages = [
   ["Code Parse", "Normalise pasted Solidity or fetch verified source for a Mantle address; extract contracts, functions, and pragmas."],
@@ -30,13 +31,9 @@ const stages = [
 export default function DocsPage() {
   return (
     <div className="mx-auto max-w-7xl gap-10 px-6 py-10 lg:grid lg:grid-cols-[200px_minmax(0,1fr)]">
+      <ReadingProgress />
       <aside className="hidden lg:block">
-        <nav className="sticky top-20 space-y-1 text-sm">
-          <p className="mb-2 font-mono text-xs uppercase tracking-[0.14em] text-green-400">Documentation</p>
-          {nav.map(([label, id]) => (
-            <a key={id} href={`#${id}`} className="block rounded-control px-3 py-1.5 text-text-mid transition-colors hover:bg-surface-2 hover:text-green-400">{label}</a>
-          ))}
-        </nav>
+        <DocsToc sections={sections} />
       </aside>
 
       <article className="min-w-0 space-y-12">
