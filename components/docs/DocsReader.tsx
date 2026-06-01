@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 export type TocSection = { id: string; label: string };
@@ -14,33 +14,30 @@ export type TocSection = { id: string; label: string };
 export function DocsToc({ sections }: { sections: TocSection[] }) {
   const reduce = useReducedMotion();
   const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? "");
-  // Live map of each section's latest intersection state.
-  const entriesRef = useRef<Map<string, IntersectionObserverEntry>>(new Map());
 
   const recompute = useCallback(() => {
     // Bottom-of-page fallback: if scrolled to the end, the last section is active
-    // even if it never reaches the top band.
+    // even if it never reaches the reading line.
     if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
       const last = sections[sections.length - 1]?.id;
       if (last) setActiveId(last);
       return;
     }
-    // Otherwise: top-most section currently intersecting the top band.
-    const visible = sections
-      .map((s) => entriesRef.current.get(s.id))
-      .filter((e): e is IntersectionObserverEntry => !!e && e.isIntersecting)
-      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-    if (visible[0]) setActiveId((visible[0].target as HTMLElement).id);
+    // Active = the section currently under the reading line (just below the sticky
+    // header): the LAST section whose top has crossed the line. Reading live rects
+    // (not "top-most intersecting") avoids the off-by-one where a section you just
+    // scrolled past still pokes into the band and steals the highlight.
+    const LINE = 120;
+    let current = sections[0]?.id ?? "";
+    for (const s of sections) {
+      const el = document.getElementById(s.id);
+      if (el && el.getBoundingClientRect().top <= LINE) current = s.id;
+    }
+    if (current) setActiveId(current);
   }, [sections]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) entriesRef.current.set((entry.target as HTMLElement).id, entry);
-        recompute();
-      },
-      { rootMargin: "0px 0px -70% 0px", threshold: [0, 1] },
-    );
+    const observer = new IntersectionObserver(() => recompute(), { rootMargin: "0px 0px -40% 0px", threshold: [0, 1] });
     const nodes = sections.map((s) => document.getElementById(s.id)).filter((n): n is HTMLElement => !!n);
     nodes.forEach((n) => observer.observe(n));
     // Also recompute on scroll for the bottom-of-page fallback.
