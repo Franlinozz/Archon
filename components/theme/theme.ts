@@ -2,13 +2,30 @@
 // Keep this dependency-free so the inline no-flash script can mirror its logic.
 
 export type Theme = "marble" | "obsidian";
+/** What the user picked. "system" follows the OS prefers-color-scheme, live. */
+export type ThemePreference = Theme | "system";
 
 export const THEMES: Theme[] = ["marble", "obsidian"];
 export const DEFAULT_THEME: Theme = "marble";
+/** When nothing is stored we follow the OS (mirrors the no-flash script). */
+export const DEFAULT_PREFERENCE: ThemePreference = "system";
 export const STORAGE_KEY = "archon-theme";
 
 export function themeClass(theme: Theme): string {
   return `theme-${theme}`;
+}
+
+export function isThemePreference(value: unknown): value is ThemePreference {
+  return value === "marble" || value === "obsidian" || value === "system";
+}
+
+/** Resolve a preference to a concrete theme; "system" reads prefers-color-scheme. */
+export function resolveTheme(preference: ThemePreference): Theme {
+  if (preference === "system") {
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches) return "obsidian";
+    return "marble";
+  }
+  return preference;
 }
 
 /**

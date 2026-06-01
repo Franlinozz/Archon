@@ -1,21 +1,38 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { DEFAULT_THEME, STORAGE_KEY, themeClass, type Theme } from "./theme";
+import {
+  DEFAULT_PREFERENCE,
+  isThemePreference,
+  resolveTheme,
+  STORAGE_KEY,
+  themeClass,
+  type Theme,
+  type ThemePreference,
+} from "./theme";
 
 type ThemeContextValue = {
+  /** Resolved theme actually applied (system → marble/obsidian). */
   theme: Theme;
+  /** What the user picked: marble | obsidian | system. */
+  preference: ThemePreference;
   /** True once the client has synced with the html class set by the pre-paint script. */
   mounted: boolean;
-  setTheme: (theme: Theme) => void;
+  setPreference: (preference: ThemePreference) => void;
+  /** Convenience flip between the two explicit themes (used by the top-bar toggle). */
   toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function readDomTheme(): Theme {
-  if (typeof document === "undefined") return DEFAULT_THEME;
-  return document.documentElement.classList.contains("theme-obsidian") ? "obsidian" : "marble";
+function readStoredPreference(): ThemePreference {
+  if (typeof localStorage === "undefined") return DEFAULT_PREFERENCE;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return isThemePreference(stored) ? stored : DEFAULT_PREFERENCE;
+  } catch {
+    return DEFAULT_PREFERENCE;
+  }
 }
 
 function applyTheme(theme: Theme) {
@@ -25,20 +42,40 @@ function applyTheme(theme: Theme) {
   el.style.colorScheme = theme === "obsidian" ? "dark" : "light";
 }
 
+const DEFAULT_THEME_FALLBACK: Theme = "marble";
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // SSR renders with the default; the pre-paint script has already set the real
   // class on the client, so we sync to it on mount to avoid a mismatch.
-  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [preference, setPreferenceState] = useState<ThemePreference>(DEFAULT_PREFERENCE);
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME_FALLBACK);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setThemeState(readDomTheme());
+    const pref = readStoredPreference();
+    setPreferenceState(pref);
+    setThemeState(resolveTheme(pref));
     setMounted(true);
   }, []);
 
-  const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
-    applyTheme(next);
+  // When following the system, keep the applied theme in sync with OS changes live.
+  useEffect(() => {
+    if (preference !== "system" || typeof window === "undefined") return;
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      const next = resolveTheme("system");
+      setThemeState(next);
+      applyTheme(next);
+    };
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [preference]);
+
+  const setPreference = useCallback((next: ThemePreference) => {
+    setPreferenceState(next);
+    const resolved = resolveTheme(next);
+    setThemeState(resolved);
+    applyTheme(resolved);
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
@@ -47,12 +84,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setTheme(readDomTheme() === "obsidian" ? "marble" : "obsidian");
-  }, [setTheme]);
+    setPreference(resolveTheme(readStoredPreference()) === "obsidian" ? "marble" : "obsidian");
+  }, [setPreference]);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, mounted, setTheme, toggleTheme }),
-    [theme, mounted, setTheme, toggleTheme],
+    () => ({ theme, preference, mounted, setPreference, toggleTheme }),
+    [theme, preference, mounted, setPreference, toggleTheme],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
