@@ -203,6 +203,52 @@ tbody tr { transition: background-color 0.15s ease; }
   html, body { transition: background-color 0.3s ease, color 0.3s ease; }
 }
 
+/* ============================================================================
+   MICRO-INTERACTIONS (Session 3.5)
+   Card hover lift, one-time CTA sheen, loading shimmer, and a running sweep for
+   progress bars. Colour/shadow transitions are harmless under reduced motion;
+   transform + sweeping animations are gated behind no-preference.
+   ============================================================================ */
+.archon-card-lift { transition: box-shadow 0.15s ease, border-color 0.15s ease; }
+.archon-card-lift:hover { box-shadow: var(--shadow-lift); border-color: var(--border-emphasis); }
+@media (prefers-reduced-motion: no-preference) {
+  .archon-card-lift { transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
+  .archon-card-lift:hover { transform: translateY(-2px); }
+}
+
+/* One-time sheen sweep across the primary CTA, shortly after load. */
+.archon-sheen { position: relative; overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .archon-sheen::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    transform: translateX(-150%) skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    animation: archon-sheen 1.5s cubic-bezier(0.22,1,0.36,1) 0.7s 1 both;
+  }
+}
+@keyframes archon-sheen { to { transform: translateX(160%) skewX(-20deg); } }
+
+/* Skeleton shimmer for loading panels (use instead of dead space). */
+.archon-skeleton { position: relative; overflow: hidden; background: var(--surface-2); }
+@media (prefers-reduced-motion: no-preference) {
+  .archon-skeleton::after {
+    content: ""; position: absolute; inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(127,127,127,0.14), transparent);
+    animation: archon-shimmer 1.4s linear infinite;
+  }
+}
+/* Running sweep overlay (e.g. an in-progress bar). Apply to a relative, clipped element. */
+@media (prefers-reduced-motion: no-preference) {
+  .archon-sweep::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+    animation: archon-shimmer 1.6s linear infinite;
+  }
+}
+@keyframes archon-shimmer { 100% { transform: translateX(100%); } }
+
 * { box-sizing: border-box; }
 html { background: var(--canvas); color: var(--text-hi); }
 body { margin: 0; background: var(--canvas); color: var(--text-hi); font-family: var(--font-ui), Inter, sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }

@@ -9,7 +9,7 @@ import { archonMonacoTheme, defineArchonMonacoThemes } from "@/components/theme/
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
-  loading: () => <div className="h-[620px] animate-pulse rounded-b-card border-x border-b border-border-subtle bg-terminal p-5 text-sm text-text-low">Loading Solidity editor…</div>,
+  loading: () => <div className="archon-skeleton h-[620px] rounded-b-card border-x border-b border-border-subtle p-5 text-sm text-text-low">Loading Solidity editor…</div>,
 });
 
 const protocols = ["mETH", "cmETH", "USDY", "Aave V3", "Merchant Moe", "Agni"] as const;

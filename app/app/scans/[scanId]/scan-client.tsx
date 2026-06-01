@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Activity, AlertTriangle, Clock, Radio, RefreshCw, ShieldCheck } from "lucide-react";
 import { FindingCard, LogTerminal, SeverityPill, Stepper, type StepState } from "@/components/archon";
 import type { Severity } from "@/components/archon/severity";
+import { progressSpring } from "@/lib/motion";
 
 const stages = ["Code Parse", "Static Analysis", "Mantle Context Fetch", "Protocol Rule Engine", "AI Reasoning", "Test Generation", "Report Assembly"] as const;
 const severities: Array<Severity | "all"> = ["all", "critical", "high", "medium", "low", "info"];
@@ -126,6 +127,7 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
   const counts = findings.reduce<Record<string, number>>((acc, finding) => ({ ...acc, [finding.severity]: (acc[finding.severity] ?? 0) + 1 }), {});
 
   if (!scan) return <div className="rounded-card border border-border-subtle bg-surface-1 p-8 text-text-mid">Loading live scan…</div>;
+  const isRunning = scan.status !== "done" && scan.status !== "failed";
 
   return <div className="space-y-6">
     <header className="rounded-card border border-border-subtle bg-surface-1 p-5">
@@ -151,7 +153,10 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
       <section className="space-y-4">
         <div className="rounded-card border border-border-subtle bg-surface-1 p-5">
           <div className="flex items-center justify-between gap-4"><h2 className="text-xl font-semibold text-text-hi">Overall Progress</h2><span className="font-mono text-sm text-green-400">{scan.progress}%</span></div>
-          <div className="mt-4 h-3 overflow-hidden rounded-pill bg-surface-2"><div className="h-full rounded-pill bg-green-400 transition-[width] duration-500 ease-out" style={{ width: `${scan.progress}%` }} /></div>
+          <div className="relative mt-4 h-3 overflow-hidden rounded-pill bg-surface-2">
+            <motion.div className="h-full w-full origin-left rounded-pill bg-green-400" style={{ transformOrigin: "left" }} animate={{ scaleX: Math.max(0, Math.min(1, (scan.progress ?? 0) / 100)) }} transition={reduceMotion ? { duration: 0 } : progressSpring} />
+            {isRunning && !reduceMotion ? <span className="archon-sweep pointer-events-none absolute inset-y-0 left-0 overflow-hidden rounded-pill" style={{ width: `${scan.progress}%` }} /> : null}
+          </div>
         </div>
         <div className="rounded-card border border-border-subtle bg-surface-1 p-5">
           <h2 className="mb-5 text-xl font-semibold text-text-hi">Pipeline</h2>
@@ -171,13 +176,14 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
         {report ? <div className="mt-4 flex items-center justify-between rounded-card border border-green-400/25 bg-green-400/10 p-4"><div><p className="text-sm text-text-mid">Report assembled</p><p className="font-mono text-2xl text-green-400">Risk {report.riskScore}/100</p></div><Link href={`/app/reports/${report.id}`} className="rounded-control bg-green-500 px-4 py-2 text-sm font-semibold text-on-green hover:bg-green-400">View Report</Link></div> : null}
         <div className="mt-5 max-h-[680px] space-y-3 overflow-auto pr-1">
           <AnimatePresence initial={false}>
-            {visibleFindings.length ? visibleFindings.map((finding) => (
+            {visibleFindings.length ? [...visibleFindings].reverse().map((finding) => (
               <motion.div
                 key={finding.id}
                 layout={!reduceMotion}
-                initial={reduceMotion ? false : { opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
+                className="rounded-card"
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, boxShadow: ["0 0 0 2px rgba(22,160,107,0.45)", "0 0 0 2px rgba(22,160,107,0)"] }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1], boxShadow: { duration: 1.2, ease: "easeOut" } }}
                 style={{ willChange: "transform, opacity" }}
               >
                 <FindingCard severity={finding.severity} title={finding.title} location={`${finding.file}:${finding.lineStart ?? "?"}`} status={finding.status} />
