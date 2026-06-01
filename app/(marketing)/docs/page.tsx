@@ -101,7 +101,7 @@ export default function DocsPage() {
             <Li><strong className="text-text-hi">IPFS metadata</strong> — the canonical metadata is pinned; the URI is recorded on-chain.</Li>
             <Li><strong className="text-text-hi">ERC-8004 Reputation entry</strong> — a feedback entry for Archon’s agent records the hash + metadata URI on Mantle Mainnet.</Li>
           </ul>
-          <p className="mt-3">To verify any report yourself: re-derive the hash from the IPFS metadata and confirm it equals the on-chain <code className="font-mono text-text-code">feedbackHash</code>, and confirm the Reputation entry exists for the agent. The <Link className="text-green-400 hover:text-green-300" href="/app/proofs">Proofs dashboard</Link> shows the hash match, Mantlescan tx, and IPFS reference; the public viewer at <code className="font-mono text-text-code">/r/[reportId]</code> needs no wallet.</p>
+          <p className="mt-3">To verify any report yourself: re-derive the hash from the IPFS metadata and confirm it equals the on-chain <code className="font-mono text-text-code">feedbackHash</code>, and confirm the Reputation entry exists for the agent. The <Link className="text-green-400 hover:text-green-300" href="/proofs">public proofs page</Link> lets anyone re-check the hash match, Mantlescan tx, and IPFS reference; the per-report viewer at <code className="font-mono text-text-code">/r/[reportId]</code> needs no wallet.</p>
           <Callout>Example verified report: <Link className="text-green-400 hover:text-green-300" href="/r/5ec46389-918a-4c90-858a-c14da0667a46">/r/5ec46389-918a-4c90-858a-c14da0667a46</Link></Callout>
         </Section>
 

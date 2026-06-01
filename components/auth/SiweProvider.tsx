@@ -22,18 +22,21 @@ export function SiweProvider({ children }: { children: React.ReactNode }) {
   const [sessionAddress, setSessionAddress] = useState<string | null>(null);
   const [status, setStatus] = useState<SiweStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false); // session cookie checked yet?
   const attemptedFor = useRef<string | null>(null); // address we've auto-attempted
 
   const onMantle = isConnected && chainId === MANTLE_CHAIN_ID;
   const signedIn = !!sessionAddress && !!address && sessionAddress.toLowerCase() === address.toLowerCase();
 
-  // Hydrate any existing session on mount.
+  // Hydrate any existing session on mount BEFORE we ever auto-prompt, so a
+  // returning user with a valid 7-day cookie is silently re-authed (no signature).
   useEffect(() => {
     let active = true;
     fetch("/api/auth/session")
       .then((r) => r.json())
       .then((d: { address: string | null }) => { if (active) setSessionAddress(d.address); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (active) setHydrated(true); });
     return () => { active = false; };
   }, []);
 
@@ -67,15 +70,16 @@ export function SiweProvider({ children }: { children: React.ReactNode }) {
     }
   }, [address, onMantle, signMessageAsync]);
 
-  // Auto sign-in once per connected address (free signature). If declined, the
-  // user can retry manually via signIn(); we don't loop.
+  // Auto sign-in once per connected address (free signature) — but only AFTER the
+  // existing-session check resolves, so a valid cookie doesn't trigger a needless
+  // re-prompt on every refresh. If declined, retry manually via signIn(); no loop.
   useEffect(() => {
-    if (!isConnected || !onMantle || !address) return;
+    if (!hydrated || !isConnected || !onMantle || !address) return;
     if (signedIn) { attemptedFor.current = address.toLowerCase(); return; }
     if (attemptedFor.current === address.toLowerCase()) return;
     attemptedFor.current = address.toLowerCase();
     void signIn();
-  }, [isConnected, onMantle, address, signedIn, signIn]);
+  }, [hydrated, isConnected, onMantle, address, signedIn, signIn]);
 
   // Clear the session when the wallet disconnects.
   useEffect(() => {

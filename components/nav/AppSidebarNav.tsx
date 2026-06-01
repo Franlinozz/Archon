@@ -30,7 +30,7 @@ const nav: NavItem[] = [
   { label: "Overview", href: "/app", icon: LayoutDashboard },
   { label: "Audit Studio", href: "/app/audit/new", icon: FileCode2, match: "/app/audit" },
   { label: "Contract Context", href: "/app/context", icon: FileSearch },
-  { label: "Reports", href: "/app", icon: FileText, match: "/app/reports" },
+  { label: "Reports", href: "/app/reports", icon: FileText, match: "/app/reports" },
   { label: "Findings", href: "/app/findings", icon: ShieldAlert },
   { label: "Generated Tests", href: "/app/tests", icon: FlaskConical },
   { label: "Cost Guard", href: "/app/cost-guard", icon: Gauge },

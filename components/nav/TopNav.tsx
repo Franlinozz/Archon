@@ -16,7 +16,7 @@ const items: TopNavItem[] = [
   { label: "Product", href: "/#product", match: "/", exact: true },
   { label: "Audit Studio", href: "/app/audit/new", match: "/app/audit" },
   { label: "Cost Guard", href: "/app/cost-guard", match: "/app/cost-guard" },
-  { label: "Reports", href: "/app/proofs", match: "/app/proofs" },
+  { label: "Reports", href: "/proofs", match: "/proofs" },
   { label: "Docs", href: "/docs", match: "/docs" },
 ];
 

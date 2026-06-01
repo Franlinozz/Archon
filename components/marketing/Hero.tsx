@@ -59,7 +59,7 @@ export function Hero() {
           </motion.div>
           <motion.div variants={instant(fadeUp, reduce)} className="mt-6 flex flex-wrap gap-3">
             <Link className="archon-sheen rounded-control bg-green-400 px-4 py-2.5 text-sm font-semibold text-on-green transition-colors hover:bg-green-300" href="/app/audit/new">Start Mainnet Audit</Link>
-            <Link className="rounded-control border border-border-subtle px-4 py-2.5 text-sm text-body transition-colors hover:border-border-emphasis hover:text-ink" href="/app/proofs">View Proofs</Link>
+            <Link className="rounded-control border border-border-subtle px-4 py-2.5 text-sm text-body transition-colors hover:border-border-emphasis hover:text-ink" href="/proofs">View Proofs</Link>
           </motion.div>
         </motion.div>
       </div>
