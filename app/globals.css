@@ -273,6 +273,25 @@ tbody tr { transition: background-color 0.15s ease; }
   100% { transform: translateY(230%); opacity: 0; }
 }
 
+/* Hero mark sheen: a soft brand-green light sweeps ACROSS the glyph itself,
+   clipped to the mark's exact shape via mask-image (set inline per theme). */
+.archon-mark-sheen {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .archon-mark-sheen::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 38%, rgba(120,231,172,0.55) 50%, transparent 62%);
+    transform: translateX(-120%);
+    animation: archon-mark-sweep 5s ease-in-out infinite;
+    will-change: transform;
+  }
+}
+@keyframes archon-mark-sweep { 0% { transform: translateX(-120%); } 55%, 100% { transform: translateX(120%); } }
+
 /* Theme-scoped visibility for dual-theme raster assets (logo/mark) — class is set
    pre-paint on <html>, so the correct variant shows with no flash or JS. */
 .theme-marble .only-obsidian { display: none !important; }

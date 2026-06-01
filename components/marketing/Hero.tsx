@@ -89,10 +89,6 @@ function HeroSeal({ reduce }: { reduce: boolean }) {
   };
   const onLeave = () => { mx.set(0); my.set(0); };
 
-  const ringDraw = reduce
-    ? { pathLength: 1, opacity: 0.6 }
-    : { pathLength: 1, opacity: 0.6, transition: { pathLength: { duration: 1.1, ease: EASE, delay: 0.25 }, opacity: { duration: 0.3, delay: 0.25 } } };
-
   return (
     <motion.div
       className="relative rounded-card border border-border-subtle bg-surface-1 p-5 shadow-card"
@@ -114,7 +110,10 @@ function HeroSeal({ reduce }: { reduce: boolean }) {
         Built for Mantle Mainnet · Live
       </motion.div>
 
-      <div className="mt-10 grid place-items-center rounded-card border border-brand-500/20 bg-terminal p-8" style={{ perspective: 900 }}>
+      <div className="relative mt-8 grid min-h-[300px] place-items-center overflow-hidden rounded-card" style={{ perspective: 900 }}>
+        {/* soft ambient stage backdrop (no border, no panel) */}
+        <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 60% at 50% 45%, var(--brand-100), transparent 70%)" }} />
+
         {/* Tilt layer (pointer parallax) + entrance scale. */}
         <motion.div
           onMouseMove={onMove}
@@ -125,39 +124,33 @@ function HeroSeal({ reduce }: { reduce: boolean }) {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 140, damping: 16, delay: reduce ? 0 : 0.1 }}
         >
-          {/* Idle float (gentle, the whole composition). */}
+          {/* Idle float. */}
           <motion.div
-            className="relative grid size-52 place-items-center"
-            animate={reduce ? undefined : { y: [0, -6, 0] }}
-            transition={reduce ? undefined : { duration: 4, ease: "easeInOut", repeat: Infinity }}
+            className="relative grid place-items-center"
+            animate={reduce ? undefined : { y: [0, -7, 0] }}
+            transition={reduce ? undefined : { duration: 4.2, ease: "easeInOut", repeat: Infinity }}
           >
-            {/* breathing brand glow */}
+            {/* breathing brand glow behind the mark */}
             {!reduce ? (
               <motion.div
                 aria-hidden
-                className="pointer-events-none absolute size-44 rounded-full bg-brand-500/25 blur-2xl"
-                animate={{ opacity: [0.3, 0.5, 0.3] }}
-                transition={{ duration: 3, ease: "easeInOut", repeat: Infinity }}
+                className="pointer-events-none absolute size-56 rounded-full bg-brand-500/30 blur-3xl"
+                animate={{ opacity: [0.3, 0.55, 0.3], scale: [0.92, 1.04, 0.92] }}
+                transition={{ duration: 3.2, ease: "easeInOut", repeat: Infinity }}
               />
             ) : null}
 
-            {/* faint outer ring, slow rotation + entrance draw */}
-            <svg width="220" height="220" viewBox="0 0 220 220" fill="none" className="absolute" aria-hidden>
-              <motion.circle cx="110" cy="110" r="104" stroke="var(--brand-500)" strokeWidth="1.5" strokeDasharray="4 9" strokeLinecap="round"
-                style={{ transformOrigin: "110px 110px", willChange: "transform" }}
-                initial={reduce ? { pathLength: 1, opacity: 0.5 } : { pathLength: 0, opacity: 0 }}
-                animate={reduce ? { rotate: 0 } : { pathLength: 1, opacity: 0.5, rotate: 360 }}
-                transition={reduce ? undefined : { pathLength: { duration: 1.1, ease: EASE }, opacity: { duration: 0.3 }, rotate: { duration: 22, ease: "linear", repeat: Infinity } }} />
-              {/* crisp inner ring draws around the mark */}
-              <motion.circle cx="110" cy="110" r="92" stroke="var(--brand-500)" strokeWidth="2"
-                initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={ringDraw} style={{ transformOrigin: "110px 110px" }} />
-            </svg>
-
-            {/* The real mark, theme-correct, clipped tile with a scan-beam sweep. */}
-            <div className="relative size-36 overflow-hidden rounded-2xl shadow-card" style={{ backfaceVisibility: "hidden" }}>
-              <Image src="/mark-light.png" alt="Archon" width={144} height={144} priority className="only-marble size-36 object-cover" />
-              <Image src="/mark-dark.png" alt="" aria-hidden width={144} height={144} priority className="only-obsidian size-36 object-cover" />
-              {!reduce ? <span className="archon-scan-beam" aria-hidden /> : null}
+            {/* The real mark — transparent, floating, no square/rings. A brand sheen
+                sweeps across the glyph itself (masked to its exact shape). */}
+            <div className="relative" style={{ backfaceVisibility: "hidden" }}>
+              <Image src="/mark-light-cut.png" alt="Archon" width={474} height={611} priority className="only-marble h-60 w-auto object-contain drop-shadow-[0_14px_34px_rgba(22,160,107,0.30)]" />
+              <Image src="/mark-dark-cut.png" alt="" aria-hidden width={462} height={590} priority className="only-obsidian h-60 w-auto object-contain drop-shadow-[0_14px_38px_rgba(39,181,103,0.35)]" />
+              {!reduce ? (
+                <>
+                  <span aria-hidden className="archon-mark-sheen only-marble" style={{ WebkitMaskImage: "url(/mark-light-cut.png)", maskImage: "url(/mark-light-cut.png)" }} />
+                  <span aria-hidden className="archon-mark-sheen only-obsidian" style={{ WebkitMaskImage: "url(/mark-dark-cut.png)", maskImage: "url(/mark-dark-cut.png)" }} />
+                </>
+              ) : null}
             </div>
           </motion.div>
         </motion.div>
