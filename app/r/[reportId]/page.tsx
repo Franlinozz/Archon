@@ -43,13 +43,13 @@ export default async function PublicReportPage({ params }: { params: Promise<{ r
     logger.error({ err: error instanceof Error ? error.message : String(error), reportId }, "public report data fetch failed; rendering degraded state");
   }
   if (degraded) {
-    return <main className="min-h-screen bg-canvas text-text-hi"><header className="border-b border-border-subtle bg-surface-1/80"><div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><ArchonLogo/><Link href="/app/audit/new" className="rounded-control bg-green-400 px-3 py-2 text-sm font-semibold text-canvas">Run your own audit</Link></div></header><div className="mx-auto max-w-2xl px-5 py-16"><DegradedNotice resource="This public report"/></div></main>;
+    return <main className="min-h-screen text-text-hi"><header className="border-b border-border-subtle bg-surface-1/80"><div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><ArchonLogo/><Link href="/app/audit/new" className="rounded-control bg-green-400 px-3 py-2 text-sm font-semibold text-canvas">Run your own audit</Link></div></header><div className="mx-auto max-w-2xl px-5 py-16"><DegradedNotice resource="This public report"/></div></main>;
   }
   if (!report) notFound();
   const rederived = proof?.metadata ? deterministicReportHash(proof.metadata) : null;
   const verified = Boolean(proof?.reportHash && rederived === proof.reportHash && proof.txHash);
   const counts = report.severityCounts ?? {};
-  return <main className="min-h-screen bg-canvas text-text-hi">
+  return <main className="min-h-screen text-text-hi">
     <header className="border-b border-border-subtle bg-surface-1/80"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><ArchonLogo/><div className="flex items-center gap-2"><span className="rounded-pill border border-success/30 bg-success/10 px-3 py-1 text-sm text-success">Public verified report</span><Link href="/app/audit/new" className="rounded-control bg-green-400 px-3 py-2 text-sm font-semibold text-canvas">Run your own audit</Link></div></div></header>
     <div className="mx-auto max-w-6xl space-y-6 px-5 py-8">
       <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.14em] text-green-400">Archon public report</p><div className="mt-3 flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-4xl font-bold tracking-tight">{report.contractName}</h1><p className="mt-2 text-text-mid">Mantle Mainnet · scan depth {report.scanDepth} · generated {new Date(report.createdAt).toLocaleString()}</p></div><div className="rounded-card border border-warning/30 bg-warning/10 p-4 text-center"><p className="text-xs uppercase tracking-[0.12em] text-warning">Risk Score</p><p className="text-4xl font-bold text-warning">{report.riskScore}</p></div></div><p className="mt-5 max-w-4xl leading-7 text-text-mid">{report.executiveSummary ?? "This report contains Archon risk intelligence and recommended fixes. It is not a guarantee of safety."}</p></section>

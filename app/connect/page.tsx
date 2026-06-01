@@ -35,7 +35,7 @@ export default function ConnectPage() {
   }, [signedIn, next, router]);
 
   return (
-    <main className="grid min-h-screen place-items-center bg-canvas px-6 text-text-hi">
+    <main className="grid min-h-screen place-items-center px-6 text-text-hi">
       <div className="archon-arch w-full max-w-md rounded-card border border-border-subtle bg-surface-1 p-8 shadow-lift">
         <div className="flex flex-col items-center text-center">
           <span className="relative block size-12 overflow-hidden rounded-[10px]">

@@ -17,7 +17,7 @@ type SiweContextValue = {
 const SiweContext = createContext<SiweContextValue | null>(null);
 
 export function SiweProvider({ children }: { children: React.ReactNode }) {
-  const { address, isConnected, chainId } = useAccount();
+  const { address, isConnected, chainId, status: walletStatus } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [sessionAddress, setSessionAddress] = useState<string | null>(null);
   const [status, setStatus] = useState<SiweStatus>("idle");
@@ -70,27 +70,35 @@ export function SiweProvider({ children }: { children: React.ReactNode }) {
     }
   }, [address, onMantle, signMessageAsync]);
 
-  // Auto sign-in once per connected address (free signature) — but only AFTER the
-  // existing-session check resolves, so a valid cookie doesn't trigger a needless
-  // re-prompt on every refresh. If declined, retry manually via signIn(); no loop.
+  // Auto sign-in once per connected address (free signature) — only once the
+  // wallet is FULLY connected (status "connected", not the transient
+  // "reconnecting" on refresh) AND the existing-session check has resolved. We
+  // wait a settle delay before prompting; if a valid session hydrates (or the
+  // wallet state changes) during that window the effect re-runs and cancels the
+  // timer, so a returning user is never re-prompted on refresh.
   useEffect(() => {
-    if (!hydrated || !isConnected || !onMantle || !address) return;
+    if (!hydrated || walletStatus !== "connected" || !onMantle || !address) return;
     if (signedIn) { attemptedFor.current = address.toLowerCase(); return; }
     if (attemptedFor.current === address.toLowerCase()) return;
-    attemptedFor.current = address.toLowerCase();
-    void signIn();
-  }, [hydrated, isConnected, onMantle, address, signedIn, signIn]);
+    const timer = setTimeout(() => {
+      attemptedFor.current = address.toLowerCase();
+      void signIn();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [hydrated, walletStatus, onMantle, address, signedIn, signIn]);
 
-  // Clear the session when the wallet disconnects.
+  // Clear the session only on a DEFINITIVE disconnect — never during the
+  // "reconnecting" window after a refresh (that race was logging valid sessions
+  // out and forcing a re-prompt).
   useEffect(() => {
-    if (isConnected) return;
+    if (walletStatus !== "disconnected") return;
     attemptedFor.current = null;
     if (sessionAddress) {
       fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
       setSessionAddress(null);
       setStatus("idle");
     }
-  }, [isConnected, sessionAddress]);
+  }, [walletStatus, sessionAddress]);
 
   const value = useMemo<SiweContextValue>(
     () => ({ sessionAddress, signedIn, status, error, signIn }),

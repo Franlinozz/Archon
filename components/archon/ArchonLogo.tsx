@@ -1,15 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 
-// The logo is the dependable "go home" affordance. Public shells link to "/",
-// the app shell links to "/app" (dashboard home), per Session 2b. The mark is the
-// founder's real asset, theme-swapped via .theme-* visibility (no JS flash).
+// The brand logo always links to the landing page "/" — everywhere it appears,
+// dashboard included (Session 12 supersedes the earlier app→/app default). The
+// "go to workspace" affordance is the Overview sidebar item, not the brand mark.
+// The mark is the founder's real asset, theme-swapped via .theme-* (no JS flash).
 export function ArchonLogo({ href = "/", compact = false }: { href?: string; compact?: boolean }) {
-  const label = href === "/app" ? "Archon — go to dashboard" : "Archon — go to home";
   return (
     <Link
       href={href}
-      aria-label={label}
+      aria-label="Archon — go to landing page"
       className="group inline-flex items-center gap-2.5 rounded-control outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
     >
       <span className="relative flex items-center transition-[filter,transform] duration-150 group-hover:brightness-110 group-hover:drop-shadow-[0_0_10px_var(--ring)]">

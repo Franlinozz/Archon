@@ -11,7 +11,7 @@ const previews = [
 ] as const;
 
 export default function MarketingHome() {
-  return <main className="bg-canvas text-text-hi">
+  return <main className="text-text-hi">
     <Hero/>
     <section id="product" className="mx-auto max-w-7xl px-6 py-10"><div className="grid gap-3 md:grid-cols-4">{previews.map(([title, body, tag]) => <Reveal key={title}><article className="archon-card-lift h-full rounded-card border border-border-subtle bg-surface-1 p-4"><p className="font-mono text-xs uppercase tracking-[0.12em] text-green-400">{tag}</p><h2 className="mt-2 text-base font-semibold text-text-hi">{title}</h2><p className="mt-1.5 text-sm leading-relaxed text-text-mid">{body}</p><div className="mt-3 rounded-control bg-terminal p-2.5 font-mono text-xs text-text-code">{title === "On-chain Proof" ? "report_hash == rederived_hash" : title === "Cost Guard" ? "gas + rpc + ai · sample" : title === "Contract Context" ? "verifiedSource: true" : "Code Parse → Proof Logger"}</div></article></Reveal>)}</div></section>
     <ThreeSteps/>
