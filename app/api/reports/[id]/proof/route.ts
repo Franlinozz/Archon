@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { upsertPreparedProof } from "@/lib/proof/report";
-import { giveFeedbackParams, logPreparedProofOnReputation, verifyAndRecordUserProof } from "@/lib/proof/reputation";
+import { identityAttestParams, logPreparedProofOnIdentity, verifyAndRecordIdentityUserProof } from "@/lib/proof/identity";
 import { getSession } from "@/lib/auth/session";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
@@ -17,21 +17,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   if (!params.success) return NextResponse.json({ error: "Invalid report id." }, { status: 400 });
   const prepared = await upsertPreparedProof(params.data.id);
 
-  // Surface the exact giveFeedback params so a connected wallet can submit the
-  // identical call itself (self-custody). Only when registries are configured.
+  // Surface the exact Identity setMetadata params so a connected wallet can submit
+  // the identical self-attestation itself (self-custody). Only when configured.
   let selfCustody = null;
   if (prepared.configured) {
     try {
-      const p = giveFeedbackParams(prepared);
-      selfCustody = {
-        reputationRegistry: p.reputationRegistry,
-        agentId: p.agentId.toString(),
-        value: p.value,
-        valueDecimals: p.valueDecimals,
-        tag1: p.tag1,
-        tag2: p.tag2,
-        endpoint: p.endpoint,
-      };
+      selfCustody = identityAttestParams(params.data.id, prepared);
     } catch {
       selfCustody = null;
     }
@@ -64,17 +55,22 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!body.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const data = body.data;
 
-  // Mode 1 — Archon's server wallet anchors the proof (gasless for the user).
+  // Mode 1 — Archon's server (agent owner) self-attests via Identity setMetadata
+  // (gasless for the user). Simulation/timeout live inside the function.
   if ("action" in data && data.action === "log") {
-    const result = await logPreparedProofOnReputation(params.data.id);
-    return NextResponse.json(result);
+    try {
+      const result = await logPreparedProofOnIdentity(params.data.id);
+      return NextResponse.json(result);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Could not anchor the proof." }, { status: 400 });
+    }
   }
 
-  // Mode 2 — the user already submitted giveFeedback from their own wallet; verify
+  // Mode 2 — the user already submitted setMetadata from their own wallet; verify
   // and record it. The session address must match the on-chain submitter.
   if ("action" in data && data.action === "record-self-custody") {
     try {
-      const result = await verifyAndRecordUserProof(params.data.id, data.txHash as `0x${string}`, session.address);
+      const result = await verifyAndRecordIdentityUserProof(params.data.id, data.txHash as `0x${string}`, session.address);
       return NextResponse.json(result);
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Could not verify the proof transaction." }, { status: 400 });
