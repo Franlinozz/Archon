@@ -49,6 +49,20 @@ Archon is intentionally simple and cost-controlled:
 
 The scan pipeline is read-only. The only intended transaction path is the explicit user-approved proof log, guarded by simulation and cost checks.
 
+## Archon-deployed contract (Mantle Mainnet, chain `5000`)
+
+Archon ships its **own** on-chain proof contract — the primary, award-eligible anchor. Its
+`logAuditProof()` publishes the AI inference result on-chain (deterministic report hash +
+IPFS metadata URI + AI-derived risk score). It is permissionless and idempotent per report
+hash, so both the gasless (server) and self-custody (user) proof paths work without the
+ERC-8004 self-feedback restriction.
+
+- ArchonProofRegistry: `0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a`
+- Deploy tx: `0xb9ce87de86b212b91eb64012bbdab91014373da1f6d960470b340e1991a1a7c5`
+- Example AI-proof tx (`logAuditProof`): `0x82d99588e5f1bff33d618743025d598445493032637de25844a67aa8e88088ef`
+- Explorer: https://mantlescan.xyz/address/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a
+- Source + tests: `contracts/src/ArchonProofRegistry.sol`, `contracts/test/` (`forge test`, solc 0.8.24)
+
 ## ERC-8004 / Mantle configuration
 
 Archon uses official ERC-8004 contract ABIs and the official Mantle Mainnet Identity and Reputation registries. Validation Registry support is intentionally disabled until an official Mantle Mainnet Validation Registry address is published.
