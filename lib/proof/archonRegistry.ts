@@ -1,0 +1,133 @@
+import { createPublicClient, createWalletClient, encodeFunctionData, formatEther, http, isAddress, parseAbiItem, type Address } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { mantle } from "viem/chains";
+import archonProofRegistryAbi from "@/lib/chain/abis/ArchonProofRegistry.json";
+import { db } from "@/lib/db/client";
+import { upsertPreparedProof } from "./report";
+
+// Session 15: Archon's OWN deployed contract (ArchonProofRegistry) is the primary,
+// award-eligible anchor. logAuditProof is permissionless (no self-feedback rule) and
+// idempotent per report hash, so both gasless (owner wallet) and self-custody (user
+// wallet) work. Gated behind NEXT_PUBLIC_ARCHON_PROOF_REGISTRY — until that's set
+// (post-deploy), the proof route falls back to the Identity-attestation path.
+
+type Prepared = Awaited<ReturnType<typeof upsertPreparedProof>>;
+const chain = { ...mantle, id: 5000 } as const;
+const rpc = () => process.env.MANTLE_RPC_URL ?? "https://rpc.mantle.xyz";
+
+const PROOF_LOGGED_EVENT = parseAbiItem(
+  "event AuditProofLogged(bytes32 indexed reportHash, address indexed loggedBy, uint256 indexed agentId, uint8 riskScore, string metadataURI, uint64 timestamp)",
+);
+
+export function proofRegistryAddress(): Address | null {
+  const a = process.env.NEXT_PUBLIC_ARCHON_PROOF_REGISTRY;
+  return a && isAddress(a) ? (a as Address) : null;
+}
+export function isProofRegistryConfigured(): boolean {
+  return proofRegistryAddress() !== null;
+}
+
+function agentIdNum(): bigint {
+  const ref = process.env.ARCHON_AGENT_IDENTITY_REF ?? "";
+  const t = ref.split(":").at(-1);
+  return t && /^\d+$/.test(t) ? BigInt(t) : 0n;
+}
+
+function riskFromMetadata(prepared: Prepared): number {
+  const m = prepared.metadata as { report?: { riskScore?: number } };
+  const r = Math.round(m.report?.riskScore ?? 0);
+  return Math.max(0, Math.min(255, r));
+}
+
+/** Public params so a self-custody wallet can submit the identical logAuditProof. */
+export function archonProofParams(prepared: Prepared) {
+  const registry = proofRegistryAddress();
+  if (!registry) throw new Error("ARCHON_PROOF_REGISTRY not configured.");
+  return {
+    mechanism: "archon-registry" as const,
+    registry,
+    reportHash: prepared.reportHash as `0x${string}`,
+    metadataURI: prepared.metadataUri,
+    riskScore: riskFromMetadata(prepared),
+    agentId: agentIdNum().toString(),
+  };
+}
+
+function publicClient() {
+  return createPublicClient({ chain, transport: http(rpc()) });
+}
+
+// Read-before-write duplicate guard via the contract's isAnchored().
+async function alreadyAnchored(reportId: string, prepared: Prepared) {
+  const registry = proofRegistryAddress();
+  if (!registry) return null;
+  const anchored = (await publicClient().readContract({ address: registry, abi: archonProofRegistryAbi, functionName: "isAnchored", args: [prepared.reportHash as `0x${string}`] }).catch(() => false)) as boolean;
+  if (!anchored) return null;
+  const row = await db.query<{ txHash: string | null }>(`select tx_hash as "txHash" from proofs where report_id=$1`, [reportId]).catch(() => null);
+  return { txHash: row?.rows[0]?.txHash ?? null };
+}
+
+// GASLESS: Archon's server (the funded owner wallet) anchors. Simulate first,
+// bounded receipt wait — never silently hangs.
+export async function logPreparedProofOnArchonRegistry(reportId: string) {
+  const registry = proofRegistryAddress();
+  if (!registry) throw new Error("ARCHON_PROOF_REGISTRY not configured.");
+  const ownerKey = process.env.ARCHON_WALLET_PRIVATE_KEY as `0x${string}` | undefined;
+  if (!ownerKey) throw new Error("ARCHON_WALLET_PRIVATE_KEY must be configured.");
+  const prepared = await upsertPreparedProof(reportId);
+
+  const dup = await alreadyAnchored(reportId, prepared);
+  if (dup) return { reportId, proofId: prepared.proofId, alreadyAnchored: true, txHash: dup.txHash, reportHash: prepared.reportHash, metadataUri: prepared.metadataUri, explorer: dup.txHash ? `https://mantlescan.xyz/tx/${dup.txHash}` : null };
+
+  const account = privateKeyToAccount(ownerKey);
+  const pc = publicClient();
+  const wc = createWalletClient({ account, chain, transport: http(rpc()) });
+  const args = [prepared.reportHash as `0x${string}`, prepared.metadataUri, riskFromMetadata(prepared), agentIdNum()] as const;
+
+  await pc.simulateContract({ account: account.address, address: registry, abi: archonProofRegistryAbi, functionName: "logAuditProof", args });
+  const gas = await pc.estimateContractGas({ account: account.address, address: registry, abi: archonProofRegistryAbi, functionName: "logAuditProof", args });
+  const gasPrice = await pc.getGasPrice();
+  const balance = await pc.getBalance({ address: account.address });
+  if (balance < gas * gasPrice) throw new Error(`Archon's signer wallet has insufficient MNT. Need ${formatEther(gas * gasPrice)}, balance ${formatEther(balance)}.`);
+
+  const data = encodeFunctionData({ abi: archonProofRegistryAbi, functionName: "logAuditProof", args });
+  const nonce = await pc.getTransactionCount({ address: account.address, blockTag: "pending" });
+  const serialized = await wc.signTransaction({ account, chain, to: registry, data, gas, gasPrice, nonce });
+  const hash = await pc.sendRawTransaction({ serializedTransaction: serialized });
+  const receipt = await pc.waitForTransactionReceipt({ hash, confirmations: 1, timeout: 90_000 });
+  if (receipt.status !== "success") throw new Error("Proof transaction reverted on-chain.");
+
+  await recordProof(prepared.proofId, hash, prepared.metadataUri, { registry, agentId: agentIdNum(), author: account.address });
+  return {
+    reportId, proofId: prepared.proofId, txHash: hash, reportHash: prepared.reportHash, metadataUri: prepared.metadataUri,
+    agentId: agentIdNum().toString(), author: account.address, loggedBy: account.address, status: receipt.status,
+    gas: { used: receipt.gasUsed.toString(), actualCostMnt: formatEther(receipt.gasUsed * (receipt.effectiveGasPrice ?? gasPrice)) },
+    explorer: `https://mantlescan.xyz/tx/${hash}`,
+  };
+}
+
+// SELF-CUSTODY: the user already submitted logAuditProof. Verify the event + hash.
+export async function verifyAndRecordArchonUserProof(reportId: string, txHash: `0x${string}`, expectedAuthor?: string) {
+  const registry = proofRegistryAddress();
+  if (!registry) throw new Error("ARCHON_PROOF_REGISTRY not configured.");
+  const prepared = await upsertPreparedProof(reportId);
+  const pc = publicClient();
+  const receipt = await pc.waitForTransactionReceipt({ hash: txHash, confirmations: 1, timeout: 90_000 });
+  if (receipt.status !== "success") throw new Error("Transaction reverted on-chain.");
+
+  const logs = await pc.getLogs({ address: registry, event: PROOF_LOGGED_EVENT, fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber });
+  const own = logs.find((l) => l.transactionHash.toLowerCase() === txHash.toLowerCase() && (l.args.reportHash as string)?.toLowerCase() === (prepared.reportHash as string).toLowerCase());
+  if (!own) throw new Error("No AuditProofLogged event with this report hash was found in the transaction.");
+
+  const author = (receipt.from ?? "").toLowerCase();
+  if (expectedAuthor && author !== expectedAuthor.toLowerCase()) throw new Error("The transaction was submitted by a different wallet than the signed-in session.");
+  await recordProof(prepared.proofId, txHash, prepared.metadataUri, { registry, agentId: agentIdNum(), author });
+  return { reportId, proofId: prepared.proofId, txHash, reportHash: prepared.reportHash, agentId: agentIdNum().toString(), author, loggedBy: author, verified: true, explorer: `https://mantlescan.xyz/tx/${txHash}` };
+}
+
+async function recordProof(proofId: string, txHash: string, metadataUri: string, ref: { registry: string; agentId: bigint; author: string }) {
+  await db.query(
+    `update proofs set tx_hash=$2, metadata_uri=$3, verification_status='proof_logged', logged_at=now(), erc8004_ref=$4::jsonb where id=$1`,
+    [proofId, txHash, metadataUri, JSON.stringify({ mechanism: "archon-proof-registry", contract: ref.registry, agentId: ref.agentId.toString(), author: ref.author, loggedBy: ref.author })],
+  );
+}

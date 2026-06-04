@@ -6,11 +6,22 @@ import { useChainModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { formatEther } from "viem";
 import { AlertTriangle, CheckCircle2, Copy, Lock, ServerCog, Wallet, X } from "lucide-react";
 import identityRegistryAbi from "@/lib/chain/abis/IdentityRegistry.json";
+import archonProofRegistryAbi from "@/lib/chain/abis/ArchonProofRegistry.json";
 import { explorerTxUrl, MANTLE_CHAIN_ID } from "@/lib/chain/mantle";
 import { shortenAddress } from "@/lib/chain/useWallet";
 import { useSiwe } from "@/components/auth/SiweProvider";
 
-type SelfCustody = { mechanism: string; identityRegistry: string; agentId: string; metadataKey: string; metadataValue: string };
+type SelfCustody =
+  | { mechanism: "archon-registry"; registry: string; reportHash: string; metadataURI: string; riskScore: number; agentId: string }
+  | { mechanism: "identity-setMetadata"; identityRegistry: string; agentId: string; metadataKey: string; metadataValue: string };
+
+// Build the exact write call for whichever anchor mechanism the server returned.
+function buildWrite(sc: SelfCustody) {
+  if (sc.mechanism === "archon-registry") {
+    return { address: sc.registry as `0x${string}`, abi: archonProofRegistryAbi, functionName: "logAuditProof", args: [sc.reportHash as `0x${string}`, sc.metadataURI, sc.riskScore, BigInt(sc.agentId)] as const };
+  }
+  return { address: sc.identityRegistry as `0x${string}`, abi: identityRegistryAbi, functionName: "setMetadata", args: [BigInt(sc.agentId), sc.metadataKey, sc.metadataValue as `0x${string}`] as const };
+}
 type PreparedProof = { proofId: string; reportHash: string; metadataUri: string; chainId: number; network: string; configured: boolean; blocker: string | null; selfCustody: SelfCustody | null };
 type Mode = "server" | "self";
 // State machine — every terminal state renders a clear message + next action.
@@ -62,11 +73,10 @@ export function GenerateProofModal({ reportId }: { reportId: string }) {
   useEffect(() => {
     if (mode !== "self" || !onMantle || !prepared?.selfCustody || !publicClient || !address) { setGasMnt(null); return; }
     let active = true;
-    const sc = prepared.selfCustody;
-    const args = [BigInt(sc.agentId), sc.metadataKey, sc.metadataValue as `0x${string}`] as const;
+    const w = buildWrite(prepared.selfCustody);
     (async () => {
       try {
-        const gas = await publicClient.estimateContractGas({ account: address, address: sc.identityRegistry as `0x${string}`, abi: identityRegistryAbi, functionName: "setMetadata", args });
+        const gas = await publicClient.estimateContractGas({ account: address, address: w.address, abi: w.abi, functionName: w.functionName, args: w.args });
         const price = await publicClient.getGasPrice();
         if (active) setGasMnt(formatEther(gas * price));
       } catch { if (active) setGasMnt(null); }
@@ -97,16 +107,15 @@ export function GenerateProofModal({ reportId }: { reportId: string }) {
   // then verify the receipt server-side (bounded). Never submits a doomed tx.
   async function logSelf() {
     if (!prepared?.selfCustody || !onMantle) return;
-    const sc = prepared.selfCustody;
-    const args = [BigInt(sc.agentId), sc.metadataKey, sc.metadataValue as `0x${string}`] as const;
+    const w = buildWrite(prepared.selfCustody);
     setErrorMsg(null);
     try {
       if (publicClient) {
         setPhase("simulating"); setStatus("Checking the transaction will succeed…");
-        await publicClient.simulateContract({ account: address, address: sc.identityRegistry as `0x${string}`, abi: identityRegistryAbi, functionName: "setMetadata", args });
+        await publicClient.simulateContract({ account: address, address: w.address, abi: w.abi, functionName: w.functionName, args: w.args });
       }
       setPhase("awaiting"); setStatus("Confirm in your wallet — a small MNT gas fee, no token spend.");
-      const hash = await writeContractAsync({ address: sc.identityRegistry as `0x${string}`, abi: identityRegistryAbi, functionName: "setMetadata", args });
+      const hash = await writeContractAsync({ address: w.address, abi: w.abi, functionName: w.functionName, args: w.args });
       setTxHash(hash); setPhase("pending"); setStatus("Submitted. Verifying the on-chain attestation…");
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 110_000);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { upsertPreparedProof } from "@/lib/proof/report";
 import { identityAttestParams, logPreparedProofOnIdentity, verifyAndRecordIdentityUserProof } from "@/lib/proof/identity";
+import { archonProofParams, isProofRegistryConfigured, logPreparedProofOnArchonRegistry, verifyAndRecordArchonUserProof } from "@/lib/proof/archonRegistry";
 import { getSession } from "@/lib/auth/session";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
@@ -19,10 +20,13 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
   // Surface the exact Identity setMetadata params so a connected wallet can submit
   // the identical self-attestation itself (self-custody). Only when configured.
+  // Primary anchor = Archon's own deployed ArchonProofRegistry (award-eligible).
+  // Until its address is configured (post-deploy), fall back to ERC-8004 Identity
+  // self-attestation so proof-logging keeps working with no downtime.
   let selfCustody = null;
   if (prepared.configured) {
     try {
-      selfCustody = identityAttestParams(params.data.id, prepared);
+      selfCustody = isProofRegistryConfigured() ? archonProofParams(prepared) : identityAttestParams(params.data.id, prepared);
     } catch {
       selfCustody = null;
     }
@@ -59,7 +63,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   // (gasless for the user). Simulation/timeout live inside the function.
   if ("action" in data && data.action === "log") {
     try {
-      const result = await logPreparedProofOnIdentity(params.data.id);
+      const result = isProofRegistryConfigured()
+        ? await logPreparedProofOnArchonRegistry(params.data.id)
+        : await logPreparedProofOnIdentity(params.data.id);
       return NextResponse.json(result);
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Could not anchor the proof." }, { status: 400 });
@@ -70,7 +76,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   // and record it. The session address must match the on-chain submitter.
   if ("action" in data && data.action === "record-self-custody") {
     try {
-      const result = await verifyAndRecordIdentityUserProof(params.data.id, data.txHash as `0x${string}`, session.address);
+      const result = isProofRegistryConfigured()
+        ? await verifyAndRecordArchonUserProof(params.data.id, data.txHash as `0x${string}`, session.address)
+        : await verifyAndRecordIdentityUserProof(params.data.id, data.txHash as `0x${string}`, session.address);
       return NextResponse.json(result);
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Could not verify the proof transaction." }, { status: 400 });
