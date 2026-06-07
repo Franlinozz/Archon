@@ -7,7 +7,7 @@ import { redisReady } from "@/lib/queue/redis";
 export const runtime = "nodejs";
 
 const schema = z.object({
-  sourceKind: z.enum(["paste", "sample"]).default("paste"),
+  sourceKind: z.enum(["paste", "sample", "address"]).default("paste"),
   sourceCode: z.string().optional(),
   sourceRef: z.string().optional(),
   callsPerYear: z.number().int().positive().max(1_000_000_000).optional(),

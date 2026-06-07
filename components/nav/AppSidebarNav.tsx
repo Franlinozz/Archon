@@ -33,6 +33,7 @@ const nav: NavItem[] = [
   { label: "Reports", href: "/app/reports", icon: FileText, match: "/app/reports" },
   { label: "Findings", href: "/app/findings", icon: ShieldAlert },
   { label: "Generated Tests", href: "/app/tests", icon: FlaskConical },
+  { label: "Gas Optimizer", href: "/app/gas", icon: Gauge, match: "/app/gas" },
   { label: "Cost Guard", href: "/app/cost-guard", icon: Gauge },
   { label: "On-chain Proof", href: "/app/proofs", icon: BadgeCheck },
   { label: "Validation", href: "/app/validation", icon: ListChecks },

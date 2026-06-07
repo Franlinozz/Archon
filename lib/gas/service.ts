@@ -25,7 +25,7 @@ const DEFAULT_MNT_USD = Number(process.env.ARCHON_GAS_MNT_USD ?? 1);
 const GAS_TIMEOUT_MS = Number(process.env.ARCHON_GAS_WORKER_TIMEOUT_MS ?? 120_000);
 const chain = { ...mantle, id: 5000 } as const;
 
-export type GasSourceKind = "paste" | "sample";
+export type GasSourceKind = "paste" | "sample" | "address";
 export type GasScanInput = { sourceKind: GasSourceKind; sourceCode?: string; sourceRef?: string; callsPerYear?: number; mntUsd?: number };
 
 type GasReportRow = {
@@ -44,10 +44,34 @@ function contractName(source: string) {
   return source.match(/\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? "Contract";
 }
 
+async function sourceFromAddress(address: string) {
+  if (!isAddress(address)) throw new Error("Enter a valid Mantle contract address.");
+  const explorerUrl = process.env.MANTLE_EXPLORER_API_URL ?? "https://explorer.mantle.xyz/api";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(`${explorerUrl}?module=contract&action=getsourcecode&address=${address}`, { signal: controller.signal, headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error(`Mantle explorer returned HTTP ${response.status}`);
+    const payload = await response.json() as { result?: Array<{ SourceCode?: string; ContractName?: string }> };
+    const raw = payload.result?.[0]?.SourceCode?.trim() ?? "";
+    const source = raw.startsWith("{{") && raw.endsWith("}}") ? JSON.parse(raw.slice(1, -1)).sources : raw;
+    if (typeof source === "string" && source.includes("pragma solidity")) return source;
+    if (typeof source === "object" && source) {
+      const first = Object.values(source).find((entry): entry is { content: string } => typeof (entry as { content?: unknown }).content === "string");
+      if (first?.content) return first.content;
+    }
+    throw new Error("Mantle explorer did not return verified Solidity source for this address.");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function resolveGasSource(input: GasScanInput) {
   const source = input.sourceKind === "sample"
     ? await readFile(path.join(process.cwd(), "contracts/VaultV2.sol"), "utf8")
-    : input.sourceCode?.trim() ?? "";
+    : input.sourceKind === "address"
+      ? await sourceFromAddress(input.sourceRef?.trim() ?? "")
+      : input.sourceCode?.trim() ?? "";
   if (!source || !/pragma\s+solidity/.test(source) || !/\bcontract\s+[A-Za-z_][A-Za-z0-9_]*/.test(source)) throw new Error("Gas scan source must include a Solidity pragma and at least one contract.");
   if (Buffer.byteLength(source, "utf8") > MAX_GAS_SOURCE_BYTES) throw new Error(`Gas scan source exceeds ${MAX_GAS_SOURCE_BYTES} bytes.`);
   return { source, contractName: contractName(source), sourceHash: sha256(source) };
