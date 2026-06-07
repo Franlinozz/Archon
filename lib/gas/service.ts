@@ -172,7 +172,20 @@ export async function runApplyPatch(gasReportId: string, optimizationId: string)
   try {
     const sourceFile = path.join(workdir, `${report.contract_name ?? contractName(report.source_code)}.sol`);
     await writeFile(sourceFile, patchedSource);
-    await compileSource(workdir, sourceFile);
+    try {
+      await compileSource(workdir, sourceFile);
+    } catch (error) {
+      const gasDiff = {
+        status: "compile-failed",
+        label: "dropped",
+        gasReport: null,
+        error: error instanceof Error ? error.message.slice(0, 2000) : String(error).slice(0, 2000),
+        generatedAt: new Date().toISOString(),
+        note: "Patch was dropped because the patched source did not compile. Archon will not present this as a valid saving.",
+      };
+      await db.query("update gas_optimizations set status='patch-failed', gas_diff=$3::jsonb, notes=$4 where gas_report_id=$1 and id=$2", [gasReportId, optimizationId, JSON.stringify(gasDiff), gasDiff.note]);
+      return { patchedSource: null, gasDiff };
+    }
     const command = `${FORGE_BIN} test --gas-report --root ${workdir}`;
     let gasReport = "Compiled patched source with solcjs. Foundry harness not available for this contract shape yet.";
     try {
