@@ -25,6 +25,26 @@ type ScanDepth = (typeof scanDepths)[number]["id"];
 type Props = { initialSource: string };
 
 type ApiIssue = { path: string; message: string };
+type SourceImportPayload = {
+  mode?: "single" | "select";
+  source?: string;
+  fileName?: string;
+  path?: string;
+  repo?: string;
+  ref?: string;
+  error?: string;
+  message?: string;
+  files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
+};
+
+function chooseSourceFile(files: NonNullable<SourceImportPayload["files"]>, message = "Select Solidity file") {
+  const options = files.map((file, index) => `${index + 1}. ${file.path}${file.contractNames.length ? ` (${file.contractNames.join(", ")})` : ""}`).join("\n");
+  const answer = window.prompt(`${message}:\n${options}`);
+  if (!answer) return null;
+  const index = Number(answer.trim()) - 1;
+  if (!Number.isInteger(index) || index < 0 || index >= files.length) throw new Error("Invalid Solidity file selection.");
+  return files[index]!.path;
+}
 
 export function AuditStudioClient({ initialSource }: Props) {
   const router = useRouter();
@@ -66,19 +86,26 @@ export function AuditStudioClient({ initialSource }: Props) {
     }
   }
 
-  async function importFile(file: File) {
+  async function importFile(file: File, selectedPath?: string) {
     setError(null);
-    if (!file.name.endsWith(".sol")) {
-      setError("Upload a Solidity .sol file.");
-      return;
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      if (selectedPath) form.set("path", selectedPath);
+      const response = await fetch("/api/source/upload", { method: "POST", body: form });
+      const payload = (await response.json()) as SourceImportPayload;
+      if (!response.ok) throw new Error(payload.error || "Upload import failed.");
+      if (payload.mode === "select" && payload.files?.length) {
+        const path = chooseSourceFile(payload.files, payload.message);
+        if (path) await importFile(file, path);
+        return;
+      }
+      if (!payload.source) throw new Error(payload.error || "Upload did not return Solidity source.");
+      setSourceCode(payload.source);
+      setSourceLabel(payload.path ?? payload.fileName ?? file.name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload import failed.");
     }
-    const text = await file.text();
-    if (!text.includes("pragma solidity")) {
-      setError("That file does not look like Solidity source.");
-      return;
-    }
-    setSourceCode(text);
-    setSourceLabel(file.name);
   }
 
   async function importGithub() {
@@ -87,11 +114,19 @@ export function AuditStudioClient({ initialSource }: Props) {
     setError(null);
     setIsImporting(true);
     try {
-      const response = await fetch("/api/source/github", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo }) });
-      const payload = (await response.json()) as { source?: string; fileName?: string; path?: string; repo?: string; error?: string };
-      if (!response.ok || !payload.source) throw new Error(payload.error || "GitHub import failed.");
+      let response = await fetch("/api/source/github", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo }) });
+      let payload = (await response.json()) as SourceImportPayload;
+      if (!response.ok) throw new Error(payload.error || "GitHub import failed.");
+      if (payload.mode === "select" && payload.files?.length) {
+        const path = chooseSourceFile(payload.files, payload.message);
+        if (!path) return;
+        response = await fetch("/api/source/github", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo, path, ref: payload.ref }) });
+        payload = (await response.json()) as SourceImportPayload;
+        if (!response.ok) throw new Error(payload.error || "GitHub import failed.");
+      }
+      if (!payload.source) throw new Error(payload.error || "GitHub import did not return Solidity source.");
       setSourceCode(payload.source);
-      setSourceLabel(`${payload.repo}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
+      setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "GitHub import failed.");
     } finally {
@@ -119,7 +154,7 @@ export function AuditStudioClient({ initialSource }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-surface-1 p-3">
             <div className="flex flex-wrap gap-2">
               <span className="rounded-pill border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-medium text-green-400">Paste Code</span>
-              <input ref={fileInputRef} type="file" accept=".sol,text/plain" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importFile(file); event.currentTarget.value = ""; }} />
+              <input ref={fileInputRef} type="file" accept=".sol,.zip,text/plain,application/zip" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importFile(file); event.currentTarget.value = ""; }} />
               <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400">Upload File</button>
               <button type="button" onClick={() => void importGithub()} disabled={isImporting} className="rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400 disabled:cursor-wait disabled:opacity-60">{isImporting ? "Importing…" : "GitHub Repo"}</button>
             </div>

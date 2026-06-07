@@ -13,6 +13,26 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false,
 type SourceMode = "paste" | "address";
 
 type ApiPayload = { gasReportId?: string; error?: string; issues?: Array<{ message: string }> };
+type SourceImportPayload = {
+  mode?: "single" | "select";
+  source?: string;
+  fileName?: string;
+  path?: string;
+  repo?: string;
+  ref?: string;
+  error?: string;
+  message?: string;
+  files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
+};
+
+function chooseSourceFile(files: NonNullable<SourceImportPayload["files"]>, message = "Select Solidity file") {
+  const options = files.map((file, index) => `${index + 1}. ${file.path}${file.contractNames.length ? ` (${file.contractNames.join(", ")})` : ""}`).join("\n");
+  const answer = window.prompt(`${message}:\n${options}`);
+  if (!answer) return null;
+  const index = Number(answer.trim()) - 1;
+  if (!Number.isInteger(index) || index < 0 || index >= files.length) throw new Error("Invalid Solidity file selection.");
+  return files[index]!.path;
+}
 
 export function GasOptimizerStudio({ initialSource }: { initialSource: string }) {
   const router = useRouter();
@@ -34,12 +54,23 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
   const solidityVersion = useMemo(() => sourceCode.match(/pragma\s+solidity\s+([^;]+);/)?.[1]?.trim() ?? "unknown", [sourceCode]);
   const lineCount = sourceCode.split("\n").length;
 
-  async function importFile(file: File) {
+  async function importFile(file: File, selectedPath?: string) {
     setError(null);
-    if (!file.name.endsWith(".sol")) { setError("Upload a Solidity .sol file."); return; }
-    const text = await file.text();
-    if (!text.includes("pragma solidity")) { setError("That file does not look like Solidity source."); return; }
-    setSourceMode("paste"); setSourceCode(text); setSourceLabel(file.name);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      if (selectedPath) form.set("path", selectedPath);
+      const response = await fetch("/api/source/upload", { method: "POST", body: form });
+      const payload = await response.json() as SourceImportPayload;
+      if (!response.ok) throw new Error(payload.error ?? "Upload import failed.");
+      if (payload.mode === "select" && payload.files?.length) {
+        const path = chooseSourceFile(payload.files, payload.message);
+        if (path) await importFile(file, path);
+        return;
+      }
+      if (!payload.source) throw new Error(payload.error ?? "Upload did not return Solidity source.");
+      setSourceMode("paste"); setSourceCode(payload.source); setSourceLabel(payload.path ?? payload.fileName ?? file.name);
+    } catch (err) { setError(err instanceof Error ? err.message : "Upload import failed."); }
   }
 
   async function importGithub() {
@@ -47,10 +78,18 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
     if (!repo) return;
     setError(null); setIsImporting(true);
     try {
-      const response = await fetch("/api/source/github", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo }) });
-      const payload = await response.json() as { source?: string; repo?: string; path?: string; fileName?: string; error?: string };
-      if (!response.ok || !payload.source) throw new Error(payload.error ?? "GitHub import failed.");
-      setSourceMode("paste"); setSourceCode(payload.source); setSourceLabel(`${payload.repo}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
+      let response = await fetch("/api/source/github", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo }) });
+      let payload = await response.json() as SourceImportPayload;
+      if (!response.ok) throw new Error(payload.error ?? "GitHub import failed.");
+      if (payload.mode === "select" && payload.files?.length) {
+        const path = chooseSourceFile(payload.files, payload.message);
+        if (!path) return;
+        response = await fetch("/api/source/github", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo, path, ref: payload.ref }) });
+        payload = await response.json() as SourceImportPayload;
+        if (!response.ok) throw new Error(payload.error ?? "GitHub import failed.");
+      }
+      if (!payload.source) throw new Error(payload.error ?? "GitHub import did not return Solidity source.");
+      setSourceMode("paste"); setSourceCode(payload.source); setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
     } catch (err) { setError(err instanceof Error ? err.message : "GitHub import failed."); }
     finally { setIsImporting(false); }
   }
@@ -83,7 +122,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-surface-1 p-3">
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setSourceMode("paste")} className={sourceMode === "paste" ? "rounded-pill border border-green-400/35 bg-green-400/10 px-4 py-2 text-sm text-green-400" : "rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid"}>Paste Code</button>
-              <input ref={fileInputRef} type="file" accept=".sol,text/plain" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.currentTarget.value = ""; }} />
+              <input ref={fileInputRef} type="file" accept=".sol,.zip,text/plain,application/zip" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.currentTarget.value = ""; }} />
               <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-2 rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:text-green-400"><Upload size={15}/> Upload</button>
               <button onClick={() => void importGithub()} disabled={isImporting} className="inline-flex items-center gap-2 rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:text-green-400 disabled:opacity-60"><Github size={15}/> {isImporting ? "Importing…" : "GitHub"}</button>
               <button onClick={() => setSourceMode("address")} className={sourceMode === "address" ? "rounded-pill border border-green-400/35 bg-green-400/10 px-4 py-2 text-sm text-green-400" : "rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid"}>Address</button>
