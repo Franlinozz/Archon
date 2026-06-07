@@ -4,6 +4,7 @@ import path from "node:path";
 import { formatEther, type Hex } from "viem";
 import { getMantlePublicClient } from "@/lib/chain/mantle";
 import { calldataByteProfile, calibrateMantleDaModel, estimateDaFeeWei, type CalibratedDaModel } from "@/lib/gas/da-pricing";
+import { runGasOptimizationRules, type GasOptimizationRuleResult } from "@/lib/gas/rules";
 import type { ScanFinding, Severity } from "@/lib/scan/types";
 
 
@@ -34,22 +35,13 @@ export type GasOptimizerProfile = {
     unavailableReason?: string;
     calibrationErrorPct?: number;
   };
-  opportunities: Array<{
-    id: string;
-    title: string;
+  opportunities: Array<GasOptimizationRuleResult & {
     severity: Severity;
-    lineStart: number | null;
     estimatedGasSaved: number | null;
     estimatedDataBytesSaved: number | null;
     annualizedBasis: string;
   }>;
 };
-
-function lineFor(source: string, pattern: RegExp) {
-  const lines = source.split("\n");
-  const index = lines.findIndex((line) => pattern.test(line));
-  return index >= 0 ? index + 1 : null;
-}
 
 function snippet(source: string, lineStart: number | null) {
   if (!lineStart) return null;
@@ -57,10 +49,6 @@ function snippet(source: string, lineStart: number | null) {
   const start = Math.max(1, lineStart - 2);
   const end = Math.min(lines.length, lineStart + 2);
   return lines.slice(start - 1, end).map((line, index) => `${start + index}: ${line}`).join("\n");
-}
-
-function dedupe(input: string) {
-  return createHash("sha256").update(input).digest("hex");
 }
 
 async function compiledCreationBytecode(workdir: string, contractName: string) {
@@ -125,95 +113,40 @@ async function priceCreationData(workdir: string, contractName: string): Promise
   }
 }
 
+function severityFor(result: GasOptimizationRuleResult): Severity {
+  if (result.category === "storage" && (result.estL2Delta ?? 0) >= 20_000) return "medium";
+  if (result.category === "calldata") return "low";
+  return "info";
+}
+
 export async function analyzeGasOptimizations(input: DetectorInput): Promise<{ profile: GasOptimizerProfile; findings: ScanFinding[] }> {
   const source = input.source;
-  const basename = path.basename(input.sourceFile);
-  const opportunities: GasOptimizerProfile["opportunities"] = [];
-  const findings: ScanFinding[] = [];
-
-  const add = (args: {
-    id: string;
-    severity: Severity;
-    category: string;
-    title: string;
-    pattern: RegExp;
-    summary: string;
-    whyMantle: string;
-    recommendedFix: string;
-    gasImpact: string;
-    estimatedGasSaved: number | null;
-    estimatedDataBytesSaved: number | null;
-  }) => {
-    const lineStart = lineFor(source, args.pattern);
-    if (!lineStart) return;
-    opportunities.push({
-      id: args.id,
-      title: args.title,
-      severity: args.severity,
-      lineStart,
-      estimatedGasSaved: args.estimatedGasSaved,
-      estimatedDataBytesSaved: args.estimatedDataBytesSaved,
-      annualizedBasis: "Static source estimate. Exact runtime deltas require queued Foundry snapshots with representative inputs.",
-    });
-    findings.push({
-      severity: args.severity,
-      category: args.category,
-      title: args.title,
-      file: basename,
-      lineStart,
-      lineEnd: null,
-      codeSnippet: snippet(source, lineStart),
-      summary: args.summary,
-      whyMantle: args.whyMantle,
-      recommendedFix: args.recommendedFix,
-      confidence: 0.78,
-      gasImpact: args.gasImpact,
-      source: "rule",
-      dedupeKey: `gas:${args.id}:${lineStart}:${dedupe(args.title).slice(0, 12)}`,
-    });
-  };
-
-  add({
-    id: "cache-storage-array-length",
-    severity: "low",
-    category: "mantle-gas-optimizer/storage-loop-length",
-    title: "Cache storage array length before loop",
-    pattern: /for\s*\([^;]+;[^;]+\.length\s*;/,
-    summary: "A loop reads .length in the loop condition. If the collection is in storage, this repeats an SLOAD on every iteration.",
-    whyMantle: "Mantle execution gas is cheap but still user-visible. Repeated SLOADs also compound when the same transaction carries L1 data cost.",
-    recommendedFix: "Cache the length in a local variable before the loop, and batch very large arrays with a cursor.",
-    gasImpact: "Estimated ~100 gas saved per iteration when .length resolves to storage; exact delta should be confirmed by the queued Foundry gas snapshot.",
-    estimatedGasSaved: 100,
-    estimatedDataBytesSaved: null,
-  });
-
-  add({
-    id: "external-public-function",
-    severity: "info",
-    category: "mantle-gas-optimizer/function-visibility",
-    title: "Public function can likely be external",
-    pattern: /function\s+\w+\s*\([^)]*calldata[^)]*\)\s+public\b/,
-    summary: "A public function with calldata parameters may not need internal dispatch. external can avoid unnecessary ABI copying in some call paths.",
-    whyMantle: "Small per-call savings matter for high-frequency DevTools, router, vault, and DEX paths on Mantle.",
-    recommendedFix: "If the function is never called internally, change visibility from public to external and re-run tests.",
-    gasImpact: "Static estimate: small per-call execution reduction. Requires generated test/gas snapshot before claiming a precise saving.",
-    estimatedGasSaved: 20,
-    estimatedDataBytesSaved: null,
-  });
-
-  add({
-    id: "revert-string-to-custom-error",
-    severity: "low",
-    category: "mantle-gas-optimizer/custom-errors",
-    title: "Long revert string increases bytecode and deploy data fee",
-    pattern: /require\s*\([^;]+,\s*"[^"]{32,}"\s*\)/,
-    summary: "Long revert strings inflate creation bytecode and calldata published for deployment.",
-    whyMantle: "Mantle transactions include an L1/DA data component, so bytecode size is a real cost dimension, not only an aesthetic concern.",
-    recommendedFix: "Replace long revert strings with custom errors, preserving readable NatSpec/test assertions for developer ergonomics.",
-    gasImpact: "Estimated 32+ creation-byte reduction per long string plus runtime savings on revert paths; deploy DA fee is priced by the receipt-calibrated Mantle model when validation is within tolerance.",
-    estimatedGasSaved: null,
-    estimatedDataBytesSaved: 32,
-  });
+  const ruleResults = runGasOptimizationRules({ source, sourceFile: input.sourceFile });
+  const opportunities: GasOptimizerProfile["opportunities"] = ruleResults.map((item) => ({
+    ...item,
+    severity: severityFor(item),
+    estimatedGasSaved: item.estL2Delta,
+    estimatedDataBytesSaved: item.estL1Delta,
+    annualizedBasis: item.category === "calldata"
+      ? "Receipt-calibrated DA estimate for calldata/data bytes; exact deltas require V2.1.2 harness measurement."
+      : "Static deterministic estimate. Exact runtime deltas require queued Foundry snapshots with representative inputs.",
+  }));
+  const findings: ScanFinding[] = opportunities.map((item) => ({
+    severity: item.severity,
+    category: `mantle-gas-optimizer/${item.category}/${item.id}`,
+    title: item.title,
+    file: item.file,
+    lineStart: item.lineStart,
+    lineEnd: item.lineStart,
+    codeSnippet: snippet(source, item.lineStart),
+    summary: item.rationale,
+    whyMantle: item.category === "calldata" ? "Mantle receipts show DA/L1 cost is exposed through l1Fee, so calldata byte reduction is a first-class cost lever." : "Mantle execution is inexpensive but high-frequency contracts still compound L2 gas costs.",
+    recommendedFix: `Before: ${item.before}\nAfter: ${item.after}`,
+    confidence: item.confidence,
+    gasImpact: `L2 delta: ${item.estL2Delta ?? "n/a"}; L1/DA delta: ${item.estL1Delta ?? "n/a"}; safety: ${item.safety}`,
+    source: "rule",
+    dedupeKey: `gas:${item.id}:${item.where}:${createHash("sha256").update(item.before).digest("hex").slice(0, 12)}`,
+  }));
 
   const { pricing, model } = await priceCreationData(input.workdir, input.contractName);
   const profile: GasOptimizerProfile = {

@@ -10,7 +10,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "worker": "tsx worker/index.ts",
-    "test": "tsx scripts/test-proof-hash.ts && tsx scripts/test-mantle-rules.ts",
+    "test": "tsx scripts/test-proof-hash.ts && tsx scripts/test-mantle-rules.ts && tsx scripts/test-gas-rules.ts",
     "compile:contracts": "rm -rf /tmp/archon-contracts-build && mkdir -p /tmp/archon-contracts-build && solcjs --bin --abi --base-path . -o /tmp/archon-contracts-build contracts/*.sol",
     "prepare": "husky",
     "secret-scan": "tsx scripts/secret-scan.ts",
