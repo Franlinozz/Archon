@@ -97,3 +97,60 @@ create table if not exists ai_cache (
   response jsonb,
   created_at timestamptz
 );
+
+create table if not exists gas_reports (
+  id uuid primary key default gen_random_uuid(),
+  source_kind text,
+  source_ref text,
+  source_code text,
+  source_hash text,
+  contract_name text,
+  network text default 'mantle-mainnet',
+  status text default 'queued',
+  progress int default 0,
+  current_stage text,
+  pricing jsonb,
+  measurement jsonb,
+  totals jsonb,
+  assumptions jsonb,
+  report_hash text,
+  proof_id uuid references proofs(id),
+  anchor_tx_hash text,
+  created_at timestamptz default now(),
+  started_at timestamptz,
+  finished_at timestamptz,
+  error text
+);
+
+create index if not exists gas_reports_status_created_idx on gas_reports(status, created_at desc);
+create index if not exists gas_reports_source_hash_idx on gas_reports(source_hash);
+
+create table if not exists gas_optimizations (
+  id uuid primary key default gen_random_uuid(),
+  gas_report_id uuid references gas_reports(id) on delete cascade,
+  rule_id text,
+  title text,
+  category text,
+  file text,
+  line_start int,
+  location text,
+  before text,
+  after text,
+  safety text,
+  confidence numeric,
+  status text,
+  measurement_label text,
+  est_l2_delta int,
+  measured_l2_delta int,
+  est_l1_delta_wei numeric,
+  measured_l1_delta_wei numeric,
+  annual_savings_usd numeric,
+  rank_score numeric,
+  patch jsonb,
+  gas_diff jsonb,
+  notes text,
+  created_at timestamptz default now(),
+  unique(gas_report_id, rule_id, location, before)
+);
+
+create index if not exists gas_optimizations_report_rank_idx on gas_optimizations(gas_report_id, rank_score desc nulls last);
