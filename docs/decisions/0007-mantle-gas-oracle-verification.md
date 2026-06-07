@@ -74,3 +74,31 @@ Observed:
 `candidate-verified-onchain`, not `human-confirmed`.
 
 The address and ABI are strongly supported by official docs/source and live RPC, but measured DA-fee mode remains disabled until Francis explicitly confirms the address and semantics for Archon production.
+
+## Empirical receipt comparison — measured mode rejected
+
+Date: 2026-06-07
+
+Mantle receipt ground truth was checked with `eth_getTransactionReceipt`. The exact receipt field for charged DA/L1 fee is `l1Fee`.
+
+`getL1Fee(bytes)` was called at each transaction's block using the signed serialized transaction bytes.
+
+| Tx | Block | Serialized bytes | Actual receipt `l1Fee` | Oracle `getL1Fee(serializedTx)` | Delta |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `0x82d99588e5f1bff33d618743025d598445493032637de25844a67aa8e88088ef` | `96205628` | `342` | `699231354481640` wei (`0.00069923135448164` MNT) | `313344079825` wei (`0.000000313344079825` MNT) | `99.9551%` |
+| `0xb9ce87de86b212b91eb64012bbdab91014373da1f6d960470b340e1991a1a7c5` | `96205472` | `2037` | `6874261528561290` wei (`0.00687426152856129` MNT) | `2361496520609` wei (`0.000002361496520609` MNT) | `99.9656%` |
+
+Receipt fee-related fields observed include:
+
+- `l1Fee`
+- `l1GasUsed`
+- `l1GasPrice`
+- `l1BaseFeeScalar`
+- `l1BlobBaseFee`
+- `l1BlobBaseFeeScalar`
+- `blobGasUsed`
+- `daFootprintGasScalar`
+- `operatorFeeConstant`
+- `operatorFeeScalar`
+
+Conclusion: `0x420000000000000000000000000000000000000F.getL1Fee(bytes)` does **not** match Mantle Mainnet receipt ground truth for these production transactions. Archon must remain in labeled deterministic estimate mode until Mantle's current receipt-fee formula is implemented and validated against receipts.
