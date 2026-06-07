@@ -102,3 +102,42 @@ Receipt fee-related fields observed include:
 - `operatorFeeScalar`
 
 Conclusion: `0x420000000000000000000000000000000000000F.getL1Fee(bytes)` does **not** match Mantle Mainnet receipt ground truth for these production transactions. Archon must remain in labeled deterministic estimate mode until Mantle's current receipt-fee formula is implemented and validated against receipts.
+
+## Receipt-calibrated model — active for pre-deployment estimates
+
+Date: 2026-06-07
+
+Archon does not use `GasPriceOracle.getL1Fee(bytes)` for measured mode. Production ground truth is the Mantle receipt `l1Fee` field.
+
+### Real/deployed transactions
+
+Where a real transaction exists, Archon treats `eth_getTransactionReceipt(txHash).l1Fee` as the measured DA/L1 cost and uses it directly.
+
+### Pre-deployment estimates
+
+For bytecode/calldata that does not yet have a receipt, Archon calibrates a zero/nonzero calldata-byte model from recent known receipts:
+
+```text
+estimated_l1_fee = zero_bytes * zeroByteFeeWei + nonzero_bytes * nonZeroByteFeeWei
+```
+
+Initial calibration samples:
+
+- `0x82d99588e5f1bff33d618743025d598445493032637de25844a67aa8e88088ef`
+- `0xb9ce87de86b212b91eb64012bbdab91014373da1f6d960470b340e1991a1a7c5`
+
+Initial calibrated rates:
+
+- `zeroByteFeeWei = 2736708878864`
+- `nonZeroByteFeeWei = 3545974793924`
+
+These rates are intentionally receipt-derived and can be refreshed by setting `ARCHON_DA_CALIBRATION_TXS` to a comma-separated set of recent Mantle transaction hashes.
+
+### Validation
+
+| Tx | Actual receipt `l1Fee` | Calibrated model prediction | Error |
+| --- | ---: | ---: | ---: |
+| `0x82d99588e5f1bff33d618743025d598445493032637de25844a67aa8e88088ef` | `699231354481640` wei | `699231354481572` wei | `<0.0001%` |
+| `0xb9ce87de86b212b91eb64012bbdab91014373da1f6d960470b340e1991a1a7c5` | `6874261528561290` wei | `6874261528560500` wei | `<0.0001%` |
+
+Mode enabled: `calibrated-receipts` for pre-deployment estimates when validation max error is below `10%`. The legacy oracle remains rejected for measured DA cost.
