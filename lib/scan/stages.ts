@@ -6,8 +6,10 @@ import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db/client";
 import { enrichFindingsForScan } from "@/lib/ai/enrichment";
+import { measureGasOptimizations } from "@/lib/gas/measurement";
 import { analyzeGasOptimizations } from "@/lib/gas/optimizer";
 import { generateTestsForScan } from "@/lib/tests/generation";
+import { appendScanLog } from "./events";
 import type { PipelineStage, ScanContext, ScanFinding, ScanRecord, Severity } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -337,7 +339,14 @@ async function gasOptimization(ctx: ScanContext) {
     contractName: ctx.contractName,
   });
   for (const finding of analysis.findings) addFinding(ctx, finding);
-  ctx.metadata.gasOptimizer = analysis.profile;
+  const measurement = await measureGasOptimizations({
+    source: ctx.sourceCode,
+    sourceFile: ctx.sourceFile,
+    contractName: ctx.contractName,
+    opportunities: analysis.profile.opportunities,
+    onProgress: (message) => appendScanLog(ctx.scan.id, "INFO", message),
+  });
+  ctx.metadata.gasOptimizer = { ...analysis.profile, measurement };
   return ctx;
 }
 

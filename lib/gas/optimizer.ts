@@ -4,6 +4,7 @@ import path from "node:path";
 import { formatEther, type Hex } from "viem";
 import { getMantlePublicClient } from "@/lib/chain/mantle";
 import { calldataByteProfile, calibrateMantleDaModel, estimateDaFeeWei, type CalibratedDaModel } from "@/lib/gas/da-pricing";
+import type { GasMeasurementProfile } from "@/lib/gas/measurement";
 import { runGasOptimizationRules, type GasOptimizationRuleResult } from "@/lib/gas/rules";
 import type { ScanFinding, Severity } from "@/lib/scan/types";
 
@@ -41,6 +42,7 @@ export type GasOptimizerProfile = {
     estimatedDataBytesSaved: number | null;
     annualizedBasis: string;
   }>;
+  measurement?: GasMeasurementProfile | null;
 };
 
 function snippet(source: string, lineStart: number | null) {
