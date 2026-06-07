@@ -14,13 +14,18 @@ const severityColors: Record<string, string> = { critical: "var(--danger)", high
 type Finding = { id: string; severity: Severity; category: string; title: string; file: string; lineStart: number | null; lineEnd: number | null; summary: string | null; recommendedFix: string | null; whyMantle: string | null; gasImpact: string | null; status: string };
 type GasOptimizerScope = {
   sourceHash?: string;
-  oracle?: { address: string; method: string; source: string };
+  oracle?: { address: string | null; method: string; source: string; sourceUrls?: string[]; confidence?: "candidate-verified-onchain" | "human-confirmed" };
   pricing?: {
     l2GasPriceWei?: string | null;
     creationBytecodeBytes?: number;
+    mode?: "deterministic-calldata-estimate" | "measured-oracle";
+    calldataZeroBytes?: number;
+    calldataNonZeroBytes?: number;
+    calldataGasEstimate?: number;
     deployDataFeeMnt?: string | null;
     pricedAt?: string;
     unavailableReason?: string;
+    confirmationRequired?: string;
   };
   opportunities?: Array<{ id: string; title: string; severity?: Severity; lineStart: number | null; estimatedGasSaved: number | null; estimatedDataBytesSaved: number | null; annualizedBasis?: string }>;
 };
@@ -47,7 +52,7 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
   const takeaways = findings.slice(0, 4).map((finding) => `${finding.severity.toUpperCase()}: ${finding.title} in ${finding.file}:${finding.lineStart ?? "?"}`);
   const duration = report.startedAt && report.finishedAt ? `${Math.max(1, Math.round((Date.parse(report.finishedAt) - Date.parse(report.startedAt)) / 1000))}s` : "n/a";
   const gasOptimizer = report.scope?.gasOptimizer ?? null;
-  const pricedDeployFee = gasOptimizer?.pricing?.deployDataFeeMnt ? `${Number(gasOptimizer.pricing.deployDataFeeMnt).toFixed(6)} MNT` : "unavailable";
+  const pricedDeployFee = gasOptimizer?.pricing?.deployDataFeeMnt ? `${Number(gasOptimizer.pricing.deployDataFeeMnt).toFixed(6)} MNT` : "not measured";
   const l2GasPrice = gasOptimizer?.pricing?.l2GasPriceWei ? `${Number(gasOptimizer.pricing.l2GasPriceWei) / 1e9} gwei` : "unavailable";
   const gasOpportunities = gasOptimizer?.opportunities ?? [];
   const estimatedRuntimeGas = gasOpportunities.reduce((sum, item) => sum + (item.estimatedGasSaved ?? 0), 0);
@@ -75,13 +80,13 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
     </div>
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Executive Summary</p><p className="mt-3 max-w-5xl leading-7 text-text-mid">{report.executiveSummary}</p></section>
-    <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Gas Optimizer</p><div className="mt-3 grid gap-3 md:grid-cols-4"><Metric label="Creation bytecode" value={`${gasOptimizer?.pricing?.creationBytecodeBytes ?? "—"} bytes`} /><Metric label="Mantle L2 gas price" value={l2GasPrice} /><Metric label="Deploy L1/DA fee" value={pricedDeployFee} /><Metric label="Opportunities" value={String(gasOpportunities.length)} /></div>{gasOptimizer?.pricing?.unavailableReason ? <p className="mt-3 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">Live Mantle gas pricing unavailable: {gasOptimizer.pricing.unavailableReason}</p> : <p className="mt-3 text-sm text-text-mid">Priced with Mantle GasPriceOracle getL1Fee(bytes) against compiled creation bytecode. Runtime savings are static estimates until a queued Foundry gas snapshot is attached.</p>}</section>
+    <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Gas Optimizer</p><div className="mt-3 grid gap-3 md:grid-cols-4"><Metric label="Creation bytecode" value={`${gasOptimizer?.pricing?.creationBytecodeBytes ?? "—"} bytes`} /><Metric label="Mantle L2 gas price" value={l2GasPrice} /><Metric label="Deploy L1/DA fee" value={pricedDeployFee} /><Metric label="Opportunities" value={String(gasOpportunities.length)} /></div>{gasOptimizer?.pricing?.mode !== "measured-oracle" ? <p className="mt-3 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">DA fee is not presented as measured yet: {gasOptimizer?.pricing?.unavailableReason ?? "oracle confirmation required"}</p> : <p className="mt-3 text-sm text-text-mid">Measured with confirmed Mantle GasPriceOracle getL1Fee(bytes) against compiled creation bytecode. Runtime savings are static estimates until a queued Foundry gas snapshot is attached.</p>}</section>
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Key Takeaways</p><ul className="mt-3 grid gap-2 md:grid-cols-2">{takeaways.map((item) => <li key={item} className="rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid">✓ {item}</li>)}</ul></section>
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5">
       <div className="flex flex-wrap gap-2">{tabs.map((item) => <button key={item} onClick={() => setTab(item)} className={tab === item ? "rounded-pill border border-green-400/35 bg-green-400/10 px-3 py-1.5 text-sm text-green-400" : "rounded-pill border border-border-subtle bg-surface-2 px-3 py-1.5 text-sm text-text-mid"}>{item}</button>)}</div>
       <div className="mt-4 flex flex-wrap gap-3"><label className="flex w-full sm:w-auto sm:min-w-72 flex-1 items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-low"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search findings…" className="w-full border-0 bg-transparent p-0 text-text-hi focus:ring-0" /></label><select value={severity} onChange={(event) => setSeverity(event.target.value as Severity | "all")} className="rounded-control border-border-subtle bg-surface-2 text-sm text-text-hi"><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="info">Info</option></select></div>
-      {tab === "Gas & Cost Optimizations" ? <GasOpportunityPanel opportunities={gasOpportunities} sourceHash={gasOptimizer?.sourceHash} oracleLabel={gasOptimizer?.oracle ? `${gasOptimizer.oracle.method} · ${gasOptimizer.oracle.address}` : null} pricedAt={gasOptimizer?.pricing?.pricedAt} estimatedRuntimeGas={estimatedRuntimeGas} estimatedDataBytes={estimatedDataBytes} /> : null}
+      {tab === "Gas & Cost Optimizations" ? <GasOpportunityPanel opportunities={gasOpportunities} sourceHash={gasOptimizer?.sourceHash} oracleLabel={gasOptimizer?.oracle ? `${gasOptimizer.oracle.method} · ${gasOptimizer.oracle.address ?? "pending confirmation"}` : null} oracleConfidence={gasOptimizer?.oracle?.confidence} pricedAt={gasOptimizer?.pricing?.pricedAt} estimatedRuntimeGas={estimatedRuntimeGas} estimatedDataBytes={estimatedDataBytes} calldataGasEstimate={gasOptimizer?.pricing?.calldataGasEstimate} confirmationRequired={gasOptimizer?.pricing?.confirmationRequired} /> : null}
       <div className="mt-4 overflow-x-auto rounded-card border border-border-subtle"><table className="w-full text-left text-sm"><thead className="bg-surface-2 text-text-low"><tr><th className="p-3">Severity</th><th className="p-3">Category</th><th className="p-3">Title</th><th className="p-3">Lines</th><th className="p-3">File</th><th className="p-3">Status</th></tr></thead><tbody>{filtered.map((finding) => <tr key={finding.id} className="border-t border-border-subtle hover:bg-surface-2"><td className="p-3"><SeverityPill severity={finding.severity} size="sm" /></td><td className="p-3 text-text-mid">{finding.category}</td><td className="p-3"><Link href={`/app/reports/${report.id}/findings/${finding.id}`} className="text-text-hi hover:text-green-400">{finding.title}</Link></td><td className="p-3 font-mono text-text-low">{finding.lineStart ?? "?"}{finding.lineEnd && finding.lineEnd !== finding.lineStart ? `-${finding.lineEnd}` : ""}</td><td className="p-3 font-mono text-text-low">{finding.file}</td><td className="p-3 text-text-mid">{finding.status}</td></tr>)}{!filtered.length ? <tr><td colSpan={6} className="p-6 text-center text-text-low">No rows match this tab/filter.</td></tr> : null}</tbody></table></div>
     </section>
   </div>;
@@ -91,16 +96,19 @@ function InfoCard({ title, lines }: { title: string; lines: string[] }) {
   return <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">{title}</p><div className="mt-4 space-y-2">{lines.map((line) => <p key={line} className="text-sm text-text-mid">{line}</p>)}</div></section>;
 }
 
-function GasOpportunityPanel({ opportunities, sourceHash, oracleLabel, pricedAt, estimatedRuntimeGas, estimatedDataBytes }: { opportunities: NonNullable<GasOptimizerScope["opportunities"]>; sourceHash?: string; oracleLabel: string | null; pricedAt?: string; estimatedRuntimeGas: number; estimatedDataBytes: number }) {
+function GasOpportunityPanel({ opportunities, sourceHash, oracleLabel, oracleConfidence, pricedAt, estimatedRuntimeGas, estimatedDataBytes, calldataGasEstimate, confirmationRequired }: { opportunities: NonNullable<GasOptimizerScope["opportunities"]>; sourceHash?: string; oracleLabel: string | null; oracleConfidence?: GasOptimizerScope["oracle"] extends infer Oracle ? Oracle extends { confidence?: infer Confidence } ? Confidence : never : never; pricedAt?: string; estimatedRuntimeGas: number; estimatedDataBytes: number; calldataGasEstimate?: number; confirmationRequired?: string }) {
   return <div className="mt-4 space-y-4 rounded-card border border-green-400/20 bg-green-400/[0.03] p-4">
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-4">
       <Metric label="Static runtime estimate" value={estimatedRuntimeGas ? `${estimatedRuntimeGas.toLocaleString()} gas` : "needs snapshot"} />
       <Metric label="Bytecode data estimate" value={estimatedDataBytes ? `${estimatedDataBytes.toLocaleString()} bytes` : "none detected"} />
+      <Metric label="Calldata gas estimate" value={calldataGasEstimate ? calldataGasEstimate.toLocaleString() : "unavailable"} />
       <Metric label="Priced at" value={pricedAt ? new Date(pricedAt).toLocaleString() : "scan time"} />
     </div>
     <div className="rounded-control border border-border-subtle bg-terminal p-3 text-xs leading-5 text-text-low">
       <p><span className="text-text-mid">Source hash:</span> <span className="break-all font-mono">{sourceHash ?? "unavailable"}</span></p>
       <p><span className="text-text-mid">Mantle pricing:</span> {oracleLabel ?? "unavailable"}</p>
+      <p><span className="text-text-mid">Oracle confidence:</span> {oracleConfidence ?? "unverified"}</p>
+      {confirmationRequired ? <p className="mt-2 text-warning">{confirmationRequired}</p> : null}
     </div>
     <div className="grid gap-3 lg:grid-cols-3">
       {opportunities.map((item) => <article key={item.id} className="rounded-card border border-border-subtle bg-surface-1 p-4">

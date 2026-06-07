@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { formatEther, type Hex } from "viem";
+import { formatEther, isAddress, type Address, type Hex } from "viem";
 import { getMantlePublicClient } from "@/lib/chain/mantle";
 import type { ScanFinding, Severity } from "@/lib/scan/types";
 
-const GAS_PRICE_ORACLE = "0x420000000000000000000000000000000000000F" as const;
+const GAS_PRICE_ORACLE_CANDIDATE = "0x420000000000000000000000000000000000000F" as const;
 const GAS_PRICE_ORACLE_ABI = [
   {
     type: "function",
@@ -26,17 +26,24 @@ type DetectorInput = {
 export type GasOptimizerProfile = {
   sourceHash: string;
   oracle: {
-    address: typeof GAS_PRICE_ORACLE;
+    address: string | null;
     method: "getL1Fee(bytes)";
     source: string;
+    sourceUrls: string[];
+    confidence: "candidate-verified-onchain" | "human-confirmed";
   };
   pricing: {
     l2GasPriceWei: string | null;
     creationBytecodeBytes: number;
+    mode: "deterministic-calldata-estimate" | "measured-oracle";
+    calldataZeroBytes: number;
+    calldataNonZeroBytes: number;
+    calldataGasEstimate: number;
     deployDataFeeWei: string | null;
     deployDataFeeMnt: string | null;
     pricedAt: string;
     unavailableReason?: string;
+    confirmationRequired?: string;
   };
   opportunities: Array<{
     id: string;
@@ -76,32 +83,69 @@ async function compiledCreationBytecode(workdir: string, contractName: string) {
   return raw ? (`0x${raw.replace(/^0x/, "")}` as Hex) : ("0x" as Hex);
 }
 
+function calldataByteProfile(data: Hex) {
+  const hex = data.replace(/^0x/, "");
+  let zero = 0;
+  let nonZero = 0;
+  for (let index = 0; index < hex.length; index += 2) {
+    if (hex.slice(index, index + 2) === "00") zero += 1;
+    else nonZero += 1;
+  }
+  return { zero, nonZero, calldataGasEstimate: zero * 4 + nonZero * 16 };
+}
+
+function configuredGasOracleAddress(): Address | null {
+  const value = process.env.MANTLE_GAS_PRICE_ORACLE_ADDRESS;
+  return value && isAddress(value) ? value : null;
+}
+
+function oraclePricingConfirmed() {
+  return process.env.ARCHON_MANTLE_GAS_ORACLE_CONFIRMED === "true";
+}
+
 async function priceCreationData(workdir: string, contractName: string) {
   const bytecode = await compiledCreationBytecode(workdir, contractName);
   const byteLength = Math.max(0, (bytecode.length - 2) / 2);
+  const profile = calldataByteProfile(bytecode);
   const pricedAt = new Date().toISOString();
+  const base = {
+    mode: "deterministic-calldata-estimate" as const,
+    l2GasPriceWei: null as string | null,
+    creationBytecodeBytes: byteLength,
+    calldataZeroBytes: profile.zero,
+    calldataNonZeroBytes: profile.nonZero,
+    calldataGasEstimate: profile.calldataGasEstimate,
+    deployDataFeeWei: null as string | null,
+    deployDataFeeMnt: null as string | null,
+    pricedAt,
+  };
+
+  const oracleAddress = configuredGasOracleAddress();
   try {
     const client = getMantlePublicClient();
-    const [l2GasPriceWei, deployDataFeeWei] = await Promise.all([
-      client.getGasPrice(),
-      byteLength > 0
-        ? client.readContract({ address: GAS_PRICE_ORACLE, abi: GAS_PRICE_ORACLE_ABI, functionName: "getL1Fee", args: [bytecode] })
-        : Promise.resolve(0n),
-    ]);
+    const l2GasPriceWei = await client.getGasPrice();
+    if (!oraclePricingConfirmed() || !oracleAddress) {
+      return {
+        ...base,
+        l2GasPriceWei: l2GasPriceWei.toString(),
+        unavailableReason: "Mantle DA/L1 oracle pricing is locked behind human confirmation. Using deterministic calldata byte/data-gas estimate only.",
+        confirmationRequired: `Candidate predeploy ${GAS_PRICE_ORACLE_CANDIDATE} responded on-chain, but Archon requires MANTLE_GAS_PRICE_ORACLE_ADDRESS plus ARCHON_MANTLE_GAS_ORACLE_CONFIRMED=true before presenting getL1Fee(bytes) as measured DA cost.`,
+      };
+    }
+
+    const deployDataFeeWei = byteLength > 0
+      ? await client.readContract({ address: oracleAddress, abi: GAS_PRICE_ORACLE_ABI, functionName: "getL1Fee", args: [bytecode] })
+      : 0n;
     return {
+      ...base,
+      mode: "measured-oracle" as const,
       l2GasPriceWei: l2GasPriceWei.toString(),
-      creationBytecodeBytes: byteLength,
       deployDataFeeWei: deployDataFeeWei.toString(),
       deployDataFeeMnt: formatEther(deployDataFeeWei),
-      pricedAt,
     };
   } catch (error) {
     return {
-      l2GasPriceWei: null,
-      creationBytecodeBytes: byteLength,
-      deployDataFeeWei: null,
-      deployDataFeeMnt: null,
-      pricedAt,
+      ...base,
       unavailableReason: error instanceof Error ? error.message : String(error),
     };
   }
@@ -201,9 +245,15 @@ export async function analyzeGasOptimizations(input: DetectorInput): Promise<{ p
   const profile: GasOptimizerProfile = {
     sourceHash: `0x${createHash("sha256").update(source).digest("hex")}`,
     oracle: {
-      address: GAS_PRICE_ORACLE,
+      address: oraclePricingConfirmed() ? configuredGasOracleAddress() : null,
       method: "getL1Fee(bytes)",
-      source: "Official Mantle docs: Transaction Fees on L2 identify GasPriceOracle at 0x420000000000000000000000000000000000000F and getL1Fee(bytes).",
+      source: "Candidate verified from official Mantle docs/source and Mantle Mainnet RPC, but measured oracle pricing remains disabled until human confirmation.",
+      sourceUrls: [
+        "https://github.com/LayerE/Mantle-Docs/blob/main/Transaction%20Fees%20on%20L2.md",
+        "https://github.com/mantlenetworkio/mantle-v2/blob/e29d360904db5e5ec81888885f7b7250f8255895/packages/contracts-bedrock/contracts/L2/GasPriceOracle.sol",
+        "https://www.mantle.xyz/blog/announcements/mantle-network-security-evolution-scalability-decentralization",
+      ],
+      confidence: oraclePricingConfirmed() ? "human-confirmed" : "candidate-verified-onchain",
     },
     pricing,
     opportunities,
