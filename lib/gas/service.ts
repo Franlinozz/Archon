@@ -74,6 +74,26 @@ async function compileSource(workdir: string, sourceFile: string) {
   await execFileAsync(SOLCJS_BIN, ["--bin", "--abi", "--base-path", workdir, "-o", outDir, sourceFile], { timeout: 45_000, env: process.env, maxBuffer: 8 * 1024 * 1024 });
 }
 
+function applyHarness(contract: string) {
+  return `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {${contract}} from "../src/${contract}.sol";
+
+contract ${contract}ArchonGasApplyTest {
+    ${contract} internal target;
+
+    function setUp() public {
+        target = new ${contract}();
+    }
+
+    function test_archon_apply_patch_compiles_and_deploys() public {
+        if (address(target) == address(0)) revert("ARCHON_ZERO_TARGET");
+    }
+}
+`;
+}
+
 function measuredFor(ruleId: string, measurement: GasMeasurementProfile | null | undefined) {
   return measurement?.patches.find((patch) => patch.ruleId === ruleId) ?? null;
 }
@@ -170,8 +190,15 @@ export async function runApplyPatch(gasReportId: string, optimizationId: string)
   const patchedSource = report.source_code.replace(oldText, opt.patch.newText);
   const workdir = await mkdtemp(path.join(tmpdir(), `archon-apply-${gasReportId}-`));
   try {
-    const sourceFile = path.join(workdir, `${report.contract_name ?? contractName(report.source_code)}.sol`);
+    const name = report.contract_name ?? contractName(report.source_code);
+    const srcDir = path.join(workdir, "src");
+    const testDir = path.join(workdir, "test");
+    await mkdir(srcDir, { recursive: true });
+    await mkdir(testDir, { recursive: true });
+    await writeFile(path.join(workdir, "foundry.toml"), "[profile.default]\nsrc = 'src'\ntest = 'test'\nout = 'out'\noptimizer = true\noptimizer_runs = 200\n");
+    const sourceFile = path.join(srcDir, `${name}.sol`);
     await writeFile(sourceFile, patchedSource);
+    await writeFile(path.join(testDir, `${name}.t.sol`), applyHarness(name));
     try {
       await compileSource(workdir, sourceFile);
     } catch (error) {
@@ -194,7 +221,7 @@ export async function runApplyPatch(gasReportId: string, optimizationId: string)
     } catch (error) {
       gasReport = `solcjs compile passed; Foundry gas report degraded: ${error instanceof Error ? error.message : String(error)}`;
     }
-    const gasDiff = { status: "compiled", command, gasReport, generatedAt: new Date().toISOString(), label: gasReport.includes("degraded") ? "estimate" : "measured-or-compiled" };
+    const gasDiff = { status: "compiled", command, gasReport, generatedAt: new Date().toISOString(), label: gasReport.includes("degraded") ? "estimate" : "foundry-gas-report" };
     await db.query("update gas_optimizations set status='patch-ready', gas_diff=$3::jsonb where gas_report_id=$1 and id=$2", [gasReportId, optimizationId, JSON.stringify({ ...gasDiff, patchedSource })]);
     return { patchedSource, gasDiff };
   } finally {
