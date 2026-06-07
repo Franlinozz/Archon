@@ -3,6 +3,7 @@ export const PIPELINE_STAGES = [
   "Static Analysis",
   "Mantle Context Fetch",
   "Protocol Rule Engine",
+  "Gas Optimization",
   "AI Reasoning",
   "Test Generation",
   "Report Assembly",

@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db/client";
 import { enrichFindingsForScan } from "@/lib/ai/enrichment";
+import { analyzeGasOptimizations } from "@/lib/gas/optimizer";
 import { generateTestsForScan } from "@/lib/tests/generation";
 import type { PipelineStage, ScanContext, ScanFinding, ScanRecord, Severity } from "./types";
 
@@ -328,6 +329,18 @@ async function protocolRuleEngine(ctx: ScanContext) {
   return ctx;
 }
 
+async function gasOptimization(ctx: ScanContext) {
+  const analysis = await analyzeGasOptimizations({
+    source: ctx.sourceCode,
+    sourceFile: ctx.sourceFile,
+    workdir: ctx.workdir,
+    contractName: ctx.contractName,
+  });
+  for (const finding of analysis.findings) addFinding(ctx, finding);
+  ctx.metadata.gasOptimizer = analysis.profile;
+  return ctx;
+}
+
 async function aiReasoning(ctx: ScanContext) {
   ctx.metadata.aiReasoning = await enrichFindingsForScan(ctx.scan.id);
   return ctx;
@@ -373,7 +386,7 @@ async function reportAssembly(ctx: ScanContext) {
       ctx.contractName,
       risk,
       JSON.stringify(counts),
-      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [], lineCount: ctx.sourceCode.split("\n").length }),
+      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [], lineCount: ctx.sourceCode.split("\n").length, gasOptimizer: ctx.metadata.gasOptimizer ?? null }),
       JSON.stringify(ctx.metadata.generatedTests ?? null),
       executiveSummary,
       createHash("sha256").update(`${ctx.scan.id}:${ctx.contractName}:${JSON.stringify(counts)}:${ctx.findings.length}`).digest("hex"),
@@ -390,6 +403,7 @@ export const STAGES: StageDefinition[] = [
   { name: "Static Analysis", run: staticAnalysis },
   { name: "Mantle Context Fetch", run: mantleContextFetch },
   { name: "Protocol Rule Engine", run: protocolRuleEngine },
+  { name: "Gas Optimization", run: gasOptimization },
   { name: "AI Reasoning", run: aiReasoning },
   { name: "Test Generation", run: testGeneration },
   { name: "Report Assembly", run: reportAssembly },

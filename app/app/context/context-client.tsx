@@ -14,7 +14,7 @@ type ContextData = {
   tokenExposure: Array<{ asset: string; exposure: string }>;
   riskNotes: string[];
   adminPermissions: string[];
-  quickActions: { auditStudioUrl: string; proofStatus: string; exportStatus: string };
+  quickActions: { auditStudioUrl: string };
 };
 
 const defaultAddress = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432";
@@ -59,7 +59,7 @@ export function ContextClient() {
         </main>
         <aside className="space-y-4">
           <Panel title="Protocol Matches">{data.protocolInteractions.map((item) => <a key={item.name} href={item.link} target="_blank" className="mb-2 block rounded-control border border-border-subtle bg-terminal p-3 hover:border-green-400/40"><div className="flex justify-between gap-3"><span className="font-semibold text-text-hi">{item.name}</span><span className="text-green-400">{item.confidence}%</span></div><p className="mt-1 text-xs text-text-low">{item.category}</p></a>)}</Panel>
-          <Panel title="Quick Actions"><div className="space-y-2"><a href={data.explorerUrl} target="_blank" className="inline-flex w-full items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400"><ExternalLink size={14}/> Open in Mantle Explorer</a><Link href={data.quickActions.auditStudioUrl} className="inline-flex w-full items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400">Run Audit in Audit Studio</Link><span className="inline-flex w-full items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400 opacity-70">Generate On-chain Proof <em className="ml-auto text-xs text-warning">Coming soon</em></span><span className="inline-flex w-full items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400 opacity-70">Export Contract Report <em className="ml-auto text-xs text-warning">Coming soon</em></span></div></Panel>
+          <Panel title="Quick Actions"><div className="space-y-2"><a href={data.explorerUrl} target="_blank" className="inline-flex w-full items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400"><ExternalLink size={14}/> Open in Mantle Explorer</a><Link href={data.quickActions.auditStudioUrl} className="inline-flex w-full items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400">Run Audit in Audit Studio</Link><button onClick={() => navigator.clipboard.writeText(JSON.stringify(data, null, 2))} className="inline-flex w-full items-center gap-2 rounded-control border border-border-subtle bg-terminal px-3 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400"><FileJson size={14}/> Copy Context JSON</button></div></Panel>
         </aside>
       </div>
     </> : <div className="rounded-card border border-border-subtle bg-surface-1 p-10 text-center text-text-low">Fetch a Mantle address to populate context panels.</div>}

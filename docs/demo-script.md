@@ -37,7 +37,7 @@ One-line pitch: *Archon is an ERC-8004 trustless smart-contract auditor on Mantl
 
 ### 7 · Assistant + Cost Guard (4:30–5:00)
 - Ask the **Archon Assistant** about the open finding — it answers with page context (gpt-4o-mini). It never starts scans or sends transactions.
-- Glance at **Cost Guard** (clearly "Sample data") — the one-VM cost-discipline story.
+- Glance at **Cost Guard** — it now routes users to real report-native Mantle gas optimizer data instead of sample telemetry.
 - Close on the ERC-8004 thesis: Archon turns audit work into a portable, verifiable, challengeable on-chain reputation trail.
 
 ---

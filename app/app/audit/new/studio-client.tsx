@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Expand, FileCode2, Info, RefreshCcw, ShieldCheck } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { archonMonacoTheme, defineArchonMonacoThemes } from "@/components/theme/monacoThemes";
@@ -35,6 +35,9 @@ export function AuditStudioClient({ initialSource }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourceLabel, setSourceLabel] = useState("VaultV2.sol");
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const contractCount = useMemo(() => (sourceCode.match(/\bcontract\s+[A-Za-z_][A-Za-z0-9_]*/g) ?? []).length, [sourceCode]);
   const solidityVersion = useMemo(() => sourceCode.match(/pragma\s+solidity\s+([^;]+);/)?.[1]?.trim() ?? "unknown", [sourceCode]);
@@ -63,6 +66,39 @@ export function AuditStudioClient({ initialSource }: Props) {
     }
   }
 
+  async function importFile(file: File) {
+    setError(null);
+    if (!file.name.endsWith(".sol")) {
+      setError("Upload a Solidity .sol file.");
+      return;
+    }
+    const text = await file.text();
+    if (!text.includes("pragma solidity")) {
+      setError("That file does not look like Solidity source.");
+      return;
+    }
+    setSourceCode(text);
+    setSourceLabel(file.name);
+  }
+
+  async function importGithub() {
+    const repo = window.prompt("GitHub repo or file URL (examples: Franlinozz/Archon#contracts/VaultV2.sol, https://github.com/owner/repo/blob/main/contracts/X.sol)");
+    if (!repo) return;
+    setError(null);
+    setIsImporting(true);
+    try {
+      const response = await fetch("/api/source/github", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo }) });
+      const payload = (await response.json()) as { source?: string; fileName?: string; path?: string; repo?: string; error?: string };
+      if (!response.ok || !payload.source) throw new Error(payload.error || "GitHub import failed.");
+      setSourceCode(payload.source);
+      setSourceLabel(`${payload.repo}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "GitHub import failed.");
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   function toggleProtocol(protocol: string) {
     setSelectedProtocols((current) => current.includes(protocol) ? current.filter((item) => item !== protocol) : [...current, protocol]);
   }
@@ -83,13 +119,13 @@ export function AuditStudioClient({ initialSource }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-surface-1 p-3">
             <div className="flex flex-wrap gap-2">
               <span className="rounded-pill border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-medium text-green-400">Paste Code</span>
-              {[["Upload File", "file"], ["GitHub Repo", "github"]].map(([label, key]) => <button key={key} disabled className="cursor-not-allowed rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-low opacity-80">{label} <span className="ml-2 rounded-pill border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-warning">Coming soon</span></button>)}
+              <input ref={fileInputRef} type="file" accept=".sol,text/plain" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importFile(file); event.currentTarget.value = ""; }} />
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400">Upload File</button>
+              <button type="button" onClick={() => void importGithub()} disabled={isImporting} className="rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:border-green-400/40 hover:text-green-400 disabled:cursor-wait disabled:opacity-60">{isImporting ? "Importing…" : "GitHub Repo"}</button>
             </div>
             <div className="flex items-center gap-2">
-              <select className="rounded-control border-border-subtle bg-surface-2 text-sm text-text-hi focus:border-green-400 focus:ring-green-400" value="VaultV2.sol" onChange={() => undefined} aria-label="Demo contract file selector">
-                <option>VaultV2.sol</option>
-              </select>
-              <button onClick={() => setSourceCode(initialSource)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button>
+              <span className="max-w-[260px] truncate rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-hi" title={sourceLabel}>{sourceLabel}</span>
+              <button onClick={() => { setSourceCode(initialSource); setSourceLabel("VaultV2.sol"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button>
               <button onClick={() => setIsFullscreen((value) => !value)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><Expand size={15}/> {isFullscreen ? "Exit" : "Fullscreen"}</button>
             </div>
           </div>

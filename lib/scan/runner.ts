@@ -102,7 +102,7 @@ export async function runScan(scanId: string) {
     for (let index = 0; index < STAGES.length; index++) {
       const stage = STAGES[index]!;
       await markStage(scanId, stage.name, Math.max(1, Math.round((index / PIPELINE_STAGES.length) * 100)), "running");
-      await appendScanLog(scanId, "INFO", `Starting stage ${index + 1}/7: ${stage.name}`);
+      await appendScanLog(scanId, "INFO", `Starting stage ${index + 1}/${STAGES.length}: ${stage.name}`);
       ctx = await withTimeout(stage.name, () => stage.run(ctx));
       const newFindings = await persistNewFindings(ctx);
       for (const finding of newFindings) {

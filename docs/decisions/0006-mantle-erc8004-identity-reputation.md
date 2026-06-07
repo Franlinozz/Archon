@@ -14,7 +14,7 @@ Archon also needs public Mantle RPC access and free-tier IPFS pinning for proof 
   - IdentityRegistry: `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`
   - ReputationRegistry: `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`
 - Scope Session 5 to Identity + Reputation only.
-- Keep `ERC8004_VALIDATION_REGISTRY` unset. Validation/challenge UI must degrade gracefully and not show dead controls.
+- Keep `ERC8004_VALIDATION_REGISTRY` unset. Validation/challenge UI must degrade gracefully and avoid disabled or nonfunctional affordances.
 - Use ABIs copied directly from the official repo `abis/` folder; do not hand-write ABI fragments.
 - Use free-tier Pinata IPFS pinning via `IPFS_PIN_PROVIDER=pinata` and server-only `IPFS_PIN_TOKEN` for production proof metadata. If no token is configured, Archon stores canonical metadata in Postgres and returns an HTTPS metadata endpoint (`/api/reports/[id]/proof/metadata`) so verification remains deterministic without bloating on-chain calldata.
 

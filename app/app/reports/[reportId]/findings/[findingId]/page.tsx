@@ -2,7 +2,7 @@ import type React from "react";
 import type { QueryResultRow } from "pg";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { logger } from "@/lib/logger";
 import { DegradedNotice, SeverityPill } from "@/components/archon";
@@ -47,7 +47,7 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
     <header className="rounded-card border border-border-subtle bg-surface-1 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3"><Link href={`/app/reports/${reportId}`} className="text-sm text-green-400">← Back to report</Link><div className="flex flex-wrap items-center gap-3"><SeverityPill severity={finding.severity} /><span className="font-mono text-xs text-text-low">{finding.id}</span></div><h1 className="text-3xl font-bold tracking-tight text-text-hi">{finding.title}</h1><p className="text-sm text-text-mid">{report.contractName} · {finding.category} · {finding.file}:{finding.lineStart ?? "?"} · status {finding.status}</p></div>
-        <div className="flex flex-wrap gap-2"><NavButton finding={previous} reportId={reportId} label="Previous" icon="prev" /><NavButton finding={next} reportId={reportId} label="Next" icon="next" /><span className="inline-flex items-center gap-2 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"><MoreHorizontal size={15}/> Actions · Coming soon</span></div>
+        <div className="flex flex-wrap gap-2"><NavButton finding={previous} reportId={reportId} label="Previous" icon="prev" /><NavButton finding={next} reportId={reportId} label="Next" icon="next" /></div>
       </div>
     </header>
 

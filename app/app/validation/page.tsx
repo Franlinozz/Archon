@@ -9,12 +9,12 @@ export default function ValidationPreviewPage() {
         <h1 className="mt-2 text-4xl font-bold tracking-tight text-text-hi">Challenge flow is intentionally read-only</h1>
         <p className="mt-2 max-w-3xl text-text-mid">Archon already logs Identity and Reputation records on Mantle. The ERC-8004 Validation Registry is not configured because no official Mantle Mainnet address has been confirmed.</p>
       </div>
-      <span className="rounded-pill border border-warning/30 bg-warning/10 px-3 py-1 text-sm text-warning">Coming soon · no writes</span>
+      <span className="rounded-pill border border-warning/30 bg-warning/10 px-3 py-1 text-sm text-warning">Disabled until official config</span>
     </header>
 
     <section className="rounded-card border border-warning/30 bg-warning/10 p-5">
       <h2 className="flex items-center gap-2 text-xl font-semibold text-text-hi"><ShieldAlert className="text-warning"/> Safety invariant</h2>
-      <p className="mt-3 max-w-4xl leading-7 text-text-mid">This page does not connect wallets, simulate validation calls, or submit transactions. It documents the future challenge path only. When an official Mantle Validation Registry address and ABI are available, Archon should add static simulation, gas guard, explicit user confirmation, and a dedicated ADR before enabling any write path.</p>
+      <p className="mt-3 max-w-4xl leading-7 text-text-mid">This page does not connect wallets, simulate validation calls, or submit transactions. When an official Mantle Validation Registry address and ABI are available, Archon should add static simulation, gas guard, explicit user confirmation, and a dedicated ADR before enabling any write path.</p>
     </section>
 
     <div className="grid gap-4 lg:grid-cols-3">

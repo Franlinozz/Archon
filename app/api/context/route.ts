@@ -60,8 +60,6 @@ export async function GET(request: Request) {
     adminPermissions: [meta?.admin ?? "Admin unknown from basic bytecode context.", "No transaction or wallet action was performed."],
     quickActions: {
       auditStudioUrl: `/app/audit/new?address=${checksum}`,
-      proofStatus: "Coming soon — proof generation is available from completed reports, not raw context.",
-      exportStatus: "Coming soon — export will be enabled after full explorer-source ingestion.",
     },
   };
   cache.set(key, { expires: Date.now() + ttlMs, value });

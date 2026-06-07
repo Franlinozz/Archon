@@ -12,7 +12,17 @@ const tabs = ["Findings", "Mantle-Specific Risks", "Gas & Cost Optimizations", "
 const severityColors: Record<string, string> = { critical: "var(--danger)", high: "var(--high)", medium: "var(--warning)", low: "var(--success)", info: "var(--info)" };
 
 type Finding = { id: string; severity: Severity; category: string; title: string; file: string; lineStart: number | null; lineEnd: number | null; summary: string | null; recommendedFix: string | null; whyMantle: string | null; gasImpact: string | null; status: string };
-type Report = { id: string; scanId: string; contractName: string; riskScore: number; severityCounts: Record<string, number>; scope: Record<string, unknown>; executiveSummary: string; reportHash: string; createdAt: string; startedAt: string | null; finishedAt: string | null; scanDepth: string; network: string };
+type GasOptimizerScope = {
+  pricing?: {
+    l2GasPriceWei?: string | null;
+    creationBytecodeBytes?: number;
+    deployDataFeeMnt?: string | null;
+    unavailableReason?: string;
+  };
+  opportunities?: Array<{ id: string; title: string; estimatedGasSaved: number | null; estimatedDataBytesSaved: number | null }>;
+};
+type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; lineCount?: number; pragma?: string; protocols?: string[] };
+type Report = { id: string; scanId: string; contractName: string; riskScore: number; severityCounts: Record<string, number>; scope: ReportScope; executiveSummary: string; reportHash: string; createdAt: string; startedAt: string | null; finishedAt: string | null; scanDepth: string; network: string };
 
 export function ReportClient({ report, findings }: { report: Report; findings: Finding[] }) {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Findings");
@@ -33,6 +43,9 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
 
   const takeaways = findings.slice(0, 4).map((finding) => `${finding.severity.toUpperCase()}: ${finding.title} in ${finding.file}:${finding.lineStart ?? "?"}`);
   const duration = report.startedAt && report.finishedAt ? `${Math.max(1, Math.round((Date.parse(report.finishedAt) - Date.parse(report.startedAt)) / 1000))}s` : "n/a";
+  const gasOptimizer = report.scope?.gasOptimizer ?? null;
+  const pricedDeployFee = gasOptimizer?.pricing?.deployDataFeeMnt ? `${Number(gasOptimizer.pricing.deployDataFeeMnt).toFixed(6)} MNT` : "unavailable";
+  const l2GasPrice = gasOptimizer?.pricing?.l2GasPriceWei ? `${Number(gasOptimizer.pricing.l2GasPriceWei) / 1e9} gwei` : "unavailable";
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -56,6 +69,7 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
     </div>
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Executive Summary</p><p className="mt-3 max-w-5xl leading-7 text-text-mid">{report.executiveSummary}</p></section>
+    <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Gas Optimizer</p><div className="mt-3 grid gap-3 md:grid-cols-4"><Metric label="Creation bytecode" value={`${gasOptimizer?.pricing?.creationBytecodeBytes ?? "—"} bytes`} /><Metric label="Mantle L2 gas price" value={l2GasPrice} /><Metric label="Deploy L1/DA fee" value={pricedDeployFee} /><Metric label="Opportunities" value={String(gasOptimizer?.opportunities?.length ?? 0)} /></div>{gasOptimizer?.pricing?.unavailableReason ? <p className="mt-3 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">Live Mantle gas pricing unavailable: {gasOptimizer.pricing.unavailableReason}</p> : <p className="mt-3 text-sm text-text-mid">Priced with Mantle GasPriceOracle getL1Fee(bytes) against compiled creation bytecode. Runtime savings are shown as static estimates until a queued Foundry gas snapshot is attached.</p>}</section>
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Key Takeaways</p><ul className="mt-3 grid gap-2 md:grid-cols-2">{takeaways.map((item) => <li key={item} className="rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid">✓ {item}</li>)}</ul></section>
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5">
@@ -68,4 +82,8 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
 
 function InfoCard({ title, lines }: { title: string; lines: string[] }) {
   return <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">{title}</p><div className="mt-4 space-y-2">{lines.map((line) => <p key={line} className="text-sm text-text-mid">{line}</p>)}</div></section>;
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-control border border-border-subtle bg-terminal p-3"><p className="text-xs uppercase tracking-[0.12em] text-text-low">{label}</p><p className="mt-1 font-mono text-sm text-text-hi">{value}</p></div>;
 }
