@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -15,9 +15,9 @@ import { measureGasOptimizations, type GasMeasurementProfile } from "@/lib/gas/m
 import type { GasOptimizerProfile } from "@/lib/gas/optimizer";
 import { proofRegistryAddress } from "@/lib/proof/archonRegistry";
 import { deterministicReportHash } from "@/lib/proof/canonical";
+import { compileSoliditySource } from "@/lib/solidity/compiler";
 
 const execFileAsync = promisify(execFile);
-const SOLCJS_BIN = process.env.SOLCJS_BIN ?? path.join(process.cwd(), "node_modules", ".bin", "solcjs");
 const FORGE_BIN = process.env.FORGE_BIN ?? "forge";
 const MAX_GAS_SOURCE_BYTES = Number(process.env.ARCHON_GAS_MAX_SOURCE_BYTES ?? 350_000);
 const DEFAULT_CALLS_PER_YEAR = Number(process.env.ARCHON_GAS_CALLS_PER_YEAR ?? 100_000);
@@ -92,10 +92,8 @@ export async function createGasReport(input: GasScanInput) {
   return { id: result.rows[0]!.id, ...resolved, assumptions };
 }
 
-async function compileSource(workdir: string, sourceFile: string) {
-  const outDir = path.join(workdir, "build");
-  await mkdir(outDir, { recursive: true });
-  await execFileAsync(SOLCJS_BIN, ["--bin", "--abi", "--base-path", workdir, "-o", outDir, sourceFile], { timeout: 45_000, env: process.env, maxBuffer: 8 * 1024 * 1024 });
+async function compileSource(workdir: string, sourceFile: string, pragma?: string) {
+  await compileSoliditySource({ workdir, sourceFile, pragma });
 }
 
 function applyHarness(contract: string) {

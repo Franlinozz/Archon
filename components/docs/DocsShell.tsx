@@ -86,8 +86,7 @@ export function DocsShell({ title, description, href, toc, children }: DocsShell
       <main className="mx-auto flex max-w-[1500px] flex-col gap-8 px-4 py-8 sm:px-6 lg:flex-row lg:px-8">
         <Sidebar currentHref={href} />
         <div className="min-w-0 flex-1 rounded-card border border-subtle bg-surface-1/82 shadow-card backdrop-blur">
-          <article className="archon-docs-prose mx-auto max-w-3xl px-6 py-8 sm:px-8 lg:py-12">
-            <h1>{title}</h1>
+          <article className="archon-docs-prose mx-auto max-w-3xl px-6 py-8 sm:px-8 lg:py-10">
             {description ? <p className="archon-docs-description">{description}</p> : null}
             {children}
           </article>

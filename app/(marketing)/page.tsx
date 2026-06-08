@@ -17,7 +17,7 @@ export default function MarketingHome() {
     <ThreeSteps/>
     <footer id="docs" className="mx-auto grid max-w-7xl gap-6 border-t border-border-subtle px-6 py-8 text-sm text-text-mid md:grid-cols-4">
       <Footer title="Product" items={[["Audit Studio", "/app/audit/new"], ["Context Explorer", "/app/context"], ["Cost Guard", "/app/cost-guard"], ["Proofs", "/proofs"]]}/>
-      <Footer title="Resources" items={[["Docs", "/docs"], ["ADR log", "https://github.com/Franlinozz/Archon/tree/main/docs/decisions"], ["README", "https://github.com/Franlinozz/Archon#readme"], ["API health", "/api/health"]]}/>
+      <Footer title="Resources" items={[["Docs", "/docs"], ["Whitepaper", "/docs/resources/whitepaper"], ["PDF", "/docs/archon-whitepaper.pdf"], ["API Reference", "/api-reference"]]}/>
       <Footer title="Company" items={[["Mantle-native"], ["Hackathon build"], ["Read-only scans"], ["Careful findings"]]}/>
       <Footer title="Connect" items={[["GitHub", "https://github.com/Franlinozz/Archon"], ["Mantle Explorer", "https://mantlescan.xyz"], ["ERC-8004", "https://eips.ethereum.org/EIPS/eip-8004"], ["Archon Agent", "/.well-known/archon-agent.json"]]}/>
     </footer>

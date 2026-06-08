@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db/client";
+import { compileSoliditySource } from "@/lib/solidity/compiler";
 import { enrichFindingsForScan } from "@/lib/ai/enrichment";
 import { measureGasOptimizations } from "@/lib/gas/measurement";
 import { analyzeGasOptimizations } from "@/lib/gas/optimizer";
@@ -16,7 +17,6 @@ const execFileAsync = promisify(execFile);
 const TOOL_PATHS = [process.env.ARCHON_ANALYZER_PATH, "/opt/archon-slither/bin", "/root/.local/bin"].filter(Boolean).join(":");
 const SLITHER_BIN = process.env.SLITHER_BIN ?? "slither";
 const SOLC_BIN = process.env.SOLC_BIN ?? "solc";
-const SOLCJS_BIN = process.env.SOLCJS_BIN ?? path.join(process.cwd(), "node_modules", ".bin", "solcjs");
 const analyzerEnv = { ...process.env, PATH: `${TOOL_PATHS}:${process.env.PATH ?? ""}` };
 
 export type StageDefinition = {
@@ -272,9 +272,8 @@ export async function cleanupContext(ctx: ScanContext) {
 }
 
 async function codeParse(ctx: ScanContext) {
-  const outDir = path.join(ctx.workdir, "build");
-  await execFileAsync(SOLCJS_BIN, ["--bin", "--abi", "--base-path", ctx.workdir, "-o", outDir, ctx.sourceFile], { timeout: 30_000, env: process.env });
-  ctx.metadata.compile = { ok: true, pragma: ctx.pragma, solcVersion: ctx.solcVersion, contractName: ctx.contractName };
+  const result = await compileSoliditySource({ workdir: ctx.workdir, sourceFile: ctx.sourceFile, pragma: ctx.pragma });
+  ctx.metadata.compile = { ok: true, pragma: ctx.pragma, solcVersion: result.compilerVersion, contractName: ctx.contractName, warnings: result.warnings };
   return ctx;
 }
 
