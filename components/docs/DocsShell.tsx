@@ -14,7 +14,7 @@ type DocsShellProps = {
   title: string;
   description?: string;
   href: string;
-  toc: { title: string; url: string; depth: number }[];
+  toc: { title: unknown; url: string; depth: number }[];
   children: ReactNode;
 };
 
@@ -70,7 +70,7 @@ export function DocsShell({ title, description, href, toc, children }: DocsShell
   const { previous, next } = getAdjacentDocs(href);
 
   return (
-    <div className="min-h-screen bg-canvas text-body">
+    <div className="docs-texture-surface min-h-screen bg-canvas text-body">
       <ReadingProgress />
       <header className="sticky top-0 z-50 border-b border-subtle bg-canvas/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">

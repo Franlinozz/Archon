@@ -18,6 +18,7 @@ create table if not exists scans (
 );
 
 alter table scans add column if not exists protocols jsonb default '[]'::jsonb;
+alter table scans add column if not exists source_bundle jsonb;
 
 create table if not exists reports (
   id uuid primary key default gen_random_uuid(),
@@ -123,6 +124,7 @@ create table if not exists gas_reports (
 );
 
 create index if not exists gas_reports_status_created_idx on gas_reports(status, created_at desc);
+alter table gas_reports add column if not exists source_bundle jsonb;
 create index if not exists gas_reports_source_hash_idx on gas_reports(source_hash);
 
 create table if not exists gas_optimizations (
@@ -154,3 +156,23 @@ create table if not exists gas_optimizations (
 );
 
 create index if not exists gas_optimizations_report_rank_idx on gas_optimizations(gas_report_id, rank_score desc nulls last);
+
+create table if not exists report_challenges (
+  id uuid primary key default gen_random_uuid(),
+  report_id uuid references reports(id) on delete cascade,
+  gas_report_id uuid references gas_reports(id) on delete cascade,
+  finding_id uuid references findings(id) on delete set null,
+  optimization_id uuid references gas_optimizations(id) on delete set null,
+  target_type text not null,
+  challenger text,
+  title text not null,
+  rationale text not null,
+  evidence_url text,
+  status text not null default 'open',
+  challenge_hash text not null unique,
+  reference_tx_hash text,
+  reference_report_hash text,
+  created_at timestamptz default now()
+);
+create index if not exists report_challenges_report_idx on report_challenges(report_id, created_at desc);
+create index if not exists report_challenges_gas_report_idx on report_challenges(gas_report_id, created_at desc);

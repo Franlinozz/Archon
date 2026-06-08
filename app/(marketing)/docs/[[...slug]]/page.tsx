@@ -35,7 +35,7 @@ export default async function DocsRoute({ params }: DocsRouteProps) {
   const body = await page.data.body;
 
   const toc = (page.data.toc ?? []).map((item) => ({
-    title: typeof item.title === "string" ? item.title : String(item.title ?? ""),
+    title: item.title,
     url: item.url,
     depth: item.depth,
   }));

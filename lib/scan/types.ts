@@ -18,6 +18,7 @@ export type ScanRecord = {
   source_kind: ScanSourceKind;
   source_ref: string | null;
   source_code: string | null;
+  source_bundle: Array<{ path: string; source: string }> | null;
   network: string | null;
   scan_depth: string | null;
   protocols: string[] | null;

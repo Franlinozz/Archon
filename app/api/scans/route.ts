@@ -14,6 +14,7 @@ const createScanSchema = z
   .object({
     sourceKind: z.enum(["paste", "address"]),
     sourceCode: z.string().optional(),
+    sourceFiles: z.array(z.object({ path: z.string().min(1).max(240), source: z.string() })).max(80).optional(),
     sourceRef: z.string().optional(),
     scanDepth: z.enum(scanDepths),
     protocols: z.array(z.enum(protocolIds)).min(1, "Select at least one protocol coverage target."),
@@ -70,10 +71,10 @@ export async function POST(request: Request) {
   let scanId: string | undefined;
   try {
     const result = await db.query<{ id: string }>(
-      `insert into scans (source_kind, source_ref, source_code, network, scan_depth, protocols, status, progress, current_stage, created_at)
-       values ($1, $2, $3, 'mantle-mainnet', $4, $5::jsonb, 'queued', 0, 'Queued', now())
+      `insert into scans (source_kind, source_ref, source_code, source_bundle, network, scan_depth, protocols, status, progress, current_stage, created_at)
+       values ($1, $2, $3, $4::jsonb, 'mantle-mainnet', $5, $6::jsonb, 'queued', 0, 'Queued', now())
        returning id`,
-      [input.sourceKind, sourceRef, sourceCode, input.scanDepth, JSON.stringify(input.protocols)],
+      [input.sourceKind, sourceRef, sourceCode, input.sourceFiles ? JSON.stringify(input.sourceFiles) : null, input.scanDepth, JSON.stringify(input.protocols)],
     );
     scanId = result.rows[0]?.id;
     if (!scanId) throw new Error("Scan insert did not return an id");

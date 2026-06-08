@@ -24,7 +24,7 @@ export function LogTerminal({ lines }: { lines?: LogLine[] }) {
   // theme-obsidian keeps its surface dark AND its text light-on-dark, instead of
   // inheriting Marble's dark-text tokens onto a dark surface (unreadable).
   return <section className="theme-obsidian rounded-card border border-border-subtle bg-terminal p-4 font-mono text-xs text-text-hi">
-    <div className="mb-3 flex items-center justify-between text-text-low"><span>Live log</span><span className="rounded-pill border border-warning/30 bg-warning/10 px-2 py-1 text-xs text-warning">Full log · Coming soon</span></div>
+    <div className="mb-3 flex items-center justify-between text-text-low"><span>Live log</span><span className="rounded-pill border border-border-subtle bg-surface-2 px-2 py-1 text-xs text-text-low">Latest events</span></div>
     <div ref={scrollRef} className="max-h-72 space-y-2 overflow-auto pr-1">
       {entries.map((line, index) => {
         const time = line.createdAt ? new Date(line.createdAt).toLocaleTimeString([], { hour12: false }) : "--:--:--";

@@ -13,6 +13,7 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
   // a genuine 404 would be swallowed and shown as a degraded state.
   let report: ReportClientProps["report"] | undefined;
   let findings: ReportClientProps["findings"] = [];
+  let challenges: ReportClientProps["challenges"] = [];
   let degraded = false;
   try {
     const reportResult = await db.query(
@@ -23,12 +24,16 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
     );
     report = reportResult.rows[0];
     if (report) {
-      const findingsResult = await db.query(
-        `select id, severity, category, title, file, line_start as "lineStart", line_end as "lineEnd", summary, why_mantle as "whyMantle", recommended_fix as "recommendedFix", gas_impact as "gasImpact", status
-         from findings where report_id = $1 order by sort_index nulls last, id`,
-        [reportId],
-      );
+      const [findingsResult, challengesResult] = await Promise.all([
+        db.query(
+          `select id, severity, category, title, file, line_start as "lineStart", line_end as "lineEnd", summary, why_mantle as "whyMantle", recommended_fix as "recommendedFix", gas_impact as "gasImpact", status
+           from findings where report_id = $1 order by sort_index nulls last, id`,
+          [reportId],
+        ),
+        db.query(`select id, target_type as "targetType", challenger, title, rationale, evidence_url as "evidenceUrl", status, challenge_hash as "challengeHash", reference_tx_hash as "referenceTxHash", reference_report_hash as "referenceReportHash", created_at as "createdAt" from report_challenges where report_id=$1 order by created_at desc`, [reportId]),
+      ]);
       findings = findingsResult.rows;
+      challenges = challengesResult.rows;
     }
   } catch (error) {
     degraded = true;
@@ -36,5 +41,5 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
   }
   if (degraded) return <div className="space-y-6"><DegradedNotice resource="This report"/></div>;
   if (!report) notFound();
-  return <ReportClient report={report} findings={findings} />;
+  return <ReportClient report={report} findings={findings} challenges={challenges} />;
 }

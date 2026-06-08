@@ -18,3 +18,17 @@ Archon handles potentially sensitive source code and security findings. The prod
 ## AI output handling
 
 AI output should be validated before being shown as fact. JSON, addresses, chain IDs, URLs, gas numbers, proof hashes, and contract names must be checked against source or telemetry where possible.
+
+## Read-only by default
+
+Archon's safety model is intentionally conservative. Scans, reports, gas analysis, and public validation are read-only by default. The system should not submit transactions unless the user explicitly opens a proof/anchor flow and signs with their own wallet or configured signer.
+
+## Source handling
+
+Uploaded source code is treated as untrusted input. The compiler runs in a temporary worker workspace, imports are resolved from the provided bundle and installed Solidity packages, and outputs are used for analysis rather than deployment.
+
+Never include private keys, deployment mnemonics, production `.env` files, or proprietary secrets in uploaded archives. Archon only needs Solidity source, interfaces, libraries, and relevant metadata.
+
+## Validation challenges
+
+The public challenge ledger records disagreement and evidence; it does not overwrite reports or erase findings. Challenge hashes make entries auditable, while existing proof references keep the relationship to the original artifact clear.

@@ -18,3 +18,18 @@ Rate limits protect the app, model budget, and chain interactions. Public limits
 ## User-facing copy
 
 A good rate-limit message says what happened, whether work was saved, and when to retry.
+
+## Queue-first design
+
+Heavy work is queued on the VM worker instead of executed inside short-lived request handlers. API clients should create a scan/report, poll the status endpoint, and render progress from the returned state.
+
+Recommended client behavior:
+
+- Debounce repeated scan submissions from the same source.
+- Treat `queued` and `running` as normal states, not errors.
+- Back off polling after the first minute.
+- Reuse completed reports when the source hash and assumptions are unchanged.
+
+## Practical limits
+
+Archon should reject unusually large uploads, excessive source bundles, and repeated runs that would burn compute without improving the result. When limits are hit, the API should return a clear error rather than silently dropping work.

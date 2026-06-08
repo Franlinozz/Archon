@@ -18,3 +18,19 @@ Coverage is the difference between a helpful report and a misleading one. Archon
 ## Coverage gaps
 
 Coverage gaps are not failures by themselves. They are decision points. If a dependency, contract, or flow is out of scope, the report should say so plainly.
+
+## How coverage is applied
+
+Protocol coverage is used as context for prioritization, not as a claim that Archon has exhaustively proven safety. When a scan is configured with protocols, the worker can weight findings toward the relevant execution environment, integration pattern, and known risk class.
+
+Examples:
+
+- A lending-market scan should emphasize oracle assumptions, liquidation paths, collateral accounting, and external pool interfaces.
+- A token scan should emphasize authorization, mint/burn controls, transfer hooks, pausing, and upgrade ownership.
+- A router scan should emphasize slippage, callback trust, token approvals, and reentrancy boundaries.
+
+## What to provide for best results
+
+Upload or import the full Solidity workspace when possible. Single-file scans are useful for quick review, but protocol-level issues often live in interfaces, libraries, mocks, or inherited base contracts.
+
+Archon now preserves multi-file uploads and GitHub Solidity bundles so local imports can be compiled and analyzed in the VM worker.

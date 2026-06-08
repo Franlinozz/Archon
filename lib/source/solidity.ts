@@ -19,6 +19,7 @@ export type SourceSelectionResponse = {
   source?: string;
   fileName?: string;
   path?: string;
+  sourceFiles?: Array<{ path: string; source: string }>;
   files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
   message?: string;
 };
@@ -53,7 +54,7 @@ export function chooseOrList(files: SoliditySourceFile[], requestedPath?: string
   const selected = requestedPath ? files.find((file) => file.path === requestedPath) : undefined;
   if (requestedPath && !selected) throw new Error(`Selected Solidity file was not found: ${requestedPath}`);
   const file = selected ?? (files.length === 1 ? files[0] : undefined);
-  if (file) return { mode: "single", source: file.source, fileName: file.name, path: file.path };
+  if (file) return { mode: "single", source: file.source, fileName: file.name, path: file.path, sourceFiles: files.map(({ path, source }) => ({ path, source })) };
   return {
     mode: "select",
     message: "Multiple Solidity files found. Select the target contract file.",

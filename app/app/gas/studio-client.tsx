@@ -22,6 +22,7 @@ type SourceImportPayload = {
   ref?: string;
   error?: string;
   message?: string;
+  sourceFiles?: Array<{ path: string; source: string }>;
   files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
 };
 
@@ -42,6 +43,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
   const [sourceCode, setSourceCode] = useState(initialSource);
   const [sourceMode, setSourceMode] = useState<SourceMode>("paste");
   const [sourceLabel, setSourceLabel] = useState("VaultV2.sol");
+  const [sourceFiles, setSourceFiles] = useState<Array<{ path: string; source: string }> | null>(null);
   const [address, setAddress] = useState("");
   const [callsPerYear, setCallsPerYear] = useState(100000);
   const [mntUsd, setMntUsd] = useState(1);
@@ -69,7 +71,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
         return;
       }
       if (!payload.source) throw new Error(payload.error ?? "Upload did not return Solidity source.");
-      setSourceMode("paste"); setSourceCode(payload.source); setSourceLabel(payload.path ?? payload.fileName ?? file.name);
+      setSourceMode("paste"); setSourceCode(payload.source); setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? file.name, source: payload.source }]); setSourceLabel(payload.path ?? payload.fileName ?? file.name);
     } catch (err) { setError(err instanceof Error ? err.message : "Upload import failed."); }
   }
 
@@ -89,7 +91,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
         if (!response.ok) throw new Error(payload.error ?? "GitHub import failed.");
       }
       if (!payload.source) throw new Error(payload.error ?? "GitHub import did not return Solidity source.");
-      setSourceMode("paste"); setSourceCode(payload.source); setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
+      setSourceMode("paste"); setSourceCode(payload.source); setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? "Contract.sol", source: payload.source }]); setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
     } catch (err) { setError(err instanceof Error ? err.message : "GitHub import failed."); }
     finally { setIsImporting(false); }
   }
@@ -99,7 +101,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
     try {
       const body = sourceMode === "address"
         ? { sourceKind: "address", sourceRef: address.trim(), callsPerYear, mntUsd }
-        : { sourceKind: "paste", sourceCode, callsPerYear, mntUsd };
+        : { sourceKind: "paste", sourceCode, sourceFiles: sourceFiles ?? undefined, callsPerYear, mntUsd };
       const response = await fetch("/api/gas/scan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const payload = await response.json() as ApiPayload;
       if (!response.ok || !payload.gasReportId) throw new Error(payload.issues?.map((i) => i.message).join(" ") || payload.error || "Gas scan request failed.");
@@ -127,7 +129,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
               <button onClick={() => void importGithub()} disabled={isImporting} className="inline-flex items-center gap-2 rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:text-green-400 disabled:opacity-60"><Github size={15}/> {isImporting ? "Importing…" : "GitHub"}</button>
               <button onClick={() => setSourceMode("address")} className={sourceMode === "address" ? "rounded-pill border border-green-400/35 bg-green-400/10 px-4 py-2 text-sm text-green-400" : "rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid"}>Address</button>
             </div>
-            <div className="flex items-center gap-2"><span className="max-w-[240px] truncate rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-hi" title={sourceLabel}>{sourceLabel}</span><button onClick={() => { setSourceCode(initialSource); setSourceLabel("VaultV2.sol"); setSourceMode("paste"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button><button onClick={() => setIsFullscreen((v) => !v)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><Expand size={15}/> {isFullscreen ? "Exit" : "Fullscreen"}</button></div>
+            <div className="flex items-center gap-2"><span className="max-w-[240px] truncate rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-hi" title={sourceLabel}>{sourceLabel}</span><button onClick={() => { setSourceCode(initialSource); setSourceFiles(null); setSourceLabel("VaultV2.sol"); setSourceMode("paste"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button><button onClick={() => setIsFullscreen((v) => !v)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><Expand size={15}/> {isFullscreen ? "Exit" : "Fullscreen"}</button></div>
           </div>
           {sourceMode === "address" ? <div className="min-h-[620px] bg-terminal p-6"><label className="block text-sm text-text-mid">Mantle contract address with verified source</label><input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="0x…" className="mt-3 w-full rounded-control border-border-subtle bg-surface-1 font-mono text-text-hi"/><p className="mt-4 rounded-card border border-info/25 bg-info/10 p-4 text-sm leading-6 text-text-mid">Address mode fetches verified Solidity source from the Mantle explorer before queuing the gas worker. If the explorer has no verified source, the run fails clearly.</p></div> : <MonacoEditor height={isFullscreen ? "calc(100vh - 210px)" : "620px"} defaultLanguage="sol" language="sol" theme={archonMonacoTheme(theme)} beforeMount={defineArchonMonacoThemes} value={sourceCode} onChange={(v) => setSourceCode(v ?? "")} options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: "JetBrains Mono, monospace", scrollBeyondLastLine: false, wordWrap: "on", automaticLayout: true }} />}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-1 px-4 py-3 font-mono text-xs text-text-low"><span>Solidity {sourceMode === "address" ? "verified-source" : solidityVersion}</span><span>{sourceMode === "address" ? "address mode" : `${contractCount} contract${contractCount === 1 ? "" : "s"}`}</span><span>{lineCount} lines</span><span className="inline-flex items-center gap-1 text-success"><Check size={14}/> Read-only</span></div>

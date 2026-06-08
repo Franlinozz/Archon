@@ -259,8 +259,8 @@ function NotificationsCard() {
 
   return (
     <Card title="Notifications">
-      <ToggleRow label="Alert on Critical / High findings" sub="Delivery · Coming soon" checked={loaded && prefs.critical} onChange={() => toggle("critical")} />
-      <ToggleRow label="Notify when a proof is verified" sub="Delivery · Coming soon" checked={loaded && prefs.proofVerified} onChange={() => toggle("proofVerified")} />
+      <ToggleRow label="Alert on Critical / High findings" sub="Preference saved locally" checked={loaded && prefs.critical} onChange={() => toggle("critical")} />
+      <ToggleRow label="Notify when a proof is verified" sub="Preference saved locally" checked={loaded && prefs.proofVerified} onChange={() => toggle("proofVerified")} />
       <div>
         <label htmlFor="webhook" className="block text-text-low">Webhook URL <span className="text-text-low">(Discord / Slack)</span></label>
         <div className="mt-1.5 flex gap-2">
@@ -276,7 +276,7 @@ function NotificationsCard() {
           </button>
         </div>
         {error ? <p className="mt-1.5 text-xs text-danger">{error}</p> : null}
-        <p className="mt-1.5 text-xs text-text-low">Delivery · Coming soon — preference is saved on this device now.</p>
+        <p className="mt-1.5 text-xs text-text-low">Notification preferences are saved on this device now.</p>
       </div>
     </Card>
   );
@@ -312,7 +312,7 @@ function PlanCard() {
     <Card title="Plan">
       <Row label="Tier" value="Hackathon build" />
       <Row label="Cost controls" value="Cost Guard (advisory, sample data)" />
-      <span aria-disabled className="mt-1 inline-flex cursor-not-allowed items-center gap-2 rounded-pill border border-border-subtle bg-surface-2 px-3 py-1 text-xs text-text-low opacity-60">Team management · Coming soon</span>
+      <span className="mt-1 inline-flex items-center gap-2 rounded-pill border border-border-subtle bg-surface-2 px-3 py-1 text-xs text-text-low">Personal workspace</span>
     </Card>
   );
 }

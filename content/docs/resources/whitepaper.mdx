@@ -5,11 +5,35 @@ description: Archon's public technical thesis for verifiable DevTools on Mantle.
 
 # Archon whitepaper
 
-<div className="not-prose my-6 rounded-card border border-brand-500/25 bg-brand-50 p-5 shadow-card">
-  <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Archon Whitepaper · V2.8</p>
-  <p className="mt-2 text-sm text-body">A public, technical overview of Archon's audit engine, Mantle gas optimization system, ERC-8004 identity model, proof architecture, business model, and roadmap.</p>
-  <a href="/docs/archon-whitepaper.pdf" className="mt-4 inline-flex rounded-input bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700">Download PDF</a>
+<div className="not-prose my-6 rounded-card border border-brand-500/25 bg-surface-2 p-5 shadow-card">
+  <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Archon Whitepaper · V2.9</p>
+  <p className="mt-2 text-sm text-body">A public, technical overview of Archon's audit engine, Mantle gas optimization system, ERC-8004 identity model, proof architecture, challenge ledger, business model, and roadmap.</p>
+  <div className="mt-4 flex flex-wrap gap-2">
+    <a href="/docs/archon-whitepaper.pdf" className="inline-flex rounded-input bg-green-500 px-4 py-2 text-sm font-bold text-on-green shadow-sm hover:bg-green-400">Download PDF</a>
+    <a href="/api-reference" className="inline-flex rounded-input border border-subtle bg-surface-1 px-4 py-2 text-sm font-semibold text-ink hover:border-emphasis">API reference</a>
+  </div>
 </div>
+
+## Executive summary
+
+Archon is a verifiable security and gas-optimization platform for Mantle builders. It turns Solidity source into structured audit reports, Mantle-aware gas reports, public proof artifacts, and challengeable validation records. The product is intentionally pragmatic: it does not claim to replace expert review, and it does not treat AI output as unquestionable truth. Instead, it preserves provenance, separates measured values from estimates, and makes reports easier to inspect, export, integrate, and verify.
+
+This paper argues that the next generation of crypto DevTools will be judged by evidence quality. A useful tool must show what source was analyzed, what assumptions were used, what was measured, what was estimated, which proof belongs to the artifact, and how another developer can challenge or reproduce the result. Archon's architecture — queued workers, deterministic hashing, source-bundle compilation, Fumadocs documentation, public API, GitHub Action, gas leaderboard, proof registry integration, and public challenge ledger — is built around that evidence trail.
+
+## Contents
+
+1. Abstract
+2. The problem
+3. Thesis: verifiable DevTools
+4. System architecture
+5. The Audit Engine
+6. The Mantle Gas Optimization Engine
+7. ERC-8004 identity and on-chain proofs
+8. Public validation and challenge ledger
+9. Trust and verifiability model
+10. Business model and GTM
+11. Roadmap
+12. Security, limitations, and references
 
 ## Abstract
 
@@ -195,6 +219,16 @@ The important design choice is that proofs do not claim more than they prove. A 
 This distinction is essential for honest security tooling. On-chain proof should strengthen the evidence trail, not become a marketing trick. The right claim is: “this report, with this hash and metadata, was produced by this system and can be checked.” The wrong claim is: “this contract is safe because a proof exists.”
 
 As the ecosystem matures, Archon can attach more signals to identity: CI run history, accepted fixes, leaderboard records, proof verification status, and reputation events. The result is an audit agent whose work becomes more accountable over time.
+
+## Public validation and challenge ledger
+
+Verification should not be a one-way announcement. A public report becomes more trustworthy when readers can attach disagreement, evidence, and alternative interpretation to a specific finding or optimization. Archon therefore includes a scoped challenge ledger.
+
+The current challenge flow is intentionally conservative. Anyone can submit a challenge against an audit report, finding, gas report, or optimization. Archon records the challenge in Supabase with target identifiers, title, rationale, optional evidence URL, status, timestamp, and a deterministic challenge hash. If the challenged artifact already has an ArchonProofRegistry transaction, report hash, or gas anchor, the challenge stores that reference as context.
+
+This design extends the trustless thesis without introducing a deadline-risky new contract. A challenge does not rewrite the original report. It does not claim that the challenger is correct. It creates a durable, public, hash-addressable record of dispute that can be reviewed alongside the report. That is the right level of verification for the current product: transparent, scoped, and honest about what has and has not been proven.
+
+A future version could anchor challenge hashes directly through an extension or registry event, but that should be designed deliberately and only after the existing proof flow remains stable. Under the current milestone, the correct tradeoff is DB-backed public validation with references to existing proof artifacts.
 
 ## Trust & verifiability model
 

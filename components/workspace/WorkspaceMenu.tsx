@@ -128,7 +128,7 @@ export function WorkspaceMenu({ agentId, identityRegistry }: { agentId: string; 
             {/* Disabled: single-workspace MVP */}
             <div className="mt-2 border-t border-border-subtle pt-2">
               <span aria-disabled className="flex cursor-not-allowed items-center gap-2.5 rounded-control px-3 py-2 text-sm text-text-low opacity-60">
-                <Plus size={15} /> Create workspace · Coming soon
+                <Plus size={15} /> Personal workspace active
               </span>
             </div>
           </motion.div>

@@ -126,6 +126,7 @@ function HeroSeal({ reduce }: { reduce: boolean }) {
         >
           {/* Idle float. */}
           <motion.div
+            data-archon-hero-mark
             className="relative grid place-items-center"
             animate={reduce ? undefined : { y: [0, -7, 0] }}
             transition={reduce ? undefined : { duration: 4.2, ease: "easeInOut", repeat: Infinity }}

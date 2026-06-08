@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Download, Search, Share2 } from "lucide-react";
 import { GenerateProofModal } from "./GenerateProofModal";
+import { ChallengePanel } from "@/components/challenges/ChallengePanel";
 import { RiskScoreCard, SeverityPill } from "@/components/archon";
 import type { Severity } from "@/components/archon/severity";
 
@@ -38,8 +39,9 @@ type GasOptimizerScope = {
 };
 type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; lineCount?: number; pragma?: string; solcVersion?: string; sourceKind?: string; protocols?: string[]; dependencies?: string[]; blockNumber?: string | number | null };
 type Report = { id: string; scanId: string; contractName: string; riskScore: number; severityCounts: Record<string, number>; scope: ReportScope; executiveSummary: string; reportHash: string; createdAt: string; startedAt: string | null; finishedAt: string | null; scanDepth: string; network: string };
+type Challenge = { id: string; targetType: string; challenger: string | null; title: string; rationale: string; evidenceUrl: string | null; status: string; challengeHash: string; referenceTxHash: string | null; referenceReportHash: string | null; createdAt: string };
 
-export function ReportClient({ report, findings }: { report: Report; findings: Finding[] }) {
+export function ReportClient({ report, findings, challenges }: { report: Report; findings: Finding[]; challenges: Challenge[] }) {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Findings");
   const [query, setQuery] = useState("");
   const [severity, setSeverity] = useState<Severity | "all">("all");
@@ -99,6 +101,8 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Executive Summary</p><p className="mt-3 max-w-5xl leading-7 text-text-mid">{report.executiveSummary}</p></section>
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Gas Optimizer</p><Link href="/app/gas" className="rounded-control border border-green-400/35 bg-green-400/10 px-3 py-2 text-sm font-semibold text-green-400">Open full gas engine</Link></div><div className="mt-3 grid gap-3 md:grid-cols-5"><Metric label="Creation bytecode" value={`${gasOptimizer?.pricing?.creationBytecodeBytes ?? "—"} bytes`} /><Metric label="Mantle L2 gas price" value={l2GasPrice} /><Metric label="Deploy L1/DA fee" value={pricedDeployFee} /><Metric label="Opportunities" value={String(gasOpportunities.length)} /><Metric label="Measurement" value={gasMeasurement ? `${gasMeasurement.status} · ${gasMeasurement.source}` : "pending"} /></div>{gasOptimizer?.pricing?.mode !== "calibrated-receipts" ? <p className="mt-3 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">DA fee is not calibrated yet: {gasOptimizer?.pricing?.unavailableReason ?? "receipt calibration unavailable"}</p> : <p className="mt-3 text-sm text-text-mid">Estimated from Mantle receipt ground truth (`l1Fee`) using a zero/nonzero calldata-byte calibration. Real deployed transactions use receipt `l1Fee` directly.</p>}</section>
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Key Takeaways</p><ul className="mt-3 grid gap-2 md:grid-cols-2">{takeaways.map((item) => <li key={item} className="rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid">✓ {item}</li>)}</ul></section>
+
+    <ChallengePanel endpoint={`/api/reports/${report.id}/challenges`} targetType="report" initialChallenges={challenges} />
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5">
       <div className="flex flex-wrap gap-2">{tabs.map((item) => <button key={item} onClick={() => setTab(item)} className={tab === item ? "rounded-pill border border-green-400/35 bg-green-400/10 px-3 py-1.5 text-sm text-green-400" : "rounded-pill border border-border-subtle bg-surface-2 px-3 py-1.5 text-sm text-text-mid"}>{item}</button>)}</div>

@@ -34,6 +34,7 @@ type SourceImportPayload = {
   ref?: string;
   error?: string;
   message?: string;
+  sourceFiles?: Array<{ path: string; source: string }>;
   files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
 };
 
@@ -56,6 +57,7 @@ export function AuditStudioClient({ initialSource }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sourceLabel, setSourceLabel] = useState("VaultV2.sol");
+  const [sourceFiles, setSourceFiles] = useState<Array<{ path: string; source: string }> | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -72,7 +74,7 @@ export function AuditStudioClient({ initialSource }: Props) {
       const response = await fetch("/api/scans", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sourceKind: "paste", sourceCode, scanDepth, protocols: selectedProtocols }),
+        body: JSON.stringify({ sourceKind: "paste", sourceCode, sourceFiles: sourceFiles ?? undefined, scanDepth, protocols: selectedProtocols }),
       });
       const payload = (await response.json()) as { scanId?: string; error?: string; issues?: ApiIssue[] };
       if (!response.ok || !payload.scanId) {
@@ -102,6 +104,7 @@ export function AuditStudioClient({ initialSource }: Props) {
       }
       if (!payload.source) throw new Error(payload.error || "Upload did not return Solidity source.");
       setSourceCode(payload.source);
+      setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? file.name, source: payload.source }]);
       setSourceLabel(payload.path ?? payload.fileName ?? file.name);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload import failed.");
@@ -126,6 +129,7 @@ export function AuditStudioClient({ initialSource }: Props) {
       }
       if (!payload.source) throw new Error(payload.error || "GitHub import did not return Solidity source.");
       setSourceCode(payload.source);
+      setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? "Contract.sol", source: payload.source }]);
       setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "GitHub import failed.");
@@ -160,7 +164,7 @@ export function AuditStudioClient({ initialSource }: Props) {
             </div>
             <div className="flex items-center gap-2">
               <span className="max-w-[260px] truncate rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-hi" title={sourceLabel}>{sourceLabel}</span>
-              <button onClick={() => { setSourceCode(initialSource); setSourceLabel("VaultV2.sol"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button>
+              <button onClick={() => { setSourceCode(initialSource); setSourceFiles(null); setSourceLabel("VaultV2.sol"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button>
               <button onClick={() => setIsFullscreen((value) => !value)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><Expand size={15}/> {isFullscreen ? "Exit" : "Fullscreen"}</button>
             </div>
           </div>

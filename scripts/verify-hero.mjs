@@ -12,7 +12,9 @@ const results = [];
 const ok = (n, c, extra = "") => { results.push([n, !!c]); if (!c && extra) console.log("   ↳", extra); };
 
 const markTop = (page) => page.evaluate(() => {
-  const i = Array.from(document.querySelectorAll("img")).find((x) => /mark-(light|dark)\.png/.test(x.currentSrc || x.src) && x.offsetParent !== null);
+  const heroMark = document.querySelector("[data-archon-hero-mark]");
+  if (heroMark instanceof HTMLElement) return heroMark.getBoundingClientRect().top;
+  const i = Array.from(document.querySelectorAll("img")).find((x) => /mark-(light|dark)(-cut)?\.png/.test(x.currentSrc || x.src) && x.offsetParent !== null);
   return i ? i.getBoundingClientRect().top : null;
 });
 
@@ -41,7 +43,7 @@ ok("no asset (img/css/font) >=400", badAssets.length === 0, badAssets.join(" | "
 ok("no uncaught page errors", pageErrors.length === 0, pageErrors.join(" | "));
 ok("no asset-related console errors", consoleErrors.filter((t) => /404|failed to load|mark-|hero-|logo-|favicon/i.test(t)).length === 0);
 
-const markOk = await page.evaluate(() => Array.from(document.querySelectorAll("img")).some((i) => /mark-(light|dark)\.png/.test(i.currentSrc || i.src) && i.offsetParent !== null && i.naturalWidth > 0));
+const markOk = await page.evaluate(() => Array.from(document.querySelectorAll("img")).some((i) => /mark-(light|dark)(-cut)?\.png/.test(i.currentSrc || i.src) && i.offsetParent !== null && i.naturalWidth > 0));
 ok("hero mark <img> naturalWidth>0", markOk);
 
 for (const f of ["/favicon-light-32.png", "/favicon-dark-32.png", "/icon-64.png", "/apple-touch.png"]) {

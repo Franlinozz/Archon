@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -6,7 +7,7 @@ const require = createRequire(import.meta.url);
 
 type SolcModule = {
   version: () => string;
-  compile: (input: string) => string;
+  compile: (input: string, callbacks?: { import?: (path: string) => { contents?: string; error?: string } }) => string;
 };
 
 type CompilerOutput = {
@@ -45,7 +46,18 @@ export async function compileSoliditySource(args: { workdir: string; sourceFile:
     },
   };
 
-  const output = JSON.parse(solc.compile(JSON.stringify(input))) as CompilerOutput;
+  const resolveImport = (importPath: string) => {
+    const candidates = [
+      path.join(path.dirname(args.sourceFile), importPath),
+      path.join(args.workdir, importPath),
+      path.join(process.cwd(), "node_modules", importPath),
+    ];
+    const found = candidates.find((candidate) => existsSync(candidate));
+    if (!found) return { error: `Source ${importPath} not found in workspace or node_modules.` };
+    return { contents: readFileSync(found, "utf8") };
+  };
+
+  const output = JSON.parse(solc.compile(JSON.stringify(input), { import: resolveImport })) as CompilerOutput;
   const fatal = (output.errors ?? []).filter((error) => error.severity === "error");
   if (fatal.length) {
     const details = formatErrors({ errors: fatal });

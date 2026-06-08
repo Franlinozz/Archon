@@ -17,3 +17,24 @@ Archon uses wallet authentication for owner-linked app workflows. The product sh
 ## Operational guidance
 
 Do not paste private keys or seed phrases into Archon. Source ingestion should use repository access patterns or verified source fetches, not wallet secrets.
+
+## Current app boundary
+
+Archon treats wallet authentication as an ownership and session boundary, not as a custody layer. A connected wallet can own scans, proofs, and report actions, but Archon never asks for transfer approvals, token allowances, private keys, or seed phrases.
+
+The safest integration pattern is:
+
+1. Ask the user to connect a wallet in the browser.
+2. Present a readable sign-in message with domain, nonce, wallet address, and expiry.
+3. Store only the resulting session metadata server-side.
+4. Re-check ownership before returning private report data or accepting proof/challenge writes.
+
+## API access today
+
+Public endpoints such as the OpenAPI document, public report pages, leaderboard data, and completed gas reports are intentionally readable without a wallet. Mutating report workflows are handled inside the app session and background worker queue.
+
+If you are building automation, prefer the documented public routes first. Do not scrape private app routes or rely on unstable session cookies.
+
+## Failure behavior
+
+Authentication failures should be explicit: expired session, wrong wallet, missing nonce, or unauthorized report. Archon should not silently fall back to public data when a private artifact was requested.

@@ -8,6 +8,7 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
   const { reportId } = await params;
   let report;
   let optimizations = [];
+  let challenges = [];
   let degraded = false;
   try {
     report = (await db.query(
@@ -16,11 +17,16 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
       [reportId],
     )).rows[0];
     if (report) {
-      optimizations = (await db.query(
-        `select id, rule_id as "ruleId", title, category, file, line_start as "lineStart", location, before, after, safety, confidence, status, measurement_label as "measurementLabel", est_l2_delta as "estL2Delta", measured_l2_delta as "measuredL2Delta", est_l1_delta_wei as "estL1DeltaWei", measured_l1_delta_wei as "measuredL1DeltaWei", annual_savings_usd as "annualSavingsUsd", rank_score as "rankScore", patch, gas_diff as "gasDiff", notes
-         from gas_optimizations where gas_report_id=$1 order by rank_score desc nulls last, created_at asc`,
-        [reportId],
-      )).rows;
+      const [optsResult, challengesResult] = await Promise.all([
+        db.query(
+          `select id, rule_id as "ruleId", title, category, file, line_start as "lineStart", location, before, after, safety, confidence, status, measurement_label as "measurementLabel", est_l2_delta as "estL2Delta", measured_l2_delta as "measuredL2Delta", est_l1_delta_wei as "estL1DeltaWei", measured_l1_delta_wei as "measuredL1DeltaWei", annual_savings_usd as "annualSavingsUsd", rank_score as "rankScore", patch, gas_diff as "gasDiff", notes
+           from gas_optimizations where gas_report_id=$1 order by rank_score desc nulls last, created_at asc`,
+          [reportId],
+        ),
+        db.query(`select id, target_type as "targetType", challenger, title, rationale, evidence_url as "evidenceUrl", status, challenge_hash as "challengeHash", reference_tx_hash as "referenceTxHash", reference_report_hash as "referenceReportHash", created_at as "createdAt" from report_challenges where gas_report_id=$1 order by created_at desc`, [reportId]),
+      ]);
+      optimizations = optsResult.rows;
+      challenges = challengesResult.rows;
     }
   } catch (error) {
     degraded = true;
@@ -28,5 +34,5 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
   }
   if (degraded) return <div className="space-y-6"><DegradedNotice resource="This gas report" /></div>;
   if (!report) notFound();
-  return <GasReportClient report={report} optimizations={optimizations} />;
+  return <GasReportClient report={report} optimizations={optimizations} challenges={challenges} />;
 }

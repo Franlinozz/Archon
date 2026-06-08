@@ -3,10 +3,20 @@
 import { useEffect, useState } from "react";
 
 type TocItem = {
-  title: string;
+  title: unknown;
   url: string;
   depth: number;
 };
+
+function tocTitle(title: unknown): string {
+  if (typeof title === "string") return title;
+  if (Array.isArray(title)) return title.map(tocTitle).filter(Boolean).join(" ");
+  if (title && typeof title === "object") {
+    const value = title as { value?: unknown; children?: unknown; props?: { children?: unknown } };
+    return tocTitle(value.value ?? value.children ?? value.props?.children);
+  }
+  return "Section";
+}
 
 export function DocsToc({ items }: { items: TocItem[] }) {
   const [active, setActive] = useState<string | undefined>(items[0]?.url);
@@ -40,7 +50,7 @@ export function DocsToc({ items }: { items: TocItem[] }) {
           {items.map((item) => (
             <li key={item.url} style={{ paddingLeft: `${Math.max(0, item.depth - 2) * 12}px` }}>
               <a className={active === item.url ? "text-brand-600" : "text-muted hover:text-ink"} href={item.url}>
-                {item.title}
+                {tocTitle(item.title)}
               </a>
             </li>
           ))}

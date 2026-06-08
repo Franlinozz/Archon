@@ -26,7 +26,8 @@ const GAS_TIMEOUT_MS = Number(process.env.ARCHON_GAS_WORKER_TIMEOUT_MS ?? 120_00
 const chain = { ...mantle, id: 5000 } as const;
 
 export type GasSourceKind = "paste" | "sample" | "address";
-export type GasScanInput = { sourceKind: GasSourceKind; sourceCode?: string; sourceRef?: string; callsPerYear?: number; mntUsd?: number };
+export type SourceFileBundle = Array<{ path: string; source: string }>;
+export type GasScanInput = { sourceKind: GasSourceKind; sourceCode?: string; sourceFiles?: SourceFileBundle; sourceRef?: string; callsPerYear?: number; mntUsd?: number };
 
 type GasReportRow = {
   id: string;
@@ -34,6 +35,7 @@ type GasReportRow = {
   contract_name: string | null;
   source_hash: string | null;
   assumptions: Record<string, unknown> | null;
+  source_bundle: SourceFileBundle | null;
 };
 
 function sha256(value: string) {
@@ -85,11 +87,34 @@ export async function createGasReport(input: GasScanInput) {
     note: "$/yr uses callsPerYear × L2 gas delta × live/cached L2 gas price plus L1/DA delta. User should tune call volume for production traffic.",
   };
   const result = await db.query<{ id: string }>(
-    `insert into gas_reports (source_kind, source_ref, source_code, source_hash, contract_name, network, status, progress, current_stage, assumptions, created_at)
-     values ($1,$2,$3,$4,$5,'mantle-mainnet','queued',0,'Queued',$6::jsonb,now()) returning id`,
-    [input.sourceKind, input.sourceRef ?? null, resolved.source, resolved.sourceHash, resolved.contractName, JSON.stringify(assumptions)],
+    `insert into gas_reports (source_kind, source_ref, source_code, source_bundle, source_hash, contract_name, network, status, progress, current_stage, assumptions, created_at)
+     values ($1,$2,$3,$4::jsonb,$5,$6,'mantle-mainnet','queued',0,'Queued',$7::jsonb,now()) returning id`,
+    [input.sourceKind, input.sourceRef ?? null, resolved.source, input.sourceFiles ? JSON.stringify(input.sourceFiles) : null, resolved.sourceHash, resolved.contractName, JSON.stringify(assumptions)],
   );
   return { id: result.rows[0]!.id, ...resolved, assumptions };
+}
+
+function safeBundlePath(rawPath: string) {
+  const normalized = rawPath.replaceAll("\\", "/").split("/").filter(Boolean).join("/");
+  if (!normalized || normalized.startsWith("/") || normalized.includes("../") || normalized === ".." || !normalized.endsWith(".sol")) throw new Error(`Unsafe Solidity bundle path: ${rawPath}`);
+  return normalized;
+}
+
+async function writeSourceWorkspace(workdir: string, source: string, bundle: SourceFileBundle | null | undefined, fallbackName: string) {
+  if (bundle?.length) {
+    let selected: string | null = null;
+    for (const file of bundle) {
+      const safePath = safeBundlePath(file.path);
+      const target = path.join(workdir, safePath);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, file.source);
+      if (!selected && file.source.trim() === source.trim()) selected = target;
+    }
+    if (selected) return selected;
+  }
+  const sourceFile = path.join(workdir, `${fallbackName}.sol`);
+  await writeFile(sourceFile, source);
+  return sourceFile;
 }
 
 async function compileSource(workdir: string, sourceFile: string, pragma?: string) {
@@ -156,13 +181,12 @@ async function updateStage(id: string, stage: string, progress: number, status =
 }
 
 export async function runGasReport(gasReportId: string) {
-  const row = (await db.query<GasReportRow>("select id, source_code, contract_name, source_hash, assumptions from gas_reports where id=$1", [gasReportId])).rows[0];
+  const row = (await db.query<GasReportRow>("select id, source_code, source_bundle, contract_name, source_hash, assumptions from gas_reports where id=$1", [gasReportId])).rows[0];
   if (!row) throw new Error("Gas report not found");
   const workdir = await mkdtemp(path.join(tmpdir(), `archon-gas-${gasReportId}-`));
   try {
     await updateStage(gasReportId, "Compiling", 10);
-    const sourceFile = path.join(workdir, `${row.contract_name ?? contractName(row.source_code)}.sol`);
-    await writeFile(sourceFile, row.source_code);
+    const sourceFile = await writeSourceWorkspace(workdir, row.source_code, row.source_bundle, row.contract_name ?? contractName(row.source_code));
     await compileSource(workdir, sourceFile);
 
     await updateStage(gasReportId, "Detecting optimizations", 35);
@@ -198,7 +222,7 @@ export async function runGasReport(gasReportId: string) {
 }
 
 async function loadGasReport(id: string) {
-  const row = (await db.query<GasReportRow>("select id, source_code, contract_name, source_hash, assumptions from gas_reports where id=$1", [id])).rows[0];
+  const row = (await db.query<GasReportRow>("select id, source_code, source_bundle, contract_name, source_hash, assumptions from gas_reports where id=$1", [id])).rows[0];
   if (!row) throw new Error("Gas report not found");
   return row;
 }

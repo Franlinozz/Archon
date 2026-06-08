@@ -31,6 +31,7 @@ export const openApiSpec = {
     { name: "Findings", description: "Read and generate tests for audit findings." },
     { name: "Gas Optimizer", description: "Queue gas scans, read gas reports, apply patches, and rank leaderboard entries." },
     { name: "Proofs", description: "Prepare, anchor, verify, and list proof records." },
+    { name: "Validation", description: "List and record public challenges against reports, findings, and optimizations." },
     { name: "Platform", description: "Health and operational platform endpoints." },
   ],
   paths: {
@@ -83,6 +84,28 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/reports/{id}/challenges": {
+      get: {
+        tags: ["Validation"],
+        summary: "List audit report challenges",
+        parameters: [uuidParam("id", "Audit report id.")],
+        responses: {
+          "200": { description: "Challenge list", content: { "application/json": { schema: { $ref: "#/components/schemas/ChallengeList" } } } },
+          "400": errorResponse,
+        },
+      },
+      post: {
+        tags: ["Validation"],
+        summary: "Record an audit report or finding challenge",
+        description: "Records a DB-backed public challenge with a deterministic challenge hash and references any existing proof hash/transaction for the report. This endpoint does not deploy or require a new contract.",
+        parameters: [uuidParam("id", "Audit report id.")],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateChallengeRequest" } } } },
+        responses: {
+          "201": { description: "Challenge recorded", content: { "application/json": { schema: { type: "object", required: ["schema", "challenge"], properties: { schema: { type: "string", const: "archon.challenge.v1" }, challenge: { $ref: "#/components/schemas/Challenge" } } } } } },
+          "400": errorResponse,
+        },
+      },
+    },
     "/api/reports/{id}/findings/{findingId}/test": {
       post: {
         tags: ["Findings"],
@@ -118,6 +141,28 @@ export const openApiSpec = {
           "200": { description: "Gas report with ranked optimizations", content: { "application/json": { schema: { $ref: "#/components/schemas/GasReportResponse" } } } },
           "400": errorResponse,
           "404": errorResponse,
+        },
+      },
+    },
+    "/api/gas/reports/{id}/challenges": {
+      get: {
+        tags: ["Validation"],
+        summary: "List gas report challenges",
+        parameters: [uuidParam("id", "Gas report id.")],
+        responses: {
+          "200": { description: "Challenge list", content: { "application/json": { schema: { $ref: "#/components/schemas/ChallengeList" } } } },
+          "400": errorResponse,
+        },
+      },
+      post: {
+        tags: ["Validation"],
+        summary: "Record a gas report or optimization challenge",
+        description: "Records a DB-backed public challenge with a deterministic challenge hash and references any existing gas report anchor/proof hash.",
+        parameters: [uuidParam("id", "Gas report id.")],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateChallengeRequest" } } } },
+        responses: {
+          "201": { description: "Challenge recorded", content: { "application/json": { schema: { type: "object", required: ["schema", "challenge"], properties: { schema: { type: "string", const: "archon.challenge.v1" }, challenge: { $ref: "#/components/schemas/Challenge" } } } } } },
+          "400": errorResponse,
         },
       },
     },
@@ -233,12 +278,13 @@ export const openApiSpec = {
     schemas: {
       ErrorResponse: { type: "object", required: ["error"], properties: { error: { type: "string" }, issues: { type: "array", items: { type: "object", additionalProperties: true } } }, additionalProperties: true },
       Health: { type: "object", required: ["ok", "db", "redis", "version"], properties: { ok: { type: "boolean" }, db: { type: "boolean" }, redis: { type: "boolean" }, version: { type: "string" } } },
-      CreateScanRequest: { type: "object", required: ["sourceKind", "scanDepth", "protocols"], properties: { sourceKind: { type: "string", enum: ["paste", "address"] }, sourceCode: { type: "string" }, sourceRef: { type: "string" }, scanDepth: { type: "string", enum: ["quick", "deep", "gas-cost", "full-report"] }, protocols: { type: "array", minItems: 1, items: { type: "string", enum: ["mETH", "cmETH", "USDY", "Aave V3", "Merchant Moe", "Agni"] } } } },
+      SourceFile: { type: "object", required: ["path", "source"], properties: { path: { type: "string" }, source: { type: "string" } } },
+      CreateScanRequest: { type: "object", required: ["sourceKind", "scanDepth", "protocols"], properties: { sourceKind: { type: "string", enum: ["paste", "address"] }, sourceCode: { type: "string" }, sourceFiles: { type: "array", maxItems: 80, items: { $ref: "#/components/schemas/SourceFile" } }, sourceRef: { type: "string" }, scanDepth: { type: "string", enum: ["quick", "deep", "gas-cost", "full-report"] }, protocols: { type: "array", minItems: 1, items: { type: "string", enum: ["mETH", "cmETH", "USDY", "Aave V3", "Merchant Moe", "Agni"] } } } },
       Scan: { type: "object", properties: { id: { type: "string", format: "uuid" }, sourceKind: { type: "string" }, sourceRef: { type: ["string", "null"] }, network: { type: "string" }, scanDepth: { type: "string" }, protocols: { type: "array", items: { type: "string" } }, status: { type: "string" }, progress: { type: "integer" }, currentStage: { type: ["string", "null"] }, createdAt: { type: "string", format: "date-time" }, startedAt: { type: ["string", "null"], format: "date-time" }, finishedAt: { type: ["string", "null"], format: "date-time" }, error: { type: ["string", "null"] } } },
       FindingSummary: { type: "object", properties: { id: { type: "string", format: "uuid" }, severity: { type: "string" }, category: { type: "string" }, title: { type: "string" }, file: { type: ["string", "null"] }, lineStart: { type: ["integer", "null"] }, lineEnd: { type: ["integer", "null"] }, summary: { type: ["string", "null"] }, status: { type: "string" } } },
       ScanSnapshot: { type: "object", required: ["scan", "findings", "logs", "report"], properties: { scan: { $ref: "#/components/schemas/Scan" }, findings: { type: "array", items: { $ref: "#/components/schemas/FindingSummary" } }, logs: { type: "array", items: { type: "object", additionalProperties: true } }, report: { anyOf: [{ type: "object", additionalProperties: true }, { type: "null" }] } } },
       ReportExport: { type: "object", required: ["schema", "report", "findings"], properties: { schema: { type: "string", const: "archon.report.export.v1" }, report: { type: "object", additionalProperties: true }, findings: { type: "array", items: { type: "object", additionalProperties: true } } } },
-      CreateGasScanRequest: { type: "object", properties: { sourceKind: { type: "string", enum: ["paste", "sample", "address"], default: "paste" }, sourceCode: { type: "string" }, sourceRef: { type: "string" }, callsPerYear: { type: "integer", minimum: 1, maximum: 1000000000 }, mntUsd: { type: "number", exclusiveMinimum: 0, maximum: 1000 } } },
+      CreateGasScanRequest: { type: "object", properties: { sourceKind: { type: "string", enum: ["paste", "sample", "address"], default: "paste" }, sourceCode: { type: "string" }, sourceFiles: { type: "array", maxItems: 80, items: { $ref: "#/components/schemas/SourceFile" } }, sourceRef: { type: "string" }, callsPerYear: { type: "integer", minimum: 1, maximum: 1000000000 }, mntUsd: { type: "number", exclusiveMinimum: 0, maximum: 1000 } } },
       GasScanQueued: { type: "object", required: ["gasReportId", "status", "sourceHash", "contractName", "assumptions"], properties: { gasReportId: { type: "string", format: "uuid" }, status: { type: "string", const: "queued" }, sourceHash: { type: "string" }, contractName: { type: "string" }, assumptions: { type: "object", additionalProperties: true } } },
       GasReport: { type: "object", properties: { id: { type: "string", format: "uuid" }, sourceKind: { type: "string" }, sourceRef: { type: ["string", "null"] }, sourceHash: { type: ["string", "null"] }, contractName: { type: ["string", "null"] }, network: { type: "string" }, status: { type: "string" }, progress: { type: "integer" }, currentStage: { type: ["string", "null"] }, pricing: { type: ["object", "null"], additionalProperties: true }, measurement: { type: ["object", "null"], additionalProperties: true }, totals: { type: ["object", "null"], additionalProperties: true }, assumptions: { type: ["object", "null"], additionalProperties: true }, reportHash: { type: ["string", "null"] }, anchorTxHash: { type: ["string", "null"] }, createdAt: { type: "string", format: "date-time" }, error: { type: ["string", "null"] } } },
       GasOptimization: { type: "object", properties: { id: { type: "string", format: "uuid" }, ruleId: { type: "string" }, title: { type: "string" }, category: { type: "string" }, location: { type: ["string", "null"] }, before: { type: ["string", "null"] }, after: { type: ["string", "null"] }, safety: { type: "string" }, confidence: { type: ["number", "string", "null"] }, status: { type: "string" }, measurementLabel: { type: ["string", "null"] }, estL2Delta: { type: ["integer", "null"] }, measuredL2Delta: { type: ["integer", "null"] }, estL1DeltaWei: { type: ["string", "number", "null"] }, measuredL1DeltaWei: { type: ["string", "number", "null"] }, annualSavingsUsd: { type: ["string", "number", "null"] }, patch: { type: ["object", "null"], additionalProperties: true }, gasDiff: { type: ["object", "null"], additionalProperties: true }, notes: { type: ["string", "null"] } } },
@@ -249,6 +295,9 @@ export const openApiSpec = {
       GasLeaderboard: { type: "object", required: ["schema", "generatedAt", "filters", "assumption", "rows"], properties: { schema: { type: "string", const: "archon.gas.leaderboard.v2" }, generatedAt: { type: "string", format: "date-time" }, filters: { type: "object", additionalProperties: true }, assumption: { type: "string" }, rows: { type: "array", items: { type: "object", additionalProperties: true } } } },
       PreparedProof: { type: "object", properties: { proofId: { type: "string", format: "uuid" }, reportHash: { type: "string" }, metadataUri: { type: "string" }, metadata: { type: "object", additionalProperties: true }, network: { type: "string" }, chainId: { type: "integer" }, configured: { type: "boolean" }, blocker: { type: ["string", "null"] }, selfCustody: { anyOf: [{ type: "object", additionalProperties: true }, { type: "null" }] } }, additionalProperties: true },
       Proof: { type: "object", properties: { id: { type: "string", format: "uuid" }, reportId: { type: "string", format: "uuid" }, contractName: { type: "string" }, riskScore: { type: "integer" }, reportHash: { type: "string" }, txHash: { type: ["string", "null"] }, metadataUri: { type: ["string", "null"] }, network: { type: ["string", "null"] }, loggedAt: { type: ["string", "null"], format: "date-time" }, verificationStatus: { type: ["string", "null"] } } },
+      CreateChallengeRequest: { type: "object", required: ["targetType", "title", "rationale"], properties: { targetType: { type: "string", enum: ["report", "finding", "gas-report", "optimization"] }, findingId: { type: "string", format: "uuid" }, optimizationId: { type: "string", format: "uuid" }, challenger: { type: "string", maxLength: 120 }, title: { type: "string", minLength: 6, maxLength: 160 }, rationale: { type: "string", minLength: 20, maxLength: 4000 }, evidenceUrl: { type: "string", format: "uri" } } },
+      Challenge: { type: "object", properties: { id: { type: "string", format: "uuid" }, reportId: { type: ["string", "null"], format: "uuid" }, gasReportId: { type: ["string", "null"], format: "uuid" }, findingId: { type: ["string", "null"], format: "uuid" }, optimizationId: { type: ["string", "null"], format: "uuid" }, targetType: { type: "string" }, challenger: { type: ["string", "null"] }, title: { type: "string" }, rationale: { type: "string" }, evidenceUrl: { type: ["string", "null"] }, status: { type: "string" }, challengeHash: { type: "string" }, referenceTxHash: { type: ["string", "null"] }, referenceReportHash: { type: ["string", "null"] }, createdAt: { type: "string", format: "date-time" } } },
+      ChallengeList: { type: "object", required: ["schema", "challenges"], properties: { schema: { type: "string", const: "archon.challenges.v1" }, challenges: { type: "array", items: { $ref: "#/components/schemas/Challenge" } } } },
     },
   },
   xArchonExamples: {

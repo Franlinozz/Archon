@@ -246,11 +246,33 @@ async function ensureSource(scan: ScanRecord) {
   }
 }
 
+function safeBundlePath(rawPath: string) {
+  const normalized = rawPath.replaceAll("\\", "/").split("/").filter(Boolean).join("/");
+  if (!normalized || normalized.startsWith("/") || normalized.includes("../") || normalized === ".." || !normalized.endsWith(".sol")) throw new Error(`Unsafe Solidity bundle path: ${rawPath}`);
+  return normalized;
+}
+
+async function writeSourceWorkspace(workdir: string, sourceCode: string, bundle: ScanRecord["source_bundle"], fallbackName: string) {
+  if (bundle?.length) {
+    let selected: string | null = null;
+    for (const file of bundle) {
+      const safePath = safeBundlePath(file.path);
+      const target = path.join(workdir, safePath);
+      await import("node:fs/promises").then(({ mkdir }) => mkdir(path.dirname(target), { recursive: true }));
+      await writeFile(target, file.source);
+      if (!selected && file.source.trim() === sourceCode.trim()) selected = target;
+    }
+    if (selected) return selected;
+  }
+  const sourceFile = path.join(workdir, `${fallbackName}.sol`);
+  await writeFile(sourceFile, sourceCode);
+  return sourceFile;
+}
+
 export async function createInitialContext(scan: ScanRecord): Promise<ScanContext> {
   const sourceCode = await ensureSource(scan);
   const workdir = await mkdtemp(path.join(tmpdir(), `archon-scan-${scan.id}-`));
-  const sourceFile = path.join(workdir, `${detectContractName(sourceCode)}.sol`);
-  await writeFile(sourceFile, sourceCode);
+  const sourceFile = await writeSourceWorkspace(workdir, sourceCode, scan.source_bundle, detectContractName(sourceCode));
   const pragma = detectPragma(sourceCode);
   return {
     scan,

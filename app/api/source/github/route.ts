@@ -65,12 +65,19 @@ export async function POST(request: Request) {
   const selectedPath = parsed.data.path ?? repoInfo.path;
 
   try {
+    const branch = ref ?? await defaultBranch(owner, repo);
+
     if (selectedPath) {
-      const selected = await fetchSolidityFile(owner, repo, selectedPath, ref);
-      return NextResponse.json({ repo: `${owner}/${repo}`, ref, ...chooseOrList([selected], selected.path) });
+      const tree = await github(`/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`) as { truncated?: boolean; tree?: TreeItem[] };
+      const siblings = (tree.tree ?? [])
+        .filter((item) => item.type === "blob" && item.path.endsWith(".sol") && !(item.path.includes("/test/") || item.path.includes("/script/") || item.path.includes("/node_modules/")))
+        .slice(0, MAX_GITHUB_SOL_FILES);
+      const files = await Promise.all(siblings.map((item) => fetchSolidityFile(owner, repo, item.path, branch)));
+      const selected = files.find((file) => file.path === selectedPath) ?? await fetchSolidityFile(owner, repo, selectedPath, branch);
+      return NextResponse.json({ repo: `${owner}/${repo}`, ref: branch, ...chooseOrList(files.some((file) => file.path === selected.path) ? files : [selected, ...files], selected.path) });
     }
 
-    const branch = ref ?? await defaultBranch(owner, repo);
+
     const tree = await github(`/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`) as { truncated?: boolean; tree?: TreeItem[] };
     if (tree.truncated) throw Object.assign(new Error("GitHub repo tree is too large/truncated. Provide owner/repo#path/to/File.sol."), { status: 413 });
     const candidates = (tree.tree ?? [])

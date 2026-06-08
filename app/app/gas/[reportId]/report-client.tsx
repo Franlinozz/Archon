@@ -8,11 +8,13 @@ import { ArrowRight, CheckCircle2, Download, FileCode2, FlaskConical, Loader2, S
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { archonMonacoTheme, defineArchonMonacoThemes } from "@/components/theme/monacoThemes";
 import { GasProofModal } from "./GasProofModal";
+import { ChallengePanel } from "@/components/challenges/ChallengePanel";
 
 const MonacoDiff = dynamic(() => import("@monaco-editor/react").then((m) => m.DiffEditor), { ssr: false, loading: () => <div className="h-64 rounded-card border border-border-subtle bg-terminal p-4 text-sm text-text-low">Loading diff…</div> });
 
 type GasReport = { id: string; contractName: string; status: string; progress: number; currentStage: string; sourceHash: string | null; pricing: { l2GasPriceWei?: string | null } | null; totals: { l2GasSavedPerCall?: number; l1DaWeiSavedPerCall?: string; annualSavingsUsd?: number; split?: { l2WeiPerCall?: string; l1DaWeiPerCall?: string }; assumptions?: { callsPerYear?: number; mntUsd?: number; l2GasPriceWei?: string; priceSource?: string } } | null; assumptions: Record<string, unknown> | null; reportHash: string | null; anchorTxHash: string | null; error: string | null };
 type GasOpt = { id: string; ruleId: string; title: string; category: string; file: string; lineStart: number | null; location: string; before: string; after: string; safety: "safe" | "review"; confidence: string | number; status: string; measurementLabel: string; estL2Delta: number | null; measuredL2Delta: number | null; estL1DeltaWei: string | null; measuredL1DeltaWei: string | null; annualSavingsUsd: string | number | null; patch: { oldText: string; newText: string } | null; gasDiff: { patchedSource?: string; gasReport?: string; label?: string; status?: string } | null; notes: string | null };
+type Challenge = { id: string; targetType: string; challenger: string | null; title: string; rationale: string; evidenceUrl: string | null; status: string; challengeHash: string; referenceTxHash: string | null; referenceReportHash: string | null; createdAt: string };
 
 type StreamPayload = { type: string; report?: Partial<GasReport>; optimizationCount?: number; error?: string };
 
@@ -32,7 +34,7 @@ function useCountUp(value: number) {
   return shown;
 }
 
-export function GasReportClient({ report: initialReport, optimizations: initialOptimizations }: { report: GasReport; optimizations: GasOpt[] }) {
+export function GasReportClient({ report: initialReport, optimizations: initialOptimizations, challenges }: { report: GasReport; optimizations: GasOpt[]; challenges: Challenge[] }) {
   const { theme } = useTheme();
   const reduce = useReducedMotion();
   const [report, setReport] = useState(initialReport);
@@ -106,6 +108,8 @@ export function GasReportClient({ report: initialReport, optimizations: initialO
     </section>
 
     {notice ? <p className="rounded-control border border-info/25 bg-info/10 px-3 py-2 text-sm text-info">{notice}</p> : null}
+
+    <ChallengePanel endpoint={`/api/gas/reports/${report.id}/challenges`} targetType="gas-report" initialChallenges={challenges} />
 
     <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
       {optimizations.map((opt) => <article key={opt.id} className="rounded-card border border-border-subtle bg-surface-1 p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><Link href={`/app/gas/${report.id}/opt/${opt.id}`} className="text-lg font-semibold text-text-hi hover:text-green-400">{opt.title}</Link><p className="mt-1 font-mono text-xs text-text-low">{opt.location}</p></div><span className={opt.safety === "safe" ? "rounded-pill border border-success/30 bg-success/10 px-2 py-1 text-xs text-success" : "rounded-pill border border-warning/30 bg-warning/10 px-2 py-1 text-xs text-warning"}>{opt.safety}</span></div><div className="mt-3 flex flex-wrap gap-2"><Chip>{opt.category}</Chip><Chip>{opt.measurementLabel}</Chip><Chip>{Math.round(Number(opt.confidence ?? 0) * 100)}% confidence</Chip></div><div className="mt-4 grid grid-cols-3 gap-2"><Mini label="L2Δ" value={`${opt.measuredL2Delta ?? opt.estL2Delta ?? "—"}`} /><Mini label="L1Δ" value={`${opt.measuredL1DeltaWei ?? opt.estL1DeltaWei ?? "—"}`} /><Mini label="$/yr" value={money(opt.annualSavingsUsd)} /></div><div className="mt-4 overflow-hidden rounded-card border border-border-subtle"><MonacoDiff height="220px" original={opt.before} modified={opt.after} language="sol" theme={archonMonacoTheme(theme)} beforeMount={defineArchonMonacoThemes} options={{ readOnly: true, renderSideBySide: false, minimap: { enabled: false }, fontSize: 12, lineNumbers: "off", scrollBeyondLastLine: false, automaticLayout: true }} /></div><div className="mt-4 flex flex-wrap gap-2"><button onClick={() => void applyPatch(opt)} className="inline-flex items-center gap-2 rounded-control bg-green-500 px-3 py-2 text-sm font-semibold text-on-green hover:bg-green-400"><Sparkles size={15}/> Apply patch</button><button onClick={() => generateGasTest(opt)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><FlaskConical size={15}/> Generate gas test</button>{opt.gasDiff?.patchedSource ? <button onClick={() => download(`archon-${opt.ruleId}.sol`, opt.gasDiff!.patchedSource!)} className="rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400">Download patch</button> : null}</div>{opt.gasDiff?.gasReport ? <pre className="mt-3 max-h-40 overflow-auto rounded-control bg-terminal p-3 text-xs text-text-code">{opt.gasDiff.gasReport}</pre> : null}</article>)}
