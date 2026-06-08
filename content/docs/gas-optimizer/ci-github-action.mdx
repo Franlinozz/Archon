@@ -1,37 +1,122 @@
 ---
 title: CI GitHub Action
-description: Planned CI integration for gas regression checks.
+description: Run Archon's Mantle gas optimizer from GitHub Actions and post PR gas-diff comments.
 ---
 
 # CI GitHub Action
 
-The CI GitHub Action is a planned Session V2.7/V2.x integration surface. Until it ships, treat this page as the intended contract rather than a live API.
+`archon-gas-action` lives in this repository as a composite GitHub Action (`action.yml`). It reads a Solidity source file from the checked-out repository, submits it to Archon's real gas optimizer API, waits for the queued report to finish, posts a pull-request comment, and can fail the job if Archon reports an L2 gas regression beyond the configured budget.
 
-## Intended behavior
+The action does **not** invent gas diffs. The PR comment links to the generated Archon gas report and includes the stored L2 execution / L1 data-availability split from that report.
 
-On pull requests, Archon should:
-
-- detect changed Solidity files,
-- run configured gas snapshots,
-- compare against the base branch,
-- post a concise PR comment,
-- fail only when configured thresholds are exceeded,
-- link back to the full Archon report.
-
-## Example planned config
+## Minimal workflow
 
 ```yaml
 name: Archon Gas Guard
-on: [pull_request]
+
+on:
+  pull_request:
+    paths:
+      - "contracts/**/*.sol"
+      - ".github/workflows/archon-gas.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   gas:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: archon/gas-guard-action@v1
+      - uses: Franlinozz/Archon@main
         with:
-          command: forge snapshot
-          max-regression-bps: 300
+          source-file: contracts/VaultV2.sol
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-This package name is illustrative until the action is published.
+If you fork or vendor the action, pin `uses:` to a release tag or commit SHA for production use.
+
+## Inputs
+
+| Input | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `source-file` | yes | — | Path to one Solidity file in the checked-out repository. |
+| `archon-url` | no | `https://archonaudit.xyz` | Archon instance exposing `/api/gas/scan` and `/api/gas/reports/:id`. |
+| `calls-per-year` | no | `100000` | Traffic assumption for annualized savings. Tune this per contract. |
+| `mnt-usd` | no | `1` | MNT/USD assumption for annualized savings. |
+| `github-token` | no | — | Token used to create or update a PR comment. Use `${{ secrets.GITHUB_TOKEN }}`. |
+| `comment` | no | `true` | Set `false` to skip PR comments and only produce outputs/logs. |
+| `fail-on-regression` | no | `true` | Fail if the report has a negative L2 gas delta beyond the configured allowance. |
+| `max-regression-l2-gas` | no | `0` | Allowed negative L2 gas delta per call before failing. |
+| `timeout-seconds` | no | `180` | Maximum time to wait for the queued Archon gas report. |
+
+## Outputs
+
+| Output | Meaning |
+| --- | --- |
+| `gas-report-id` | UUID of the Archon gas report. |
+| `report-url` | Public report URL, for example `/app/gas/<id>`. |
+| `annual-savings-usd` | Annualized savings under the report assumptions. |
+| `l2-gas-saved-per-call` | Stored L2 execution gas saved per call. |
+
+## PR comment contents
+
+The comment includes:
+
+- public report link,
+- contract name,
+- L2 gas saved per call,
+- L1 / DA wei saved per call,
+- annualized savings,
+- calls/year and MNT/USD assumptions,
+- report hash,
+- top optimization rows with measured/estimated labels.
+
+The action updates its previous comment using an HTML marker instead of spamming new comments on every push.
+
+## Secrets, permissions, and rate limits
+
+No Archon API key is required for the current public gas-scan endpoint. If a future private endpoint is introduced, pass the token as a secret and never commit it.
+
+To post PR comments, the workflow needs:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+```
+
+GitHub's built-in `GITHUB_TOKEN` is enough for same-repository pull requests. For forks, repository settings and token permissions may prevent comment writes; in that case the action still logs the report URL and exits based on the configured regression policy.
+
+Archon queues scans. Large repositories should run the action only for relevant Solidity paths and point `source-file` at the contract that changed, rather than scanning every file in one workflow.
+
+## Regression thresholds
+
+The current Archon optimizer primarily reports savings opportunities. If a report returns a negative `l2GasSavedPerCall`, the action treats it as a regression. With the defaults, any negative L2 delta fails the job:
+
+```yaml
+with:
+  source-file: contracts/VaultV2.sol
+  fail-on-regression: true
+  max-regression-l2-gas: 0
+```
+
+To allow small noise:
+
+```yaml
+with:
+  source-file: contracts/VaultV2.sol
+  max-regression-l2-gas: 500
+```
+
+This means the job fails only if Archon reports worse than `-500` L2 gas per call. Tune this for contract volatility and benchmark stability.
+
+## Troubleshooting
+
+- **`Gas scan queue is temporarily unavailable`** — the Archon worker/Redis queue is degraded; retry after status recovers.
+- **No PR comment** — confirm the event is `pull_request`, `github-token` is set, and workflow permissions include `issues: write`.
+- **Timeout** — increase `timeout-seconds` or run on a smaller Solidity file.
+- **Explorer/source issue** — the action uses `sourceKind: paste`, so it does not require a verified Mantle explorer source. Address-based scans are available in the web app.

@@ -1,23 +1,94 @@
 ---
 title: Gas Leaderboard
-description: How Archon ranks gas optimization results.
+description: Public leaderboard data for completed gas optimization reports.
 ---
 
 # Gas Leaderboard
 
-The Gas Leaderboard surfaces persisted optimization outcomes. It should reward measured impact, not noisy estimates.
+The public Gas Leaderboard lives at:
 
-## Ranking inputs
+```text
+/gas-leaderboard
+```
 
-- report ID,
-- detector class,
-- affected contract/function,
-- before gas,
-- after gas,
-- estimated or measured user cost delta,
-- receipt-backed `l1Fee` where available,
-- timestamp and owner metadata.
+It ranks completed Archon gas reports from the database. It does not run new analysis and it does not invent placeholder rows. If production has no matching reports, the page shows an empty state and links users to the Gas Optimizer.
+
+The JSON data endpoint is:
+
+```text
+GET /api/gas/leaderboard
+```
+
+Both surfaces are public and do not require an app session.
+
+## What appears on the page
+
+Each row links to its public gas report at `/app/gas/:gasReportId` and shows:
+
+- rank,
+- contract name,
+- source label,
+- source hash,
+- report date,
+- traffic assumptions,
+- gas efficiency score,
+- annualized savings,
+- L2 gas saved per call,
+- L1 / data-availability wei saved per call,
+- proof link when the gas report has an `anchorTxHash`.
+
+Source labels are explicit:
+
+- `Sample · Archon-labeled` means Archon's own sample contract, not a third-party deployment.
+- `Verified address` means the report came from address mode and stores the source reference.
+- `User-submitted scan` means pasted or uploaded source.
+
+## Filters
+
+The page and API support the same core filters.
+
+| Parameter | Values | Default | Notes |
+| --- | --- | --- | --- |
+| `metric` | `score`, `savings`, `l2`, `recent` | `score` | Selects sort order. |
+| `sourceKind` | `all`, `sample`, `paste`, `address` | `all` | Filters by stored report source kind. |
+| `q` | text up to 120 chars | empty | Searches contract name, source reference, or source hash. |
+| `limit` | `1`-`100` | `50` | API-only cap for returned rows. The page shows up to 50. |
+
+Invalid API query values return `400` with validation issues.
+
+## Response shape
+
+`GET /api/gas/leaderboard` returns:
+
+- `schema`: currently `archon.gas.leaderboard.v2`,
+- `generatedAt`: response timestamp,
+- `filters`: normalized query filters,
+- `assumption`: comparison limits,
+- `rows`: leaderboard entries.
+
+Each row includes:
+
+- `gasReportId`, `contractName`, `sourceKind`, `sourceRef`, `sourceHash`,
+- `reportHash` and `anchorTxHash` when proof data exists,
+- `totals` and `assumptions`,
+- `optimizationCount` and `measuredOptimizationCount`,
+- `annualSavingsUsd`, `l2GasSavedPerCall`, `l1DaWeiSavedPerCall`,
+- `gasEfficiencyScore`,
+- `createdAt`.
+
+## Ranking rules
+
+`metric=score` orders by a computed gas efficiency score, then annual savings, then recency. The score combines:
+
+- stored annual USD savings,
+- L2 gas saved per call,
+- optimization count, capped to avoid rewarding noisy reports too much,
+- small bonus for anchored proof reports.
+
+`metric=savings` prioritizes annual USD savings. `metric=l2` prioritizes L2 gas saved per call. `metric=recent` shows newest completed reports first.
 
 ## Data rule
 
-Leaderboard rows must come from stored gas report and optimization records. If a value is estimated, the UI should label it as estimated rather than blending it with receipt-backed measurements.
+Rows must come from stored, completed reports (`status='done'`). Annual savings use each report's stored `callsPerYear` and MNT/USD assumptions, so compare rows only after normalizing traffic assumptions.
+
+If a value is estimated rather than measured, downstream consumers should label it as estimated instead of blending it with receipt-backed measurements. The leaderboard exposes `measuredOptimizationCount` so integrations can distinguish measured-heavy reports from estimate-heavy reports.

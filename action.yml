@@ -1,0 +1,66 @@
+name: "Archon Gas Action"
+description: "Run Archon's Mantle gas optimizer on a Solidity source file, comment the L2/L1 gas diff on a PR, and optionally fail on regressions."
+author: "Archon"
+branding:
+  icon: "zap"
+  color: "green"
+inputs:
+  source-file:
+    description: "Path to the Solidity file to scan. The workflow must checkout the repository first."
+    required: true
+  archon-url:
+    description: "Archon app URL that exposes /api/gas/scan and /api/gas/reports/:id."
+    required: false
+    default: "https://archonaudit.xyz"
+  calls-per-year:
+    description: "Traffic assumption used for annualized savings."
+    required: false
+    default: "100000"
+  mnt-usd:
+    description: "MNT/USD assumption used for annualized savings."
+    required: false
+    default: "1"
+  github-token:
+    description: "GitHub token used to post or update a PR comment. Usually secrets.GITHUB_TOKEN."
+    required: false
+  comment:
+    description: "Post or update a PR comment when running on pull_request."
+    required: false
+    default: "true"
+  fail-on-regression:
+    description: "Fail if Archon reports a negative L2 gas delta beyond max-regression-l2-gas."
+    required: false
+    default: "true"
+  max-regression-l2-gas:
+    description: "Allowed L2 gas regression per call before failing. Example: 0 fails on any negative delta."
+    required: false
+    default: "0"
+  timeout-seconds:
+    description: "Maximum time to wait for the queued Archon gas report."
+    required: false
+    default: "180"
+outputs:
+  gas-report-id:
+    description: "Archon gas report id."
+  report-url:
+    description: "Public Archon gas report URL."
+  annual-savings-usd:
+    description: "Annualized savings from the report assumptions."
+  l2-gas-saved-per-call:
+    description: "L2 execution gas saved per call."
+runs:
+  using: "composite"
+  steps:
+    - name: Run Archon gas optimizer
+      shell: bash
+      env:
+        INPUT_SOURCE_FILE: ${{ inputs.source-file }}
+        INPUT_ARCHON_URL: ${{ inputs.archon-url }}
+        INPUT_CALLS_PER_YEAR: ${{ inputs.calls-per-year }}
+        INPUT_MNT_USD: ${{ inputs.mnt-usd }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_FAIL_ON_REGRESSION: ${{ inputs.fail-on-regression }}
+        INPUT_MAX_REGRESSION_L2_GAS: ${{ inputs.max-regression-l2-gas }}
+        INPUT_TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
+      run: node "$GITHUB_ACTION_PATH/scripts/gas-action.mjs"
