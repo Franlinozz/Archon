@@ -36,7 +36,7 @@ type GasOptimizerScope = {
     forge: { attempted: boolean; ok: boolean; command: string | null; error: string | null };
   } | null;
 };
-type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; lineCount?: number; pragma?: string; protocols?: string[] };
+type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; lineCount?: number; pragma?: string; solcVersion?: string; sourceKind?: string; protocols?: string[]; dependencies?: string[]; blockNumber?: string | number | null };
 type Report = { id: string; scanId: string; contractName: string; riskScore: number; severityCounts: Record<string, number>; scope: ReportScope; executiveSummary: string; reportHash: string; createdAt: string; startedAt: string | null; finishedAt: string | null; scanDepth: string; network: string };
 
 export function ReportClient({ report, findings }: { report: Report; findings: Finding[] }) {
@@ -57,7 +57,8 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
   }), [findings, query, severity, tab]);
 
   const takeaways = findings.slice(0, 4).map((finding) => `${finding.severity.toUpperCase()}: ${finding.title} in ${finding.file}:${finding.lineStart ?? "?"}`);
-  const duration = report.startedAt && report.finishedAt ? `${Math.max(1, Math.round((Date.parse(report.finishedAt) - Date.parse(report.startedAt)) / 1000))}s` : "n/a";
+  const duration = report.startedAt && report.finishedAt ? `${Math.max(1, Math.round((Date.parse(report.finishedAt) - Date.parse(report.startedAt)) / 1000))}s` : "not captured";
+  const publicReportPath = `/r/${report.id}`;
   const gasOptimizer = report.scope?.gasOptimizer ?? null;
   const pricedDeployFee = gasOptimizer?.pricing?.deployDataFeeMnt ? `${Number(gasOptimizer.pricing.deployDataFeeMnt).toFixed(6)} MNT` : "not measured";
   const l2GasPrice = gasOptimizer?.pricing?.l2GasPriceWei ? `${Number(gasOptimizer.pricing.l2GasPriceWei) / 1e9} gwei` : "unavailable";
@@ -65,6 +66,13 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
   const gasMeasurement = gasOptimizer?.measurement ?? null;
   const estimatedRuntimeGas = gasOpportunities.reduce((sum, item) => sum + (item.estimatedGasSaved ?? 0), 0);
   const estimatedDataBytes = gasOpportunities.reduce((sum, item) => sum + (item.estimatedDataBytesSaved ?? 0), 0);
+  const scanMetadata = [
+    ["Report", report.id.slice(0, 8)],
+    ["Created", new Date(report.createdAt).toLocaleString()],
+    ["Hash", report.reportHash ? `${report.reportHash.slice(0, 12)}…${report.reportHash.slice(-8)}` : "pending"],
+    ["Network", "Mantle Mainnet · 5000"],
+    ["Depth", report.scanDepth],
+  ];
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -72,9 +80,10 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
         <div className="text-sm text-text-low"><Link href="/app" className="hover:text-green-400">Workspace</Link> / <span>Audit Report</span></div>
         <div className="mt-3 flex items-center gap-3"><h1 className="text-4xl font-bold tracking-tight text-text-hi">Audit Report</h1><span className="rounded-pill border border-success/30 bg-success/10 px-3 py-1 text-sm text-success">Completed</span></div>
         <p className="mt-2 text-text-mid">{report.contractName} · Mantle Mainnet · Chain ID 5000 · Scan {report.scanId}</p>
+        <dl className="mt-4 flex flex-wrap gap-2">{scanMetadata.map(([label, value]) => <div key={label} className="rounded-pill border border-border-subtle bg-surface-2 px-3 py-1.5"><dt className="inline text-xs uppercase tracking-[0.12em] text-text-low">{label}</dt><dd className="ml-2 inline font-mono text-xs text-text-hi">{value}</dd></div>)}</dl>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => navigator.clipboard.writeText(window.location.href)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid"><Share2 size={15}/> Copy Report Link</button>
+        <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}${publicReportPath}`)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid"><Share2 size={15}/> Copy Public Link</button>
         <a download={`archon-report-${report.id}.json`} href={`/api/reports/${report.id}`} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-green-400"><Download size={15}/> Download JSON</a>
         <GenerateProofModal reportId={report.id} />
       </div>
@@ -83,8 +92,8 @@ export function ReportClient({ report, findings }: { report: Report; findings: F
     <div className="grid gap-4 xl:grid-cols-4">
       <RiskScoreCard score={report.riskScore} severity={report.riskScore >= 85 ? "critical" : report.riskScore >= 65 ? "high" : "medium"} />
       <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Severity Distribution</p><div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={chartData} dataKey="value" nameKey="name" label={({ name, value }) => `${name}: ${value}`} outerRadius={76}>{chartData.map((entry) => <Cell key={entry.name} fill={severityColors[entry.name] ?? "var(--text-low)"} />)}</Pie><Tooltip contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border-subtle)", color: "var(--text-hi)" }}/><Legend /></PieChart></ResponsiveContainer></div></section>
-      <InfoCard title="Scope" lines={[`${report.contractName}`, `${String(report.scope?.lineCount ?? "?")} lines`, `Solidity ${String(report.scope?.pragma ?? "^0.8.24")}`, `Scan depth ${report.scanDepth}`]} />
-      <InfoCard title="Protocol" lines={["Mantle Mainnet", "Chain ID 5000", `Duration ${duration}`, `Protocols ${(report.scope?.protocols as string[] | undefined)?.join(", ") ?? "selected"}`]} />
+      <InfoCard title="Scope" lines={[`${report.contractName}`, `${String(report.scope?.lineCount ?? "not captured")} lines`, `Source ${String(report.scope?.sourceKind ?? "scan input")}`, `Solidity ${String(report.scope?.pragma ?? report.scope?.solcVersion ?? "not captured")}`]} />
+      <InfoCard title="Protocol" lines={["Mantle Mainnet", "Chain ID 5000", `Block ${String(report.scope?.blockNumber ?? "not captured by this scan")}`, `Duration ${duration}`, `Protocols ${(report.scope?.protocols as string[] | undefined)?.join(", ") || "none selected"}`]} />
     </div>
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Executive Summary</p><p className="mt-3 max-w-5xl leading-7 text-text-mid">{report.executiveSummary}</p></section>
