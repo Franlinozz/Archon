@@ -61,3 +61,5 @@ contract VaultV2 {
         balances[msg.sender] += msg.value;
     }
 }
+
+// Archon gas action smoke change — no runtime effect.
