@@ -1,23 +1,86 @@
 ---
 title: API reference
-description: Planned API reference for Session V2.7.
+description: Live OpenAPI and Scalar reference for Archon's platform endpoints.
 ---
 
 # API reference
 
-The public API reference is planned for Session V2.7. Until then, this page documents stable product expectations rather than a published external contract.
+Archon's live API reference is rendered with Scalar at:
 
-## Current internal surfaces
+```text
+/api-reference
+```
 
-Archon already uses app routes for product data such as gas leaderboard and authenticated app workflows. External consumers should not treat these internal routes as stable unless they are documented here in a later release.
+The machine-readable OpenAPI 3.1 document is available at:
 
-## Planned public resources
+```text
+/api/openapi
+```
 
-- scans,
-- reports,
-- gas reports,
-- proof records,
-- webhook subscriptions,
-- agent metadata.
+The spec is hand-authored from the current Next.js route handlers so the public contract does not advertise routes that do not exist. Internal auth/session/chat/source helper routes are intentionally excluded from the platform API reference.
 
-When the API ships, every endpoint on this page should include method, path, auth, request schema, response schema, error codes, and example payloads.
+## Covered endpoints
+
+The V2.7 reference documents the real platform surfaces:
+
+- `POST /api/scans` — queue a read-only Mantle audit scan,
+- `GET /api/scans/{id}` — read scan status, findings, logs, and latest report,
+- `GET /api/reports/{id}` — export an audit report,
+- `POST /api/reports/{id}/findings/{findingId}/test` — generate a finding test scaffold,
+- `POST /api/gas/scan` — queue a gas optimization report,
+- `GET /api/gas/reports/{id}` — read a gas report and ranked optimizations,
+- `GET /api/gas/reports/{id}/opt/{optId}` — read one gas optimization,
+- `POST /api/gas/reports/{id}/apply` — queue or retrieve a patch/gas-diff result,
+- `POST /api/gas/reports/{id}/anchor` — anchor a gas report proof with a wallet session,
+- `GET /api/gas/leaderboard` — read public leaderboard rows,
+- `POST /api/reports/{id}/proof` — prepare proof metadata,
+- `PATCH /api/reports/{id}/proof` — log or verify a proof with a wallet session,
+- `GET /api/reports/{id}/proof/metadata` — read proof metadata JSON,
+- `GET /api/proofs` — list recent proofs,
+- `GET /api/health` — health check.
+
+## Auth model
+
+Most read endpoints and queueing endpoints are public today. Proof mutation endpoints that submit or verify wallet-owned actions require the `archon_session` cookie created by SIWE sign-in.
+
+The OpenAPI document represents this as an API-key-in-cookie security scheme named `walletSession`.
+
+## Error shape
+
+Errors use a compact JSON shape:
+
+```json
+{
+  "error": "Invalid gas scan request.",
+  "issues": [
+    { "path": "sourceCode", "message": "Source must include a Solidity pragma and at least one contract." }
+  ]
+}
+```
+
+`issues` is present only for validation-style failures. Queue or infrastructure failures return the same top-level `error` string with a `503` status.
+
+## Rate limits and operational limits
+
+Archon does not expose a public API-key rate-limit header yet. Practical limits are enforced by request validation and queues:
+
+- pasted audit/gas source must stay under the configured source-size cap,
+- gas and audit jobs require Redis queue availability,
+- proof anchoring depends on wallet session and configured proof registry/signing environment,
+- GitHub Action users should scope workflows to changed Solidity paths to avoid unnecessary queued scans.
+
+If stricter API-key quotas are introduced later, this page and `/api/openapi` should be updated in the same commit.
+
+## Examples
+
+The Scalar reference includes live example IDs from production reports so copy-paste `curl` examples resolve against `https://archonaudit.xyz`.
+
+```bash
+curl 'https://archonaudit.xyz/api/gas/leaderboard?metric=score&q=VaultV2'
+```
+
+```ts
+const res = await fetch('https://archonaudit.xyz/api/gas/reports/68d43d0a-8d65-4cbf-80ef-837ba45524af');
+const data = await res.json();
+console.log(data.report.contractName, data.report.totals);
+```
