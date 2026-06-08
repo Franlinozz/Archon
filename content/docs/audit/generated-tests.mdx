@@ -1,0 +1,32 @@
+---
+title: Generated tests
+description: How to use Archon-generated tests as evidence, not blind trust.
+---
+
+# Generated tests
+
+Archon can generate regression tests or proof-of-concept tests for selected findings. These tests are evidence, but they still need to be run in the target project's real toolchain.
+
+## Good generated test behavior
+
+A generated test should:
+
+- isolate the vulnerable path,
+- define actors and balances clearly,
+- fail on the vulnerable version,
+- pass after the fix,
+- avoid changing unrelated protocol setup,
+- be small enough for maintainers to review.
+
+## Example workflow
+
+```bash
+# In the target repository
+forge test --match-test test_ReplayClaimCannotBeUsedTwice -vvv
+```
+
+If the project uses Hardhat or another runner, port the generated test before treating it as evidence.
+
+## Safety note
+
+Never merge a generated gas or security patch only because the generated test passes. Run the existing project test suite and review the diff manually.

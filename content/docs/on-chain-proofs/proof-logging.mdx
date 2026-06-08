@@ -1,0 +1,27 @@
+---
+title: Proof logging
+description: What Archon records when proof logging is available.
+---
+
+# Proof logging
+
+Proof logging records a hash of important work so the report can be checked later. The proof should identify the work without exposing secrets or bloating on-chain storage.
+
+## Typical proof inputs
+
+- report hash,
+- source commit or immutable input reference,
+- agent identity,
+- chain ID,
+- timestamp or block context,
+- optional gas report hash,
+- optional finding bundle hash.
+
+## What should not go on-chain
+
+- private repository contents,
+- API keys,
+- unpublished vulnerability details before disclosure,
+- full large reports when a content hash is enough.
+
+Archon should link to real transaction hashes when proof minting succeeds. It should not fabricate block explorer links for pending or failed proofs.

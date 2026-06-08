@@ -1,0 +1,20 @@
+---
+title: Rate limits
+description: How Archon should communicate usage limits and degraded states.
+---
+
+# Rate limits
+
+Rate limits protect the app, model budget, and chain interactions. Public limits may change as usage grows, so the UI should show specific retry guidance when a request is throttled.
+
+## Expected behavior
+
+- Return `429` for throttled API requests.
+- Include a retry time when available.
+- Avoid silently dropping work.
+- Mark reports as queued, running, failed, or degraded instead of spinning forever.
+- Prevent proof minting loops during chain or RPC incidents.
+
+## User-facing copy
+
+A good rate-limit message says what happened, whether work was saved, and when to retry.

@@ -1,0 +1,117 @@
+---
+title: Optimization catalog
+description: Detector catalog with before/after examples and risk notes.
+---
+
+# Optimization catalog
+
+This catalog documents the detector classes Archon reports today or is structured to support. Detectors should produce concrete before/after guidance and a risk note.
+
+## Cache storage reads
+
+Before:
+
+```solidity
+if (positions[id].owner != msg.sender) revert NotOwner();
+positions[id].lastUpdated = block.timestamp;
+uint256 size = positions[id].size;
+```
+
+After:
+
+```solidity
+Position storage position = positions[id];
+if (position.owner != msg.sender) revert NotOwner();
+position.lastUpdated = block.timestamp;
+uint256 size = position.size;
+```
+
+Impact: reduces repeated mapping lookups and storage access overhead. Risk: low when the storage reference points to the same slot.
+
+## Use calldata for read-only external parameters
+
+Before:
+
+```solidity
+function batch(address[] memory users) external {
+```
+
+After:
+
+```solidity
+function batch(address[] calldata users) external {
+```
+
+Impact: avoids copying dynamic arrays into memory. Risk: low if the function only reads the array.
+
+## Custom errors instead of revert strings
+
+Before:
+
+```solidity
+require(msg.sender == owner, "only owner");
+```
+
+After:
+
+```solidity
+if (msg.sender != owner) revert OnlyOwner();
+```
+
+Impact: smaller bytecode and cheaper reverts. Risk: client code that parses revert strings must be updated.
+
+## Pack storage variables
+
+Before:
+
+```solidity
+uint256 feeBps;
+bool paused;
+address treasury;
+```
+
+After:
+
+```solidity
+address treasury;
+uint96 feeBps;
+bool paused;
+```
+
+Impact: can reduce storage slots. Risk: high in upgradeable contracts because storage layout changes can corrupt state.
+
+## Remove duplicate event payload
+
+Before:
+
+```solidity
+emit ProofSubmitted(msg.sender, proof, keccak256(proof));
+```
+
+After:
+
+```solidity
+emit ProofSubmitted(msg.sender, keccak256(proof));
+```
+
+Impact: can reduce DA/log bytes on Mantle. Risk: indexers that depend on the raw proof event data must fetch it elsewhere.
+
+## Avoid redundant external calls
+
+Before:
+
+```solidity
+uint256 assets = vault.totalAssets();
+uint256 shares = vault.convertToShares(assets);
+uint256 again = vault.totalAssets();
+```
+
+After:
+
+```solidity
+uint256 assets = vault.totalAssets();
+uint256 shares = vault.convertToShares(assets);
+uint256 again = assets;
+```
+
+Impact: saves call overhead. Risk: unsafe if the external state can change between calls due to callbacks or intentional freshness requirements.

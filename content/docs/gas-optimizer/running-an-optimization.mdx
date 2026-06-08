@@ -1,0 +1,28 @@
+---
+title: Running an optimization
+description: How to run gas optimization without weakening contract safety.
+---
+
+# Running an optimization
+
+Run gas optimization after the target contract compiles and the important safety tests pass. Gas patches should never be evaluated in isolation.
+
+## Inputs
+
+- target contract or report ID,
+- compiler version and optimizer settings,
+- representative function calls,
+- existing test command,
+- target chain: Mantle Mainnet unless explicitly testing another environment.
+
+## Review checklist
+
+For each suggestion, ask:
+
+- Does it change storage layout?
+- Does it change event semantics used by indexers?
+- Does it change revert behavior relied on by clients?
+- Does it make calldata less understandable for integrators?
+- Does it reduce L2 execution, L1 DA bytes, or both?
+
+If any answer affects external behavior, treat the optimization as a product/API change.

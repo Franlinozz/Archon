@@ -1,0 +1,34 @@
+---
+title: Applying patches & gas-diff tests
+description: Safely apply gas patches and validate their impact.
+---
+
+# Applying patches & gas-diff tests
+
+A gas patch is only useful if it keeps behavior correct and produces measured savings.
+
+## Patch rules
+
+- Apply one optimization class at a time.
+- Keep security-sensitive changes separate from formatting.
+- Do not change storage layout in upgradeable contracts unless the migration is explicit.
+- Preserve event semantics unless the product team approves the indexer change.
+- Run the full test suite after gas tests.
+
+## Foundry example
+
+```bash
+forge test
+forge snapshot
+forge snapshot --diff .gas-snapshot
+```
+
+## Evidence to store
+
+- baseline commit,
+- patched commit,
+- benchmark command,
+- changed functions,
+- before/after gas,
+- whether receipt `l1Fee` was available,
+- reviewer notes.

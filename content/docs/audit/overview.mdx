@@ -1,0 +1,33 @@
+---
+title: Audit overview
+description: How Archon structures smart-contract audit work.
+---
+
+# Audit overview
+
+Archon's audit workflow turns source input into a structured report. The report is designed for builders: it prioritizes actionable findings, makes assumptions visible, and keeps generated evidence close to each claim.
+
+## Pipeline
+
+1. **Ingest source** — repository, verified contract source, or selected files.
+2. **Build context** — contract graph, imports, external dependencies, roles, and protocol surface.
+3. **Run checks** — static patterns, Mantle-specific checks, and model-assisted review.
+4. **Generate report** — findings, severity, exploit path, remediation, and confidence.
+5. **Attach evidence** — generated tests, proof hashes, gas reports, and links where available.
+
+## Output shape
+
+A useful Archon finding includes:
+
+- title,
+- severity,
+- affected file and function,
+- condition required to trigger,
+- impact,
+- concrete fix,
+- optional generated test or reproduction,
+- notes on uncertainty.
+
+## Non-goals
+
+Archon does not guarantee the absence of vulnerabilities. It is a review and evidence system, not a certification authority. High-value launches still need human review, contest coverage, and production monitoring.

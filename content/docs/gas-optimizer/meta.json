@@ -1,0 +1,1 @@
+{ "title": "Gas Optimizer", "pages": ["overview", "how-mantle-gas-works", "running-an-optimization", "optimization-catalog", "applying-patches-gas-diff-tests", "ci-github-action", "gas-leaderboard"] }

@@ -1,0 +1,25 @@
+---
+title: ERC-8004 identity
+description: How Archon presents agent identity and audit attribution.
+---
+
+# ERC-8004 identity
+
+Archon uses ERC-8004-style identity concepts to make agent work attributable. The identity layer helps answer: which agent produced this report, who owns or operates it, and where can a verifier find its metadata?
+
+## What identity is for
+
+- binding reports to an agent identity,
+- exposing metadata for wallets and verifiers,
+- making audit work easier to cite,
+- separating operator identity from report content.
+
+## Current public metadata
+
+Archon exposes agent metadata at:
+
+```text
+/.well-known/archon-agent.json
+```
+
+Use this endpoint when a verifier needs to discover the public agent descriptor for the deployed product.

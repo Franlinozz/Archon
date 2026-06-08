@@ -1,0 +1,20 @@
+---
+title: Security & safety model
+description: Security boundaries and safety expectations for Archon.
+---
+
+# Security & safety model
+
+Archon handles potentially sensitive source code and security findings. The product is designed to minimize unnecessary exposure and avoid false certainty.
+
+## Safety rules
+
+- Do not hardcode or expose API keys, private keys, seed phrases, database URLs, or JWT secrets.
+- Do not publish private vulnerability details before the owner is ready.
+- Do not fabricate proof links or scan results.
+- Validate server-side inputs; do not trust the client.
+- Treat generated patches as untrusted until tests and review pass.
+
+## AI output handling
+
+AI output should be validated before being shown as fact. JSON, addresses, chain IDs, URLs, gas numbers, proof hashes, and contract names must be checked against source or telemetry where possible.

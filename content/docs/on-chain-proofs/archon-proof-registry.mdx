@@ -1,0 +1,30 @@
+---
+title: ArchonProofRegistry
+description: Registry contract concept for Archon's proof records.
+---
+
+# ArchonProofRegistry
+
+`ArchonProofRegistry` is the contract surface used to reason about proof records. A registry record should be small, durable, and easy to verify from the UI.
+
+## Intended record fields
+
+```solidity
+struct ProofRecord {
+    bytes32 proofHash;
+    address agent;
+    address owner;
+    uint256 chainId;
+    uint256 createdAt;
+    string uri;
+}
+```
+
+The exact deployed ABI should be treated as source of truth in the repository contracts and verified deployment metadata. This docs page describes the product contract model, not a substitute for ABI verification.
+
+## Design constraints
+
+- Store hashes and compact metadata on-chain.
+- Keep large reports off-chain with content-addressed references.
+- Emit events indexers can consume.
+- Never expose secrets in calldata or event data.

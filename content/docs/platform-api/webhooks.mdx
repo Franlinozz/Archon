@@ -1,0 +1,22 @@
+---
+title: Webhooks
+description: Planned webhook model for report and proof events.
+---
+
+# Webhooks
+
+Webhooks are planned for a later platform/API release. They are not currently documented as a production external surface.
+
+## Planned events
+
+- `scan.started`
+- `scan.completed`
+- `scan.failed`
+- `report.published`
+- `gas_report.completed`
+- `proof.minted`
+- `proof.failed`
+
+## Delivery rules
+
+When webhooks ship, Archon should sign payloads, retry with backoff, expose delivery logs, and never include private report contents unless the subscriber is authorized to receive them.

@@ -1,0 +1,33 @@
+---
+title: Gas Optimizer overview
+description: Mantle-aware gas optimization workflow in Archon.
+---
+
+# Gas Optimizer overview
+
+Archon's Gas Optimizer finds code patterns that waste user cost, estimates impact, and stores optimization evidence in gas reports. It is designed to separate measurable improvements from speculative micro-optimizations.
+
+## What the optimizer analyzes
+
+- storage access patterns,
+- calldata and memory choices,
+- loop structure,
+- event payload size,
+- custom errors,
+- redundant external calls,
+- packing opportunities,
+- branch and revert behavior,
+- Mantle-specific calldata/data-availability cost.
+
+## Output
+
+A gas optimization report includes detector hits, before/after snippets, expected risk, and gas-diff evidence when available. Cost Guard aggregates persisted `gas_reports` and `gas_optimizations` records rather than rendering placeholder metrics.
+
+## Order of operations
+
+1. Confirm the contract is correct.
+2. Run optimization analysis.
+3. Apply the smallest safe patch.
+4. Run gas-diff tests.
+5. Re-run security tests.
+6. Mint or attach proof only when the report is final.

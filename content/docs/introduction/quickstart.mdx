@@ -1,0 +1,41 @@
+---
+title: Quickstart
+description: Run an Archon scan and interpret the first report.
+---
+
+# Quickstart
+
+This quickstart assumes you have access to the Archon app and a repository or verified contract source you are allowed to analyze.
+
+## 1. Open the app
+
+Go to `/app` and connect a wallet when the product asks for authentication. Wallet auth is used to associate reports and proof activity with an owner; it is not used to grant Archon custody over funds.
+
+## 2. Start with a small target
+
+For a first scan, choose one protocol module or a small contract set. Archon reports are most useful when the reviewed scope is clear.
+
+Good first inputs:
+
+- a verified contract address,
+- a package directory such as `contracts/core`,
+- a pull request diff,
+- a single protocol subsystem such as staking, claims, vault accounting, or access control.
+
+## 3. Review findings in order
+
+Read high-severity and Mantle-specific findings before informational notes. For each finding, confirm:
+
+- source location,
+- exploit path,
+- affected asset or invariant,
+- remediation suggestion,
+- test coverage or generated regression test.
+
+## 4. Run gas optimization only after correctness review
+
+Gas suggestions are secondary to safety. If a gas patch changes authorization, accounting precision, upgrade assumptions, or external call ordering, treat it as a security change and re-run tests.
+
+## 5. Verify proofs when sharing externally
+
+When a report includes an on-chain proof transaction, use [Verifying a proof](/docs/on-chain-proofs/verifying-a-proof) to check the proof hash and chain link before sending it to a partner.

@@ -1,0 +1,21 @@
+---
+title: Mantle-specific risks
+description: Risks Archon checks with Mantle deployment context in mind.
+---
+
+# Mantle-specific risks
+
+Mantle is EVM-compatible, but deployment context still matters. Archon highlights risks that are especially relevant for L2 protocols and Mantle user flows.
+
+## Risk areas
+
+- **Bridge and cross-domain assumptions** — delays, replay assumptions, canonical asset addresses, and message finality.
+- **Gas-sensitive calldata** — user-facing flows that become expensive because calldata dominates the receipt cost.
+- **Sequencer and RPC assumptions** — stale reads, retry behavior, and operational monitoring gaps.
+- **Chain ID and domain separation** — signatures must bind to the intended chain and contract domain.
+- **Upgrade and admin paths** — L2 deployments often move quickly; admin safety must be explicit.
+- **Native token and wrapped asset assumptions** — verify token decimals, canonical wrappers, and bridge representations.
+
+## What Archon does not assume
+
+Archon does not present legacy Mantle `GasPriceOracle.getL1Fee(bytes)` estimates as production truth. Earlier testing showed a severe mismatch against receipt `l1Fee`; receipt data is the source of truth when available.

@@ -1,0 +1,20 @@
+---
+title: Protocol coverage
+description: How Archon reports what was and was not reviewed.
+---
+
+# Protocol coverage
+
+Coverage is the difference between a helpful report and a misleading one. Archon reports should say which contracts, roles, and flows were reviewed.
+
+## Coverage dimensions
+
+- **Contracts** — source files and deployed addresses reviewed.
+- **Functions** — externally reachable functions, privileged functions, callbacks, and upgrade hooks.
+- **Assets** — ERC-20, native token, NFT, receipt token, or accounting share assumptions.
+- **Roles** — owner, admin, keeper, relayer, sequencer-dependent actor, and user.
+- **Flows** — deposits, withdrawals, claims, swaps, upgrades, emergency actions, and settlement.
+
+## Coverage gaps
+
+Coverage gaps are not failures by themselves. They are decision points. If a dependency, contract, or flow is out of scope, the report should say so plainly.

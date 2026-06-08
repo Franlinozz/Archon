@@ -1,0 +1,29 @@
+---
+title: What is Archon?
+description: Archon's role as a Mantle-native ERC-8004 audit and gas intelligence agent.
+---
+
+# What is Archon?
+
+Archon is an AI-assisted audit and gas optimization product built for Mantle builders. It reads smart-contract source, produces review artifacts, records operational telemetry, and can attach verifiable proof records to important work.
+
+Archon is not a replacement for a human security audit. It is a fast review layer for teams that need:
+
+- early vulnerability discovery before a formal audit,
+- Mantle-specific risk checks,
+- gas optimization suggestions with measurable before/after evidence,
+- a review history that can be verified later, and
+- productized reports that non-auditor stakeholders can understand.
+
+## Core modules
+
+| Module | Purpose | Current output |
+| --- | --- | --- |
+| Audit | Security review of contracts and protocol flows | Findings, severity, exploit path, remediation guidance |
+| Gas Optimizer | Mantle-aware optimization review | Detector hits, patches, gas reports, leaderboard entries |
+| On-chain Proofs | Evidence that work happened | Proof hashes, transaction links when minted, registry metadata |
+| Cost Guard | Spend and optimization telemetry | DB-backed reports and optimization aggregates |
+
+## What Archon optimizes for
+
+Archon optimizes for traceable engineering decisions rather than flashy but unverifiable output. A report should make it clear what source was reviewed, which assumptions were used, which checks passed, which checks failed, and which parts require human confirmation.

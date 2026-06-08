@@ -1,0 +1,39 @@
+---
+title: Archon documentation
+description: Product documentation for Archon's Mantle-native audit, gas optimization, and proof system.
+---
+
+# Archon documentation
+
+Archon is a Mantle-native smart-contract audit agent that turns a repository or verified source input into three product artifacts:
+
+1. an explainable security report,
+2. gas optimization evidence that is grounded in real measurements, and
+3. an on-chain proof trail for important audit work.
+
+These docs describe the live product architecture as it exists today. When a feature is planned for a later session, it is explicitly labeled as planned instead of presented as production behavior.
+
+## What to read first
+
+- New to Archon: start with [What is Archon?](/docs/introduction/what-is-archon) and [Quickstart](/docs/introduction/quickstart).
+- Running security work: read [Running a scan](/docs/audit/running-a-scan) and [Findings & severity](/docs/audit/findings-severity).
+- Optimizing Mantle gas: read [How Mantle gas works](/docs/gas-optimizer/how-mantle-gas-works) before interpreting gas reports.
+- Verifying work: read [Proof logging](/docs/on-chain-proofs/proof-logging) and [Verifying a proof](/docs/on-chain-proofs/verifying-a-proof).
+
+## Product principles
+
+Archon follows a strict **nothing fake** rule:
+
+- On-chain proof links must point to real chain resources or be absent.
+- Gas telemetry must come from stored reports and optimization records, not placeholder counters.
+- Mantle L1 data availability cost is treated as receipt truth when available.
+- Planned API, whitepaper, and webhook surfaces are labeled as planned until shipped.
+
+## Current live surfaces
+
+- Marketing and app shell: `/`
+- Documentation: `/docs`
+- Authenticated app: `/app`
+- Gas reports: `/app/gas`
+- Cost Guard telemetry: `/app/cost-guard`
+- Agent metadata: `/.well-known/archon-agent.json`

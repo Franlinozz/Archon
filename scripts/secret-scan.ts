@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { extname } from "node:path";
 
 const output = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" });
@@ -20,6 +20,7 @@ const files = output
   .split("\n")
   .filter(Boolean)
   .filter((file) => !ignoredFiles.has(file))
+  .filter((file) => existsSync(file))
   .filter((file) => !binaryExtensions.has(extname(file).toLowerCase()));
 const patterns = [
   /sk-(?:proj-)?[A-Za-z0-9_-]{20,}/,

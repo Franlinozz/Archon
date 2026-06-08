@@ -1,0 +1,19 @@
+---
+title: Authentication
+description: Wallet-based authentication model for Archon.
+---
+
+# Authentication
+
+Archon uses wallet authentication for owner-linked app workflows. The product should avoid custodial assumptions: connecting a wallet proves control for authentication; it does not grant Archon permission to move assets.
+
+## Expected auth properties
+
+- Sign-in messages should bind domain, address, nonce, and expiration.
+- Sessions should be scoped to the connected wallet.
+- Report access should check owner or intended sharing state.
+- Privileged API calls should require a valid session or future API key.
+
+## Operational guidance
+
+Do not paste private keys or seed phrases into Archon. Source ingestion should use repository access patterns or verified source fetches, not wallet secrets.

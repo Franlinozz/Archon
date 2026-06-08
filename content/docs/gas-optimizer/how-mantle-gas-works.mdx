@@ -1,0 +1,71 @@
+---
+title: How Mantle gas works
+description: Plain-language explanation of Mantle L1 data availability cost versus L2 execution cost.
+---
+
+# How Mantle gas works
+
+Mantle transaction cost has two major pieces:
+
+1. **L2 execution cost** — the EVM work performed on Mantle: storage reads/writes, calls, logs, arithmetic, memory expansion, and contract creation.
+2. **L1 data availability cost** — the cost of publishing transaction data so it can be reconstructed and verified outside the L2 execution environment.
+
+A gas optimization can improve one piece and leave the other unchanged. A good Mantle report explains which part changed.
+
+## L2 execution cost
+
+This is the familiar EVM gas dimension. Examples:
+
+- replacing repeated storage reads with a cached local variable,
+- using `calldata` instead of copying arrays into `memory`,
+- packing storage variables,
+- replacing revert strings with custom errors,
+- avoiding unnecessary external calls.
+
+These changes reduce the gas used by contract execution.
+
+## L1 data availability cost
+
+Data availability cost is tied to the bytes a transaction contributes to the data posted for verification. On Mantle, receipt-level `l1Fee` is the production truth Archon uses when it is available.
+
+Examples that affect DA cost:
+
+- smaller calldata,
+- fewer or smaller emitted log topics/data,
+- compact batch operations,
+- avoiding unnecessary large byte arrays,
+- changing an interface from verbose dynamic data to compact fixed-size values.
+
+## Worked example
+
+Imagine a claim function accepts a dynamic proof and emits a verbose event:
+
+```solidity
+function claim(uint256 amount, bytes calldata proof) external {
+    _verify(proof, msg.sender, amount);
+    claimed[msg.sender] = true;
+    emit Claimed(msg.sender, amount, proof);
+}
+```
+
+A patch changes the event to log only the proof hash:
+
+```solidity
+function claim(uint256 amount, bytes calldata proof) external {
+    _verify(proof, msg.sender, amount);
+    claimed[msg.sender] = true;
+    emit Claimed(msg.sender, amount, keccak256(proof));
+}
+```
+
+What changed?
+
+- **Execution**: the patched version adds a `keccak256` over the proof, which may slightly increase L2 execution gas.
+- **Data availability**: the event no longer includes the full proof bytes, so the transaction receipt/log data is smaller. If the proof is large, DA cost can drop materially.
+- **Product interpretation**: this is a good Mantle optimization only if the proof itself is already available elsewhere or does not need to be reconstructed from the event.
+
+A report that says only “gas down” is incomplete. Archon should state whether the saving came from execution, calldata/log bytes, or both.
+
+## How Archon treats DA evidence
+
+Archon does **not** rely on the legacy `GasPriceOracle.getL1Fee(bytes)` wording that previously produced a large mismatch against observed Mantle receipt fees. When receipt `l1Fee` exists, Archon treats it as source-of-truth telemetry. When it is missing, estimates must be labeled as estimates.

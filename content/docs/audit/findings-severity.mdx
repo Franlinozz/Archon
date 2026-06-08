@@ -1,0 +1,26 @@
+---
+title: Findings & severity
+description: Severity definitions used in Archon audit reports.
+---
+
+# Findings & severity
+
+Archon severity is based on realistic impact and likelihood, not on how dramatic a bug sounds.
+
+## Severity levels
+
+| Severity | Meaning | Examples |
+| --- | --- | --- |
+| Critical | Direct loss, permanent lock, or protocol-wide compromise under realistic conditions | unlimited mint, vault drain, unauthenticated upgrade |
+| High | Serious financial or governance impact with achievable preconditions | oracle manipulation, replayable claims, bypassed role check |
+| Medium | Meaningful risk that needs specific conditions or limited scope | griefing, stale config, partial accounting drift |
+| Low | Correctness, maintainability, or minor risk | missing event, weak validation with low impact |
+| Informational | Design observation or hardening note | naming, comments, operational runbook gaps |
+
+## Confidence
+
+Archon may attach confidence when evidence is incomplete. A high-confidence medium finding is not automatically more severe than a low-confidence high finding; severity describes impact, confidence describes how strongly the tool supports the claim.
+
+## False positives
+
+A finding should be closed as false positive only when the report's triggering condition is impossible under the actual deployment or invariant set. “We do not expect users to do that” is not enough if the chain allows it.

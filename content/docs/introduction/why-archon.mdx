@@ -1,0 +1,26 @@
+---
+title: Why Archon
+description: The thesis behind verifiable AI audit agents for Mantle teams.
+---
+
+# Why Archon
+
+Smart-contract review has two problems that compound each other: review capacity is scarce, and AI-generated analysis is easy to fake. Archon exists to make automated review useful without hiding the evidence chain.
+
+## The thesis
+
+Mantle teams need security and gas intelligence that is:
+
+- **fast enough for daily iteration** — before a formal audit slot is available,
+- **specific to Mantle** — because L2 execution and L1 data availability change cost and risk tradeoffs,
+- **explainable** — every finding should have a source location, impact, and remediation path,
+- **verifiable** — important work should leave a proof trail,
+- **honest about uncertainty** — degraded states must be labeled instead of dressed up as certainty.
+
+## Why not just run a generic scanner?
+
+Generic scanners are useful, but they miss product context. Archon combines static checks, AI review, generated tests, gas analysis, and on-chain proof logging into one workflow. The goal is not to replace Slither, Foundry, or auditors; the goal is to turn their style of evidence into a product workflow builders can run repeatedly.
+
+## Why Mantle-specific docs matter
+
+Gas savings on Mantle are not only about reducing EVM execution opcodes. Transaction data posted for data availability contributes to total user cost. Archon separates L2 execution effects from L1 data availability effects whenever evidence allows it, which prevents misleading “gas saved” claims.

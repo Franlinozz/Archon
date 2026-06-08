@@ -1,0 +1,4 @@
+{
+  "title": "Archon Docs",
+  "pages": ["index", "introduction", "audit", "gas-optimizer", "on-chain-proofs", "platform-api", "resources"]
+}

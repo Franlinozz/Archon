@@ -1,0 +1,25 @@
+---
+title: Verifying a proof
+description: Check that a report hash and on-chain proof match.
+---
+
+# Verifying a proof
+
+Use this flow when someone sends you an Archon report with an on-chain proof link.
+
+## Verification steps
+
+1. Open the report and copy the displayed proof hash.
+2. Open the linked transaction or registry record.
+3. Confirm the chain is the expected Mantle network.
+4. Confirm the proof hash matches exactly.
+5. Confirm the agent identity or registry address is the expected Archon identity.
+6. Confirm the report content you received hashes to the same value when a downloadable artifact is available.
+
+## Red flags
+
+- the explorer URL is missing or points to a fake `/notfound/*` path,
+- the transaction is on the wrong chain,
+- the proof hash differs by even one character,
+- the UI says proof exists but cannot provide a transaction or registry record,
+- the proof was minted before the reviewed source commit existed.

@@ -1,0 +1,23 @@
+---
+title: Gas Leaderboard
+description: How Archon ranks gas optimization results.
+---
+
+# Gas Leaderboard
+
+The Gas Leaderboard surfaces persisted optimization outcomes. It should reward measured impact, not noisy estimates.
+
+## Ranking inputs
+
+- report ID,
+- detector class,
+- affected contract/function,
+- before gas,
+- after gas,
+- estimated or measured user cost delta,
+- receipt-backed `l1Fee` where available,
+- timestamp and owner metadata.
+
+## Data rule
+
+Leaderboard rows must come from stored gas report and optimization records. If a value is estimated, the UI should label it as estimated rather than blending it with receipt-backed measurements.
