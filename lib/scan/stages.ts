@@ -212,6 +212,12 @@ function detectContractName(source: string) {
   return source.match(/\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? "Contract";
 }
 
+function displayContractName(scan: ScanRecord, source: string) {
+  const label = scan.source_kind === "paste" ? scan.source_ref?.trim() : null;
+  if (label && !/^0x[a-fA-F0-9]{40}$/.test(label) && label.length <= 80) return label;
+  return detectContractName(source);
+}
+
 function detectPragma(source: string) {
   return source.match(/pragma\s+solidity\s+([^;]+);/)?.[1]?.trim() ?? "^0.8.24";
 }
@@ -272,7 +278,7 @@ async function writeSourceWorkspace(workdir: string, sourceCode: string, bundle:
 export async function createInitialContext(scan: ScanRecord): Promise<ScanContext> {
   const sourceCode = await ensureSource(scan);
   const workdir = await mkdtemp(path.join(tmpdir(), `archon-scan-${scan.id}-`));
-  const sourceFile = await writeSourceWorkspace(workdir, sourceCode, scan.source_bundle, detectContractName(sourceCode));
+  const sourceFile = await writeSourceWorkspace(workdir, sourceCode, scan.source_bundle, displayContractName(scan, sourceCode));
   const pragma = detectPragma(sourceCode);
   return {
     scan,
@@ -281,7 +287,7 @@ export async function createInitialContext(scan: ScanRecord): Promise<ScanContex
     workdir,
     pragma,
     solcVersion: chooseSolcVersion(pragma),
-    contractName: detectContractName(sourceCode),
+    contractName: displayContractName(scan, sourceCode),
     findings: [],
     insertedFindingIds: new Set<string>(),
     logs: [],

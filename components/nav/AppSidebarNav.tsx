@@ -26,19 +26,31 @@ type NavItem = {
   match?: string;
 };
 
-const nav: NavItem[] = [
-  { label: "Overview", href: "/app", icon: LayoutDashboard },
-  { label: "Audit Studio", href: "/app/audit/new", icon: FileCode2, match: "/app/audit" },
-  { label: "Contract Context", href: "/app/context", icon: FileSearch },
-  { label: "Reports", href: "/app/reports", icon: FileText, match: "/app/reports" },
-  { label: "Findings", href: "/app/findings", icon: ShieldAlert },
-  { label: "Generated Tests", href: "/app/tests", icon: FlaskConical },
-  { label: "Gas Optimizer", href: "/app/gas", icon: Gauge, match: "/app/gas" },
-  { label: "Cost Guard", href: "/app/cost-guard", icon: Gauge },
-  { label: "On-chain Proof", href: "/app/proofs", icon: BadgeCheck },
-  { label: "Validation", href: "/app/validation", icon: ListChecks },
-  { label: "Settings", href: "/app/settings", icon: Settings },
+type NavGroup = { title: string; items: NavItem[] };
+
+const navGroups: NavGroup[] = [
+  { title: "Command", items: [
+    { label: "Overview", href: "/app", icon: LayoutDashboard },
+    { label: "Contract Context", href: "/app/context", icon: FileSearch },
+    { label: "Reports", href: "/app/reports", icon: FileText, match: "/app/reports" },
+  ] },
+  { title: "Analysis", items: [
+    { label: "Audit Studio", href: "/app/audit/new", icon: FileCode2, match: "/app/audit" },
+    { label: "Findings", href: "/app/findings", icon: ShieldAlert },
+    { label: "Generated Tests", href: "/app/tests", icon: FlaskConical },
+    { label: "Gas Optimizer", href: "/app/gas", icon: Gauge, match: "/app/gas" },
+    { label: "Cost Guard", href: "/app/cost-guard", icon: Gauge },
+  ] },
+  { title: "Attestation", items: [
+    { label: "On-chain Proof", href: "/app/proofs", icon: BadgeCheck },
+    { label: "Validation", href: "/app/validation", icon: ListChecks },
+  ] },
+  { title: "Control", items: [
+    { label: "Settings", href: "/app/settings", icon: Settings },
+  ] },
 ];
+
+const nav = navGroups.flatMap((group) => group.items);
 
 function matches(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
@@ -68,8 +80,11 @@ export function AppSidebarNav() {
   const active = activeIndex(pathname);
 
   return (
-    <nav className="mt-3 flex gap-1 overflow-x-auto md:mt-8 md:block md:space-y-0.5">
-      {nav.map((item, i) => {
+    <nav className="mt-3 flex gap-1 overflow-x-auto md:mt-8 md:block md:space-y-5">
+      {navGroups.map((group) => <div key={group.title} className="flex shrink-0 gap-1 md:block md:space-y-1">
+        <p className="hidden px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted md:block">{group.title}</p>
+        {group.items.map((item) => {
+        const i = nav.indexOf(item);
         const isActive = i === active;
         const Icon = item.icon;
         return (
@@ -95,6 +110,7 @@ export function AppSidebarNav() {
           </Link>
         );
       })}
+      </div>)}
     </nav>
   );
 }

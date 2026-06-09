@@ -38,6 +38,14 @@ type SourceImportPayload = {
   files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
 };
 
+function inferContractLabel(source: string, sourceLabel: string) {
+  const contracts = [...source.matchAll(/\b(?:contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/g)].map((match) => match[1]!);
+  const fileStem = sourceLabel.split("/").pop()?.replace(/\.sol$/i, "").replace(/[-_]+/g, " ").trim();
+  const primary = contracts.find((name) => !/^(VaultV2|Contract|Test|Mock)$/i.test(name)) ?? contracts[0] ?? fileStem ?? "Mantle Contract";
+  const suffix = contracts.length > 1 ? ` Suite (${contracts.length} contracts)` : "";
+  return `${primary}${suffix}`.slice(0, 80);
+}
+
 function chooseSourceFile(files: NonNullable<SourceImportPayload["files"]>, message = "Select Solidity file") {
   const options = files.map((file, index) => `${index + 1}. ${file.path}${file.contractNames.length ? ` (${file.contractNames.join(", ")})` : ""}`).join("\n");
   const answer = window.prompt(`${message}:\n${options}`);
@@ -57,6 +65,7 @@ export function AuditStudioClient({ initialSource }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sourceLabel, setSourceLabel] = useState("VaultV2.sol");
+  const [contractLabel, setContractLabel] = useState("VaultV2 Demo Vault");
   const [sourceFiles, setSourceFiles] = useState<Array<{ path: string; source: string }> | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -74,7 +83,7 @@ export function AuditStudioClient({ initialSource }: Props) {
       const response = await fetch("/api/scans", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sourceKind: "paste", sourceCode, sourceFiles: sourceFiles ?? undefined, scanDepth, protocols: selectedProtocols }),
+        body: JSON.stringify({ sourceKind: "paste", sourceCode, sourceFiles: sourceFiles ?? undefined, sourceRef: contractLabel.trim() || undefined, contractLabel: contractLabel.trim() || undefined, scanDepth, protocols: selectedProtocols }),
       });
       const payload = (await response.json()) as { scanId?: string; error?: string; issues?: ApiIssue[] };
       if (!response.ok || !payload.scanId) {
@@ -106,6 +115,7 @@ export function AuditStudioClient({ initialSource }: Props) {
       setSourceCode(payload.source);
       setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? file.name, source: payload.source }]);
       setSourceLabel(payload.path ?? payload.fileName ?? file.name);
+      setContractLabel(inferContractLabel(payload.source, payload.path ?? payload.fileName ?? file.name));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload import failed.");
     }
@@ -131,6 +141,7 @@ export function AuditStudioClient({ initialSource }: Props) {
       setSourceCode(payload.source);
       setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? "Contract.sol", source: payload.source }]);
       setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
+      setContractLabel(inferContractLabel(payload.source, `${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "GitHub import failed.");
     } finally {
@@ -164,7 +175,7 @@ export function AuditStudioClient({ initialSource }: Props) {
             </div>
             <div className="flex items-center gap-2">
               <span className="max-w-[260px] truncate rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-hi" title={sourceLabel}>{sourceLabel}</span>
-              <button onClick={() => { setSourceCode(initialSource); setSourceFiles(null); setSourceLabel("VaultV2.sol"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button>
+              <button onClick={() => { setSourceCode(initialSource); setSourceFiles(null); setSourceLabel("VaultV2.sol"); setContractLabel("VaultV2 Demo Vault"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button>
               <button onClick={() => setIsFullscreen((value) => !value)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><Expand size={15}/> {isFullscreen ? "Exit" : "Fullscreen"}</button>
             </div>
           </div>
@@ -201,6 +212,15 @@ export function AuditStudioClient({ initialSource }: Props) {
           <div className="mt-5 rounded-card border border-border-subtle bg-surface-2 p-4">
             <p className="text-xs text-text-low">Network</p>
             <p className="mt-1 font-medium text-text-hi">Mantle Mainnet · <span className="text-success">Live</span></p>
+          </div>
+
+          <div className="mt-5 rounded-card border border-border-subtle bg-surface-2 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="audit-contract-label" className="text-sm font-medium text-text-hi">Project / contract label</label>
+              <button type="button" onClick={() => setContractLabel(inferContractLabel(sourceCode, sourceLabel))} className="text-xs text-green-400 hover:text-green-300">AI suggest</button>
+            </div>
+            <input id="audit-contract-label" value={contractLabel} onChange={(event) => setContractLabel(event.target.value.slice(0, 80))} placeholder="Example: Treasury Bridge Audit" className="mt-3 w-full rounded-control border-border-subtle bg-terminal text-sm text-text-hi placeholder:text-text-low" />
+            <p className="mt-2 text-xs leading-5 text-text-low">Used on reports, findings, proofs, and dashboard rows so scans do not all appear as VaultV2.</p>
           </div>
 
           <div className="mt-5">

@@ -27,7 +27,7 @@ const chain = { ...mantle, id: 5000 } as const;
 
 export type GasSourceKind = "paste" | "sample" | "address";
 export type SourceFileBundle = Array<{ path: string; source: string }>;
-export type GasScanInput = { sourceKind: GasSourceKind; sourceCode?: string; sourceFiles?: SourceFileBundle; sourceRef?: string; callsPerYear?: number; mntUsd?: number };
+export type GasScanInput = { sourceKind: GasSourceKind; sourceCode?: string; sourceFiles?: SourceFileBundle; sourceRef?: string; contractLabel?: string; callsPerYear?: number; mntUsd?: number };
 
 type GasReportRow = {
   id: string;
@@ -44,6 +44,12 @@ function sha256(value: string) {
 
 function contractName(source: string) {
   return source.match(/\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? "Contract";
+}
+
+function displayContractName(input: GasScanInput, source: string) {
+  const label = input.contractLabel?.trim();
+  if (label && label.length <= 80) return label;
+  return contractName(source);
 }
 
 async function sourceFromAddress(address: string) {
@@ -76,7 +82,7 @@ export async function resolveGasSource(input: GasScanInput) {
       : input.sourceCode?.trim() ?? "";
   if (!source || !/pragma\s+solidity/.test(source) || !/\bcontract\s+[A-Za-z_][A-Za-z0-9_]*/.test(source)) throw new Error("Gas scan source must include a Solidity pragma and at least one contract.");
   if (Buffer.byteLength(source, "utf8") > MAX_GAS_SOURCE_BYTES) throw new Error(`Gas scan source exceeds ${MAX_GAS_SOURCE_BYTES} bytes.`);
-  return { source, contractName: contractName(source), sourceHash: sha256(source) };
+  return { source, contractName: displayContractName(input, source), sourceHash: sha256(source) };
 }
 
 export async function createGasReport(input: GasScanInput) {
@@ -89,7 +95,7 @@ export async function createGasReport(input: GasScanInput) {
   const result = await db.query<{ id: string }>(
     `insert into gas_reports (source_kind, source_ref, source_code, source_bundle, source_hash, contract_name, network, status, progress, current_stage, assumptions, created_at)
      values ($1,$2,$3,$4::jsonb,$5,$6,'mantle-mainnet','queued',0,'Queued',$7::jsonb,now()) returning id`,
-    [input.sourceKind, input.sourceRef ?? null, resolved.source, input.sourceFiles ? JSON.stringify(input.sourceFiles) : null, resolved.sourceHash, resolved.contractName, JSON.stringify(assumptions)],
+    [input.sourceKind, input.sourceRef ?? input.contractLabel ?? null, resolved.source, input.sourceFiles ? JSON.stringify(input.sourceFiles) : null, resolved.sourceHash, resolved.contractName, JSON.stringify(assumptions)],
   );
   return { id: result.rows[0]!.id, ...resolved, assumptions };
 }

@@ -68,9 +68,9 @@ export function DocsSearch() {
         <kbd className="rounded-md border border-subtle bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted">⌘K</kbd>
       </button>
       {open ? (
-        <div className="fixed inset-0 z-[90] bg-ink/20 p-4 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
+        <div className="fixed inset-0 z-[999] isolate bg-ink/35 p-4 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
           <Command
-            className="mx-auto mt-16 max-w-2xl overflow-hidden rounded-card border border-emphasis bg-surface-1 shadow-lift"
+            className="relative z-[1000] mx-auto mt-16 max-w-2xl overflow-hidden rounded-card border border-emphasis bg-surface-1 shadow-lift"
             shouldFilter={false}
             onMouseDown={(event) => event.stopPropagation()}
           >

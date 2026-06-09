@@ -11,6 +11,7 @@ const schema = z.object({
   sourceCode: z.string().optional(),
   sourceFiles: z.array(z.object({ path: z.string().min(1).max(240), source: z.string() })).max(80).optional(),
   sourceRef: z.string().optional(),
+  contractLabel: z.string().trim().min(2).max(80).optional(),
   callsPerYear: z.number().int().positive().max(1_000_000_000).optional(),
   mntUsd: z.number().positive().max(1000).optional(),
 });

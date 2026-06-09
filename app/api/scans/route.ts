@@ -16,6 +16,7 @@ const createScanSchema = z
     sourceCode: z.string().optional(),
     sourceFiles: z.array(z.object({ path: z.string().min(1).max(240), source: z.string() })).max(80).optional(),
     sourceRef: z.string().optional(),
+    contractLabel: z.string().trim().min(2).max(80).optional(),
     scanDepth: z.enum(scanDepths),
     protocols: z.array(z.enum(protocolIds)).min(1, "Select at least one protocol coverage target."),
   })
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
 
   const input = parsed.data;
   const sourceCode = input.sourceKind === "paste" ? input.sourceCode!.trim() : null;
-  const sourceRef = input.sourceKind === "address" ? input.sourceRef!.trim() : null;
+  const sourceRef = input.sourceKind === "address" ? input.sourceRef!.trim() : input.contractLabel?.trim() ?? null;
 
   // Step 1: persist the scan. The resilient db layer already retries a transient blip;
   // a failure here means the database is genuinely unreachable.

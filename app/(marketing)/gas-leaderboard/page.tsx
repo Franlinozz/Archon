@@ -135,7 +135,7 @@ export default async function GasLeaderboardPage({ searchParams }: { searchParam
       <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-low" size={16}/><input name="q" defaultValue={q} placeholder="Search contract, address, or source hash" className="w-full rounded-control border-border-subtle bg-terminal pl-9 text-sm text-text-hi" /></label>
       <label className="relative block"><Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-low" size={16}/><select name="sourceKind" defaultValue={sourceKind} className="w-full rounded-control border-border-subtle bg-terminal pl-9 text-sm text-text-hi">{kinds.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}</select></label>
       <label className="relative block"><BarChart3 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-low" size={16}/><select name="metric" defaultValue={metric} className="w-full rounded-control border-border-subtle bg-terminal pl-9 text-sm text-text-hi">{metrics.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</select></label>
-      <button className="rounded-control bg-green-500 px-4 py-2 text-sm font-semibold text-on-green hover:bg-green-400">Apply</button>
+      <button className="rounded-control bg-green-500 px-4 py-2 text-sm font-semibold text-on-green hover:bg-green-400">Apply filters</button>
     </form>
 
     {degraded ? <div className="mt-6"><DegradedNotice resource="Gas leaderboard" /></div> : null}

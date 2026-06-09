@@ -26,6 +26,14 @@ type SourceImportPayload = {
   files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
 };
 
+function inferContractLabel(source: string, sourceLabel: string) {
+  const contracts = [...source.matchAll(/\b(?:contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/g)].map((match) => match[1]!);
+  const fileStem = sourceLabel.split("/").pop()?.replace(/\.sol$/i, "").replace(/[-_]+/g, " ").trim();
+  const primary = contracts.find((name) => !/^(VaultV2|Contract|Test|Mock)$/i.test(name)) ?? contracts[0] ?? fileStem ?? "Mantle Contract";
+  const suffix = contracts.length > 1 ? ` Suite (${contracts.length} contracts)` : "";
+  return `${primary}${suffix}`.slice(0, 80);
+}
+
 function chooseSourceFile(files: NonNullable<SourceImportPayload["files"]>, message = "Select Solidity file") {
   const options = files.map((file, index) => `${index + 1}. ${file.path}${file.contractNames.length ? ` (${file.contractNames.join(", ")})` : ""}`).join("\n");
   const answer = window.prompt(`${message}:\n${options}`);
@@ -43,6 +51,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
   const [sourceCode, setSourceCode] = useState(initialSource);
   const [sourceMode, setSourceMode] = useState<SourceMode>("paste");
   const [sourceLabel, setSourceLabel] = useState("VaultV2.sol");
+  const [contractLabel, setContractLabel] = useState("VaultV2 Demo Vault");
   const [sourceFiles, setSourceFiles] = useState<Array<{ path: string; source: string }> | null>(null);
   const [address, setAddress] = useState("");
   const [callsPerYear, setCallsPerYear] = useState(100000);
@@ -71,7 +80,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
         return;
       }
       if (!payload.source) throw new Error(payload.error ?? "Upload did not return Solidity source.");
-      setSourceMode("paste"); setSourceCode(payload.source); setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? file.name, source: payload.source }]); setSourceLabel(payload.path ?? payload.fileName ?? file.name);
+      setSourceMode("paste"); setSourceCode(payload.source); setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? file.name, source: payload.source }]); setSourceLabel(payload.path ?? payload.fileName ?? file.name); setContractLabel(inferContractLabel(payload.source, payload.path ?? payload.fileName ?? file.name));
     } catch (err) { setError(err instanceof Error ? err.message : "Upload import failed."); }
   }
 
@@ -91,7 +100,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
         if (!response.ok) throw new Error(payload.error ?? "GitHub import failed.");
       }
       if (!payload.source) throw new Error(payload.error ?? "GitHub import did not return Solidity source.");
-      setSourceMode("paste"); setSourceCode(payload.source); setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? "Contract.sol", source: payload.source }]); setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`);
+      setSourceMode("paste"); setSourceCode(payload.source); setSourceFiles(payload.sourceFiles ?? [{ path: payload.path ?? payload.fileName ?? "Contract.sol", source: payload.source }]); setSourceLabel(`${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`); setContractLabel(inferContractLabel(payload.source, `${payload.repo ?? "github"}/${payload.path ?? payload.fileName ?? "Contract.sol"}`));
     } catch (err) { setError(err instanceof Error ? err.message : "GitHub import failed."); }
     finally { setIsImporting(false); }
   }
@@ -100,8 +109,8 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
     setError(null); setIsSubmitting(true);
     try {
       const body = sourceMode === "address"
-        ? { sourceKind: "address", sourceRef: address.trim(), callsPerYear, mntUsd }
-        : { sourceKind: "paste", sourceCode, sourceFiles: sourceFiles ?? undefined, callsPerYear, mntUsd };
+        ? { sourceKind: "address", sourceRef: address.trim(), contractLabel: contractLabel.trim() || undefined, callsPerYear, mntUsd }
+        : { sourceKind: "paste", sourceCode, sourceFiles: sourceFiles ?? undefined, sourceRef: contractLabel.trim() || undefined, contractLabel: contractLabel.trim() || undefined, callsPerYear, mntUsd };
       const response = await fetch("/api/gas/scan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const payload = await response.json() as ApiPayload;
       if (!response.ok || !payload.gasReportId) throw new Error(payload.issues?.map((i) => i.message).join(" ") || payload.error || "Gas scan request failed.");
@@ -129,7 +138,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
               <button onClick={() => void importGithub()} disabled={isImporting} className="inline-flex items-center gap-2 rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid hover:text-green-400 disabled:opacity-60"><Github size={15}/> {isImporting ? "Importing…" : "GitHub"}</button>
               <button onClick={() => setSourceMode("address")} className={sourceMode === "address" ? "rounded-pill border border-green-400/35 bg-green-400/10 px-4 py-2 text-sm text-green-400" : "rounded-pill border border-border-subtle bg-surface-2 px-4 py-2 text-sm text-text-mid"}>Address</button>
             </div>
-            <div className="flex items-center gap-2"><span className="max-w-[240px] truncate rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-hi" title={sourceLabel}>{sourceLabel}</span><button onClick={() => { setSourceCode(initialSource); setSourceFiles(null); setSourceLabel("VaultV2.sol"); setSourceMode("paste"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button><button onClick={() => setIsFullscreen((v) => !v)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><Expand size={15}/> {isFullscreen ? "Exit" : "Fullscreen"}</button></div>
+            <div className="flex items-center gap-2"><span className="max-w-[240px] truncate rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-hi" title={sourceLabel}>{sourceLabel}</span><button onClick={() => { setSourceCode(initialSource); setSourceFiles(null); setSourceLabel("VaultV2.sol"); setSourceMode("paste"); setContractLabel("VaultV2 Demo Vault"); }} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><RefreshCcw size={15}/> Reset</button><button onClick={() => setIsFullscreen((v) => !v)} className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400"><Expand size={15}/> {isFullscreen ? "Exit" : "Fullscreen"}</button></div>
           </div>
           {sourceMode === "address" ? <div className="min-h-[620px] bg-terminal p-6"><label className="block text-sm text-text-mid">Mantle contract address with verified source</label><input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="0x…" className="mt-3 w-full rounded-control border-border-subtle bg-surface-1 font-mono text-text-hi"/><p className="mt-4 rounded-card border border-info/25 bg-info/10 p-4 text-sm leading-6 text-text-mid">Address mode fetches verified Solidity source from the Mantle explorer before queuing the gas worker. If the explorer has no verified source, the run fails clearly.</p></div> : <MonacoEditor height={isFullscreen ? "calc(100vh - 210px)" : "620px"} defaultLanguage="sol" language="sol" theme={archonMonacoTheme(theme)} beforeMount={defineArchonMonacoThemes} value={sourceCode} onChange={(v) => setSourceCode(v ?? "")} options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: "JetBrains Mono, monospace", scrollBeyondLastLine: false, wordWrap: "on", automaticLayout: true }} />}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-1 px-4 py-3 font-mono text-xs text-text-low"><span>Solidity {sourceMode === "address" ? "verified-source" : solidityVersion}</span><span>{sourceMode === "address" ? "address mode" : `${contractCount} contract${contractCount === 1 ? "" : "s"}`}</span><span>{lineCount} lines</span><span className="inline-flex items-center gap-1 text-success"><Check size={14}/> Read-only</span></div>
@@ -139,7 +148,7 @@ export function GasOptimizerStudio({ initialSource }: { initialSource: string })
       <aside className="space-y-4">
         <section className="rounded-card border border-border-subtle bg-surface-1 p-5">
           <div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs uppercase tracking-[0.16em] text-green-400">Run Configuration</p><h2 className="mt-2 text-2xl font-semibold text-text-hi">Mantle economics</h2></div><DatabaseZap className="text-green-400"/></div>
-          <div className="mt-5 grid gap-3"><Info icon={<Network size={16}/>} label="Network" value="Mantle Mainnet · locked"/><label className="rounded-card border border-border-subtle bg-surface-2 p-4 text-sm text-text-mid">Calls / year<input type="number" min={1} value={callsPerYear} onChange={(e) => setCallsPerYear(Number(e.target.value))} className="mt-2 w-full rounded-control border-border-subtle bg-terminal font-mono text-text-hi"/></label><label className="rounded-card border border-border-subtle bg-surface-2 p-4 text-sm text-text-mid">MNT / USD assumption<input type="number" min={0.0001} step="0.01" value={mntUsd} onChange={(e) => setMntUsd(Number(e.target.value))} className="mt-2 w-full rounded-control border-border-subtle bg-terminal font-mono text-text-hi"/></label></div>
+          <div className="mt-5 grid gap-3"><Info icon={<Network size={16}/>} label="Network" value="Mantle Mainnet · locked"/><label className="rounded-card border border-border-subtle bg-surface-2 p-4 text-sm text-text-mid"><span className="flex items-center justify-between gap-3"><span>Project / contract label</span><button type="button" onClick={() => setContractLabel(inferContractLabel(sourceCode, sourceLabel))} className="text-xs text-green-400 hover:text-green-300">AI suggest</button></span><input value={contractLabel} onChange={(event) => setContractLabel(event.target.value.slice(0, 80))} placeholder="Example: Treasury Bridge Gas Run" className="mt-2 w-full rounded-control border-border-subtle bg-terminal text-sm text-text-hi placeholder:text-text-low"/><span className="mt-2 block text-xs text-text-low">This names the gas report, leaderboard row, downloads, and proof labels.</span></label><label className="rounded-card border border-border-subtle bg-surface-2 p-4 text-sm text-text-mid">Calls / year<input type="number" min={1} value={callsPerYear} onChange={(e) => setCallsPerYear(Number(e.target.value))} className="mt-2 w-full rounded-control border-border-subtle bg-terminal font-mono text-text-hi"/></label><label className="rounded-card border border-border-subtle bg-surface-2 p-4 text-sm text-text-mid">MNT / USD assumption<input type="number" min={0.0001} step="0.01" value={mntUsd} onChange={(e) => setMntUsd(Number(e.target.value))} className="mt-2 w-full rounded-control border-border-subtle bg-terminal font-mono text-text-hi"/></label></div>
           <div className="mt-5 rounded-card border border-green-400/20 bg-green-400/[0.04] p-4"><p className="text-sm font-medium text-text-hi">What runs</p><ul className="mt-2 space-y-1 text-sm text-text-mid"><li>• Deterministic optimization detectors</li><li>• Receipt-calibrated Mantle DA model</li><li>• Worker-queued Foundry patch harnesses</li><li>• Ranked L2-vs-L1 savings</li></ul></div>
           {error ? <div className="mt-5 flex gap-2 rounded-card border border-danger/30 bg-danger/10 p-3 text-sm text-danger"><AlertTriangle size={18}/><span>{error}</span></div> : null}
           <motion.button whileTap={reduce ? undefined : { scale: 0.98 }} onClick={runGasOptimization} disabled={isSubmitting} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-control bg-green-500 px-4 py-3 font-semibold text-on-green hover:bg-green-400 disabled:cursor-wait disabled:opacity-70"><Rocket size={18}/>{isSubmitting ? "Queuing Gas Optimization…" : "Run Gas Optimization"}</motion.button>
