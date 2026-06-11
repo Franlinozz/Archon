@@ -4,7 +4,8 @@ import { appendScanLog, publishScanEvent } from "./events";
 import { cleanupContext, createInitialContext, STAGES } from "./stages";
 import { PIPELINE_STAGES, type ScanContext, type ScanFinding, type ScanRecord } from "./types";
 
-const STAGE_TIMEOUT_MS = Number(process.env.ARCHON_STAGE_TIMEOUT_MS ?? 600_000);
+const configuredStageTimeoutMs = Number(process.env.ARCHON_STAGE_TIMEOUT_MS ?? 600_000);
+const STAGE_TIMEOUT_MS = Math.max(Number.isFinite(configuredStageTimeoutMs) ? configuredStageTimeoutMs : 600_000, 600_000);
 
 function progressForStage(index: number) {
   return Math.round(((index + 1) / PIPELINE_STAGES.length) * 100);

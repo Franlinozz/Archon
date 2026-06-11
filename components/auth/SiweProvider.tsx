@@ -11,7 +11,7 @@ type SiweContextValue = {
   signedIn: boolean; // session address matches the connected wallet
   status: SiweStatus;
   error: string | null;
-  signIn: () => Promise<void>;
+  signIn: () => Promise<boolean>;
 };
 
 const SiweContext = createContext<SiweContextValue | null>(null);
@@ -41,7 +41,7 @@ export function SiweProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async () => {
-    if (!address || !onMantle) return;
+    if (!address || !onMantle) return false;
     setStatus("signing");
     setError(null);
     try {
@@ -62,11 +62,20 @@ export function SiweProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Sign-in failed.");
-      setSessionAddress(data.address);
+      // Confirm the httpOnly cookie is visible before UI/navigation relies on
+      // it. This avoids a race where the client marks itself signed-in, pushes
+      // into /app, and middleware still sees the previous unauthenticated
+      // request until the user refreshes.
+      const session = await fetch("/api/auth/session", { cache: "no-store", credentials: "same-origin" })
+        .then((r) => r.json())
+        .catch(() => ({ address: data.address } as { address: string | null }));
+      setSessionAddress(session.address ?? data.address);
       setStatus("signed-in");
+      return true;
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : "Sign-in was cancelled.");
+      return false;
     }
   }, [address, onMantle, signMessageAsync]);
 

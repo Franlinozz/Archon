@@ -253,10 +253,21 @@ tbody tr { transition: background-color 0.15s ease; }
 @media (prefers-reduced-motion: no-preference) {
   button:not(:disabled) { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }
   button:not(:disabled):active { transform: scale(0.98); }
-  /* cross-fade the canvas/ink when the theme is toggled (no initial-paint flash:
-     the pre-paint script sets the class before first paint, so this only
-     animates subsequent changes). */
-  html, body { transition: background-color 0.3s ease, color 0.3s ease; }
+  /* Seamless theme switching. The provider adds .theme-transitioning only for
+     explicit toggles, never first paint, so returning users avoid a flash while
+     every token-driven surface cross-fades together instead of popping one by
+     one into a high-contrast intermediate state. */
+  html.theme-transitioning,
+  html.theme-transitioning body,
+  html.theme-transitioning body::before,
+  html.theme-transitioning body::after,
+  html.theme-transitioning *:not(svg *),
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition-duration: 0.42s !important;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, filter, text-shadow !important;
+  }
 }
 
 /* ============================================================================

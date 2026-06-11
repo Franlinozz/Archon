@@ -4,18 +4,25 @@ import { db } from "@/lib/db/client";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
+function fallbackContractName(scan: { sourceKind?: string; sourceRef?: string | null; source_code?: string | null }) {
+  const label = scan.sourceKind === "paste" ? scan.sourceRef?.trim() : null;
+  if (label && !/^0x[a-fA-F0-9]{40}$/.test(label)) return label;
+  return scan.source_code?.match(/\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? "Contract";
+}
+
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const params = paramsSchema.safeParse(await context.params);
   if (!params.success) return NextResponse.json({ error: "Invalid scan id." }, { status: 400 });
 
   const scanResult = await db.query(
-    `select id, source_kind as "sourceKind", source_ref as "sourceRef", network, scan_depth as "scanDepth", protocols, status, progress, current_stage as "currentStage", created_at as "createdAt", started_at as "startedAt", finished_at as "finishedAt", error
+    `select id, source_kind as "sourceKind", source_ref as "sourceRef", source_code, network, scan_depth as "scanDepth", protocols, status, progress, current_stage as "currentStage", created_at as "createdAt", started_at as "startedAt", finished_at as "finishedAt", error
      from scans where id = $1`,
     [params.data.id],
   );
 
   const scan = scanResult.rows[0];
   if (!scan) return NextResponse.json({ error: "Scan not found." }, { status: 404 });
+  const scanPayload = { ...scan, contractName: fallbackContractName(scan), source_code: undefined };
 
   const [findingsResult, logsResult, reportResult] = await Promise.all([
     db.query(
@@ -34,5 +41,5 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     ),
   ]);
 
-  return NextResponse.json({ scan, findings: findingsResult.rows, logs: logsResult.rows, report: reportResult.rows[0] ?? null });
+  return NextResponse.json({ scan: scanPayload, findings: findingsResult.rows, logs: logsResult.rows, report: reportResult.rows[0] ?? null });
 }

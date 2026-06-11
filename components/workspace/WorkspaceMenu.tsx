@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, ChevronDown, Copy, ExternalLink, Home, Plus, Settings } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, Home, Settings, Sparkles } from "lucide-react";
 import { copyText } from "@/components/archon/CopyButton";
 import { MANTLE_CHAIN_ID, MANTLE_EXPLORER_URL } from "@/lib/chain/mantle";
 
@@ -125,11 +125,11 @@ export function WorkspaceMenu({ agentId, identityRegistry }: { agentId: string; 
               </Link>
             </div>
 
-            {/* Disabled: single-workspace MVP */}
+            {/* Creator workspace */}
             <div className="mt-2 border-t border-border-subtle pt-2">
-              <span aria-disabled className="flex cursor-not-allowed items-center gap-2.5 rounded-control px-3 py-2 text-sm text-text-low opacity-60">
-                <Plus size={15} /> Personal workspace active
-              </span>
+              <Link role="menuitem" href="/app/creator" onClick={() => close(false)} className="flex items-center gap-2.5 rounded-control px-3 py-2 text-sm text-body outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:text-ink">
+                <Sparkles size={15} /> Open Creator Workspace
+              </Link>
             </div>
           </motion.div>
         ) : null}

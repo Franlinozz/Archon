@@ -25,13 +25,24 @@ export default function ConnectPage() {
   const [next, setNext] = useState("/app");
   const onMantle = isConnected && chainId === MANTLE_CHAIN_ID;
 
+  async function completeSignIn() {
+    const ok = await signIn();
+    if (ok) {
+      router.refresh();
+      router.replace(next);
+    }
+  }
+
   useEffect(() => {
     setNext(safeNext(new URLSearchParams(window.location.search).get("next")));
   }, []);
 
   // Once signed in (cookie set), land the user where they intended.
   useEffect(() => {
-    if (signedIn) router.replace(next);
+    if (signedIn) {
+      router.refresh();
+      router.replace(next);
+    }
   }, [signedIn, next, router]);
 
   return (
@@ -58,13 +69,13 @@ export default function ConnectPage() {
               <AlertTriangle size={16} /> Switch to Mantle Mainnet
             </button>
           ) : (
-            <button onClick={() => void signIn()} disabled={status === "signing"} className="flex w-full items-center justify-center gap-2 rounded-control bg-green-400 px-4 py-2.5 text-sm font-semibold text-on-green transition-colors hover:bg-green-300 disabled:opacity-60">
+            <button onClick={() => void completeSignIn()} disabled={status === "signing"} className="flex w-full items-center justify-center gap-2 rounded-control bg-green-400 px-4 py-2.5 text-sm font-semibold text-on-green transition-colors hover:bg-green-300 disabled:opacity-60">
               <Wallet size={16} /> {status === "signing" ? "Check your wallet to sign…" : "Sign in — free signature"}
             </button>
           )}
 
           {status === "signing" ? <p className="text-center text-xs text-text-low">A signature request opened in your wallet. This is free and sends no transaction.</p> : null}
-          {error && status === "error" ? <p className="text-center text-xs text-danger">{error} — <button onClick={() => void signIn()} className="underline">try again</button></p> : null}
+          {error && status === "error" ? <p className="text-center text-xs text-danger">{error} — <button onClick={() => void completeSignIn()} className="underline">try again</button></p> : null}
         </div>
 
         <div className="mt-6 border-t border-border-subtle pt-4 text-center">

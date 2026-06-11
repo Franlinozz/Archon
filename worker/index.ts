@@ -11,6 +11,8 @@ import { runApplyPatch, runGasReport } from "../lib/gas/service";
 import type { GasJobPayload } from "../lib/queue/gas";
 import type { ScanJobPayload } from "../lib/queue/scans";
 
+const WORKER_LOCK_DURATION_MS = Number(process.env.ARCHON_WORKER_LOCK_DURATION_MS ?? 900_000);
+
 const worker = new Worker<ScanJobPayload>(
   "archon-scans",
   async (job) => {
@@ -27,7 +29,7 @@ const worker = new Worker<ScanJobPayload>(
   {
     ...redisConnection,
     concurrency: 2,
-    lockDuration: 180_000,
+    lockDuration: WORKER_LOCK_DURATION_MS,
     stalledInterval: 30_000,
     maxStalledCount: 1,
   },
@@ -47,7 +49,7 @@ const gasWorker = new Worker<GasJobPayload>(
   {
     ...redisConnection,
     concurrency: 1,
-    lockDuration: 180_000,
+    lockDuration: WORKER_LOCK_DURATION_MS,
     stalledInterval: 30_000,
     maxStalledCount: 1,
   },
@@ -78,4 +80,4 @@ async function shutdown() {
 
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
-console.log("archon-worker ready");
+console.log(`archon-worker ready · stageTimeout=${process.env.ARCHON_STAGE_TIMEOUT_MS ?? "default-min-600000"}ms · lockDuration=${WORKER_LOCK_DURATION_MS}ms`);

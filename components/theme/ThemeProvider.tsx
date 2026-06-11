@@ -37,9 +37,11 @@ function readStoredPreference(): ThemePreference {
 
 function applyTheme(theme: Theme) {
   const el = document.documentElement;
+  el.classList.add("theme-transitioning");
   el.classList.remove("theme-marble", "theme-obsidian");
   el.classList.add(themeClass(theme));
   el.style.colorScheme = theme === "obsidian" ? "dark" : "light";
+  window.setTimeout(() => el.classList.remove("theme-transitioning"), 520);
 }
 
 const DEFAULT_THEME_FALLBACK: Theme = "marble";

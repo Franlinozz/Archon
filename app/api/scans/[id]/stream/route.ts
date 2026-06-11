@@ -15,10 +15,32 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const redisUrl = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
   const subscriber = new IORedis(redisUrl, { maxRetriesPerRequest: null });
   const channel = scanChannel(params.data.id);
+  let closed = false;
+  let heartbeat: NodeJS.Timeout | undefined;
+
+  const cleanup = async () => {
+    if (closed) return;
+    closed = true;
+    if (heartbeat) clearInterval(heartbeat);
+    await subscriber.unsubscribe(channel).catch(() => undefined);
+    subscriber.disconnect();
+  };
+
+  const close = async (controller: ReadableStreamDefaultController<Uint8Array>) => {
+    await cleanup();
+    try { controller.close(); } catch { /* stream was already closed by the client/runtime */ }
+  };
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (chunk: string) => controller.enqueue(encoder.encode(chunk));
+      const send = (chunk: string) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(chunk));
+        } catch {
+          void close(controller);
+        }
+      };
       send(`: connected ${new Date().toISOString()}\n\n`);
       await subscriber.subscribe(channel);
 
@@ -27,20 +49,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         send(`data: ${message}\n\n`);
       });
 
-      const heartbeat = setInterval(() => {
+      heartbeat = setInterval(() => {
         send(`: heartbeat ${new Date().toISOString()}\n\n`);
       }, 15_000);
 
-      _request.signal.addEventListener("abort", async () => {
-        clearInterval(heartbeat);
-        await subscriber.unsubscribe(channel).catch(() => undefined);
-        subscriber.disconnect();
-        controller.close();
-      });
+      _request.signal.addEventListener("abort", () => void close(controller));
     },
     async cancel() {
-      await subscriber.unsubscribe(channel).catch(() => undefined);
-      subscriber.disconnect();
+      await cleanup();
     },
   });
 

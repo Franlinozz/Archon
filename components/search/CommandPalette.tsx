@@ -19,6 +19,7 @@ const RECENT_KEY = "archon-recent-search";
 
 const PAGES: { label: string; route: string; keywords?: string }[] = [
   { label: "Overview", route: "/app", keywords: "home workspace dashboard reports" },
+  { label: "Creator Workspace", route: "/app/creator", keywords: "builder launch templates founder workspace" },
   { label: "Audit Studio", route: "/app/audit/new", keywords: "scan new contract solidity" },
   { label: "Contract Context", route: "/app/context", keywords: "abi address verified" },
   { label: "Cost Guard", route: "/app/cost-guard", keywords: "gas spend rpc ai" },
