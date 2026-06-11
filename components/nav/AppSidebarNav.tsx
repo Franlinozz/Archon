@@ -76,15 +76,16 @@ function activeIndex(pathname: string): number {
   return best;
 }
 
-export function AppSidebarNav() {
+export function AppSidebarNav({ variant = "sidebar", onNavigate }: { variant?: "sidebar" | "sheet"; onNavigate?: () => void } = {}) {
   const pathname = usePathname() ?? "";
   const reduce = useReducedMotion();
   const active = activeIndex(pathname);
+  const sheet = variant === "sheet";
 
   return (
-    <nav className="mt-3 flex gap-1 overflow-x-auto md:mt-8 md:block md:space-y-5">
-      {navGroups.map((group) => <div key={group.title} className="flex shrink-0 gap-1 md:block md:space-y-1">
-        <p className="hidden px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted md:block">{group.title}</p>
+    <nav className={sheet ? "block space-y-6" : "mt-8 block space-y-5"}>
+      {navGroups.map((group) => <div key={group.title} className="block space-y-1">
+        <p className="block px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">{group.title}</p>
         {group.items.map((item) => {
         const i = nav.indexOf(item);
         const isActive = i === active;
@@ -93,8 +94,9 @@ export function AppSidebarNav() {
           <Link
             key={item.label}
             href={item.href}
+            onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
-            className={`relative flex shrink-0 items-center gap-2.5 rounded-control px-3 py-1.5 text-sm transition-colors ${
+            className={`relative flex items-center gap-2.5 rounded-control px-3 text-sm transition-colors ${sheet ? "py-2.5 text-base" : "py-1.5"} ${
               isActive
                 ? "bg-brand-100 font-semibold text-brand-700"
                 : "text-body hover:bg-surface-2 hover:text-ink"
@@ -102,7 +104,7 @@ export function AppSidebarNav() {
           >
             {isActive ? (
               <motion.span
-                layoutId="sidebar-active"
+                layoutId={`sidebar-active-${variant}`}
                 className="absolute inset-y-1 left-0 w-[3px] rounded-pill bg-brand-500"
                 transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 38 }}
               />

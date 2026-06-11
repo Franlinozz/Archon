@@ -195,28 +195,6 @@ body::after {
 /* keep real content above the grain + texture layers (BOTH themes) */
 body > * { position: relative; z-index: 1; }
 
-.docs-texture-surface {
-  position: relative;
-  overflow: hidden;
-}
-.docs-texture-surface::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(62rem 38rem at 86% -8%, rgba(22, 160, 107, 0.12), transparent 62%),
-    url("/dotted-texture.jpg");
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-position: center, center;
-  opacity: 0.18;
-  mix-blend-mode: soft-light;
-}
-.theme-marble .docs-texture-surface::before { mix-blend-mode: multiply; opacity: 0.12; }
-.docs-texture-surface > * { position: relative; z-index: 1; }
-
 /* Thin arch/column line-art watermark, opt-in behind heroes / empty areas. */
 .archon-arch {
   position: relative;
@@ -317,14 +295,21 @@ tbody tr { transition: background-color 0.15s ease; }
 @keyframes archon-shimmer { 100% { transform: translateX(100%); } }
 
 /* Hero mark scan-beam: a soft brand-green bar sweeps across the mark (~5s),
-   clipped to the mark container. "this thing scans/audits." Motion-gated. */
+   clipped to the mark container. "this thing scans/audits." Motion-gated.
+   Delayed past the entrance choreography so it never competes with it. */
 @media (prefers-reduced-motion: no-preference) {
   .archon-scan-beam {
     position: absolute; left: 0; right: 0; top: 0; height: 45%;
     background: linear-gradient(180deg, transparent 0%, rgba(22,160,107,0.30) 50%, transparent 100%);
     mix-blend-mode: screen; pointer-events: none;
-    animation: archon-scan 5s ease-in-out infinite;
+    opacity: 0;
+    animation: archon-scan 5s ease-in-out 1.4s infinite;
     will-change: transform;
+  }
+  /* screen-blend washes out on the light theme; multiply keeps the sweep visible */
+  .theme-marble .archon-scan-beam {
+    mix-blend-mode: multiply;
+    background: linear-gradient(180deg, transparent 0%, rgba(22,160,107,0.16) 50%, transparent 100%);
   }
 }
 @keyframes archon-scan {
@@ -352,6 +337,16 @@ tbody tr { transition: background-color 0.15s ease; }
   }
 }
 @keyframes archon-mark-sweep { 0% { transform: translateX(-120%); } 55%, 100% { transform: translateX(120%); } }
+
+/* Single gradient-accent word in display headlines (hero "Prove", CTA "verified").
+   Theme-driven so it stays brand-correct in Marble and Obsidian. */
+.archon-gradient-word {
+  background: linear-gradient(115deg, var(--brand-600) 10%, var(--brand-400) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
 
 /* Theme-scoped visibility for dual-theme raster assets (logo/mark) — class is set
    pre-paint on <html>, so the correct variant shows with no flash or JS. */

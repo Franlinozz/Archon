@@ -5,16 +5,16 @@ import Link from "next/link";
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { EASE, fadeUp, instant, wordContainer, wordItem } from "@/lib/motion";
 
-// "Mantle Mainnet" (the last two words) carries the brand accent.
-const HEADLINE = ["AI-Powered", "Safety", "Layer", "for", "Mantle", "Mainnet"];
-const BRAND_FROM = 4;
-const CHIPS = ["Mantle Mainnet Native", "ERC-8004 Trustless", "AI Risk Detection", "On-chain Proof"];
+// Content budget (R2.1, locked): headline ≤7 words, subline ≤22 words, two CTAs,
+// no chip row, gradient accent on ONE word. The whole entrance resolves ≤900ms.
+const HEADLINE = ["Audit", "it.", "Optimize", "it.", "Prove", "it."];
+const GRADIENT_WORD = 4; // "Prove"
 
 export function Hero() {
   const reduce = useReducedMotion();
 
   return (
-    <section className="archon-arch mx-auto grid max-w-7xl gap-8 px-6 py-14 lg:grid-cols-[1fr_420px] lg:items-center">
+    <section className="archon-arch mx-auto grid max-w-7xl gap-10 px-6 py-16 md:py-24 lg:grid-cols-[1fr_420px] lg:items-center">
       <div>
         <motion.p
           className="font-mono text-xs uppercase tracking-[0.16em] text-brand-500"
@@ -22,12 +22,12 @@ export function Hero() {
           initial={reduce ? false : "hidden"}
           animate="show"
         >
-          ERC-8004 trustless auditor · Mantle Mainnet
+          Mantle Mainnet · ERC-8004 Agent #97
         </motion.p>
 
         {/* Word-by-word headline reveal. */}
         <motion.h1
-          className="mt-3 font-display text-5xl leading-[1.05] tracking-[-0.04em] text-ink md:text-7xl"
+          className="mt-4 font-display text-5xl leading-[1.05] tracking-[-0.04em] text-ink md:text-7xl"
           variants={instant(wordContainer, reduce)}
           initial={reduce ? false : "hidden"}
           animate="show"
@@ -36,30 +36,25 @@ export function Hero() {
             <motion.span
               key={`${word}-${i}`}
               variants={instant(wordItem, reduce)}
-              className={`mr-[0.25em] inline-block ${i >= BRAND_FROM ? "text-brand-600" : ""}`}
+              className={`mr-[0.25em] inline-block ${i === GRADIENT_WORD ? "archon-gradient-word" : ""}`}
             >
               {word}
             </motion.span>
           ))}
         </motion.h1>
 
-        {/* Subhead + chips + CTAs stagger in after the headline. */}
+        {/* Subline + CTAs stagger in right behind the headline (≤900ms total). */}
         <motion.div
-          variants={instant({ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.35 } } }, reduce)}
+          variants={instant({ hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.3 } } }, reduce)}
           initial={reduce ? false : "hidden"}
           animate="show"
         >
-          <motion.p variants={instant(fadeUp, reduce)} className="mt-4 max-w-xl text-lg leading-relaxed text-body">
-            Archon is an ERC-8004 trustless audit agent: it scans smart contracts, explains Mantle-specific risk, generates tests, and anchors reviewed reports as verifiable on-chain reputation.
+          <motion.p variants={instant(fadeUp, reduce)} className="mt-5 max-w-xl text-lg leading-relaxed text-body">
+            AI-assisted audits and receipt-calibrated gas optimization for Mantle — every report anchored on-chain, verifiable by anyone.
           </motion.p>
-          <motion.div variants={instant(fadeUp, reduce)} className="mt-5 flex flex-wrap gap-2">
-            {CHIPS.map((chip) => (
-              <span key={chip} className="rounded-pill border border-brand-500/30 bg-brand-50 px-3 py-1 text-xs text-brand-600">{chip}</span>
-            ))}
-          </motion.div>
-          <motion.div variants={instant(fadeUp, reduce)} className="mt-6 flex flex-wrap gap-3">
-            <Link className="archon-sheen rounded-control bg-green-400 px-4 py-2.5 text-sm font-semibold text-on-green transition-colors hover:bg-green-300" href="/app/audit/new">Start Mainnet Audit</Link>
-            <Link className="rounded-control border border-border-subtle px-4 py-2.5 text-sm text-body transition-colors hover:border-border-emphasis hover:text-ink" href="/proofs">View Proofs</Link>
+          <motion.div variants={instant(fadeUp, reduce)} className="mt-7 flex flex-wrap gap-3">
+            <Link className="archon-sheen rounded-control bg-green-400 px-5 py-2.5 text-sm font-semibold text-on-green transition-colors hover:bg-green-300" href="/app/audit/new">Start a scan</Link>
+            <Link className="rounded-control border border-border-subtle px-5 py-2.5 text-sm text-body transition-colors hover:border-border-emphasis hover:text-ink" href="/proofs">Verify a proof</Link>
           </motion.div>
         </motion.div>
       </div>
@@ -101,7 +96,7 @@ function HeroSeal({ reduce }: { reduce: boolean }) {
         className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-pill border border-success/30 bg-success/10 px-2.5 py-1 text-xs text-success"
         initial={reduce ? false : { opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: EASE, delay: reduce ? 0 : 0.9 }}
+        transition={{ duration: 0.3, ease: EASE, delay: reduce ? 0 : 0.6 }}
       >
         <span className="relative flex size-1.5">
           {!reduce ? <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-75" /> : null}
@@ -113,6 +108,10 @@ function HeroSeal({ reduce }: { reduce: boolean }) {
       <div className="relative mt-8 grid min-h-[300px] place-items-center overflow-hidden rounded-card" style={{ perspective: 900 }}>
         {/* soft ambient stage backdrop (no border, no panel) */}
         <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 60% at 50% 45%, var(--brand-100), transparent 70%)" }} />
+
+        {/* Signature motion: a periodic scan-beam sweeps the stage — "this thing
+            audits". CSS-only, motion-gated, transform/opacity. */}
+        {!reduce ? <span aria-hidden className="archon-scan-beam z-10" /> : null}
 
         {/* Tilt layer (pointer parallax) + entrance scale. */}
         <motion.div

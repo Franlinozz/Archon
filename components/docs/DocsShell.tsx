@@ -70,9 +70,11 @@ export function DocsShell({ title, description, href, toc, children }: DocsShell
   const { previous, next } = getAdjacentDocs(href);
 
   return (
-    <div className="docs-texture-surface min-h-screen bg-canvas text-body">
+    // Transparent wrapper: the global body texture/canvas shows through, so the
+    // docs body matches the navbar band with no contrast seam (Session 13 layering).
+    <div className="min-h-screen text-body">
       <ReadingProgress />
-      <header className="sticky top-0 z-50 border-b border-subtle bg-canvas/85 backdrop-blur-xl">
+      <header className="sticky top-14 z-20 border-b border-subtle bg-canvas/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <Link href="/docs" className="font-display text-xl font-bold tracking-[-0.03em] text-ink">Archon Documentation</Link>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

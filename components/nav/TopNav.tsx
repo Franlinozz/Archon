@@ -12,7 +12,7 @@ type TopNavItem = {
   exact?: boolean;
 };
 
-const items: TopNavItem[] = [
+export const topNavItems: TopNavItem[] = [
   { label: "Product", href: "/#product", match: "/", exact: true },
   { label: "Audit Studio", href: "/app/audit/new", match: "/app/audit" },
   { label: "Cost Guard", href: "/app/cost-guard", match: "/app/cost-guard" },
@@ -20,6 +20,7 @@ const items: TopNavItem[] = [
   { label: "Reports", href: "/proofs", match: "/proofs" },
   { label: "Docs", href: "/docs", match: "/docs" },
 ];
+const items = topNavItems;
 
 function isActive(pathname: string, item: TopNavItem): boolean {
   if (item.exact) return pathname === item.match;
