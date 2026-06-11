@@ -16,6 +16,7 @@ export type SoliditySourceFile = {
 };
 
 export type SourceBundleFile = { path: string; source: string };
+export type SolidityRemapping = { from: string; to: string };
 
 export type SourceSelectionResponse = {
   mode: "single" | "select";
@@ -26,6 +27,10 @@ export type SourceSelectionResponse = {
   files?: Array<{ path: string; name: string; size: number; contractNames: string[] }>;
   message?: string;
 };
+
+function isSourceBundleConfig(path: string) {
+  return path === "remappings.txt" || path.endsWith("/remappings.txt") || path === "foundry.toml" || path.endsWith("/foundry.toml");
+}
 
 export function validateSoliditySource(source: string, label = "Source") {
   const trimmed = source.trim();
@@ -50,7 +55,7 @@ export function solidityImports(source: string) {
 }
 
 export function parseFoundryRemappings(source: string) {
-  const remappings: Array<{ from: string; to: string }> = [];
+  const remappings: SolidityRemapping[] = [];
   const add = (line: string) => {
     const trimmed = line.trim().replace(/^['"]|['"]$/g, "");
     if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return;
@@ -70,15 +75,63 @@ export function parseFoundryRemappings(source: string) {
   return remappings;
 }
 
-export function importCandidates(importPath: string, fromFile: string, remappings: Array<{ from: string; to: string }> = []) {
+export const ARCHON_DEPS_ROOT = process.env.ARCHON_DEPS_ROOT ?? "/opt/archon-deps";
+
+function ozMajorPreference(source: string, imports: string[]) {
+  const pragma = source.match(/pragma\s+solidity\s+([^;]+);/)?.[1]?.trim() ?? "";
+  const minor = Number(pragma.match(/0\.8\.(\d+)/)?.[1] ?? "999");
+  const pinsPre020 = Number.isFinite(minor) && minor < 20;
+  const usesV5OnlyStyle = imports.some((item) => /access\/manager|governance\/utils|utils\/cryptography\/MessageHashUtils|interfaces\/IERC5267/.test(item));
+  if (usesV5OnlyStyle) return [5, 4] as const;
+  return pinsPre020 ? ([4, 5] as const) : ([5, 4] as const);
+}
+
+export function dependencyRemappingsForSource(source: string, extraImports: string[] = []): SolidityRemapping[] {
+  const imports = [...new Set([...solidityImports(source), ...extraImports])];
+  const ozOrder = ozMajorPreference(source, imports);
+  const remaps: SolidityRemapping[] = [];
+  for (const major of ozOrder) remaps.push({ from: "@openzeppelin/contracts/", to: `openzeppelin/${major}/contracts/` });
+  for (const major of ozOrder) remaps.push({ from: "@openzeppelin/contracts-upgradeable/", to: `openzeppelin-upgradeable/${major}/contracts-upgradeable/` });
+  remaps.push(
+    { from: "solmate/", to: "solmate/src/" },
+    { from: "solady/", to: "solady/src/" },
+    { from: "forge-std/", to: "forge-std/src/" },
+  );
+  return remaps;
+}
+
+export function dependencyRemapGroupsForSource(source: string, extraImports: string[] = []): SolidityRemapping[][] {
+  const imports = [...new Set([...solidityImports(source), ...extraImports])];
+  const [first, second] = ozMajorPreference(source, imports);
+  const base = [
+    { from: "solmate/", to: "solmate/src/" },
+    { from: "solady/", to: "solady/src/" },
+    { from: "forge-std/", to: "forge-std/src/" },
+  ];
+  return [first, second].map((major) => [
+    { from: "@openzeppelin/contracts/", to: `openzeppelin/${major}/contracts/` },
+    { from: "@openzeppelin/contracts-upgradeable/", to: `openzeppelin-upgradeable/${major}/contracts-upgradeable/` },
+    ...base,
+  ]);
+}
+
+export function solcRemapArgs(remappings: SolidityRemapping[]) {
+  return remappings.map((mapping) => `${mapping.from}=${mapping.to}`);
+}
+
+export function solcIncludePaths(workdir: string) {
+  return [workdir, ARCHON_DEPS_ROOT, path.join(process.cwd(), "node_modules"), path.join(process.cwd(), "lib/source/vendor")];
+}
+
+export function importCandidates(importPath: string, fromFile: string, remappings: SolidityRemapping[] = []) {
   const fromDir = fromFile.includes("/") ? fromFile.split("/").slice(0, -1).join("/") : "";
   const normalize = (value: string) => path.posix.normalize(value.replaceAll("\\", "/")).replace(/^\.\//, "");
   const candidates = new Set<string>();
   if (importPath.startsWith("./") || importPath.startsWith("../")) candidates.add(normalize(`${fromDir}/${importPath}`));
-  candidates.add(normalize(importPath));
   for (const mapping of remappings) {
     if (importPath.startsWith(mapping.from)) candidates.add(normalize(`${mapping.to}${importPath.slice(mapping.from.length)}`));
   }
+  candidates.add(normalize(importPath));
   return [...candidates].filter((candidate) => candidate && !candidate.startsWith("../") && candidate !== "..");
 }
 
@@ -117,16 +170,21 @@ export async function parseSolidityUpload(file: File, selectedPath?: string): Pr
 
   const zip = await JSZip.loadAsync(await file.arrayBuffer(), { checkCRC32: true });
   const files: SoliditySourceFile[] = [];
+  const configFiles: SourceBundleFile[] = [];
   let totalBytes = 0;
   for (const entry of Object.values(zip.files)) {
     if (entry.dir) continue;
     const safePath = sanitizeArchivePath(entry.name);
-    if (!safePath.endsWith(".sol")) continue;
-    if (files.length >= MAX_ZIP_FILES) throw new Error(`Archive contains more than ${MAX_ZIP_FILES} Solidity files. Upload a smaller archive.`);
     const source = await entry.async("string");
     totalBytes += Buffer.byteLength(source, "utf8");
     if (totalBytes > MAX_UPLOAD_BYTES) throw new Error(`Archive Solidity contents exceed ${Math.round(MAX_UPLOAD_BYTES / 1000)} KB.`);
-    files.push(makeSourceFile(safePath, source));
+    if (safePath.endsWith(".sol")) {
+      if (files.length >= MAX_ZIP_FILES) throw new Error(`Archive contains more than ${MAX_ZIP_FILES} Solidity files. Upload a smaller archive.`);
+      files.push(makeSourceFile(safePath, source));
+    } else if (isSourceBundleConfig(safePath)) {
+      configFiles.push({ path: path.basename(safePath), source });
+    }
   }
-  return chooseOrList(files.sort((a, b) => b.size - a.size), selectedPath);
+  const response = chooseOrList(files.sort((a, b) => b.size - a.size), selectedPath);
+  return response.mode === "single" && configFiles.length ? { ...response, sourceFiles: [...(response.sourceFiles ?? []), ...configFiles] } : response;
 }

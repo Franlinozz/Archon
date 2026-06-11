@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { importCandidates, parseFoundryRemappings } from "@/lib/source/solidity";
+import { dependencyRemappingsForSource, importCandidates, parseFoundryRemappings, solcIncludePaths } from "@/lib/source/solidity";
 
 const require = createRequire(import.meta.url);
 
@@ -49,11 +49,12 @@ export async function compileSoliditySource(args: { workdir: string; sourceFile:
   const remappings = [
     ...parseFoundryRemappings(await readFile(path.join(args.workdir, "remappings.txt"), "utf8").catch(() => "")),
     ...parseFoundryRemappings(await readFile(path.join(args.workdir, "foundry.toml"), "utf8").catch(() => "")),
+    ...dependencyRemappingsForSource(source),
   ];
 
   const resolveImport = (importPath: string) => {
     const candidates = [
-      ...importCandidates(importPath, sourceName, remappings).flatMap((candidate) => [path.join(args.workdir, candidate), path.join(process.cwd(), candidate)]),
+      ...importCandidates(importPath, sourceName, remappings).flatMap((candidate) => [path.join(args.workdir, candidate), path.join(process.cwd(), candidate), ...solcIncludePaths(args.workdir).map((base) => path.join(base, candidate))]),
       path.join(path.dirname(args.sourceFile), importPath),
       path.join(args.workdir, importPath),
       path.join(process.cwd(), "node_modules", importPath),

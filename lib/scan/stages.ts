@@ -13,7 +13,7 @@ import { analyzeGasOptimizations } from "@/lib/gas/optimizer";
 import { generateTestsForScan } from "@/lib/tests/generation";
 import { appendScanLog } from "./events";
 import type { PipelineStage, ScanContext, ScanFinding, ScanRecord, Severity } from "./types";
-import { importCandidates, parseFoundryRemappings, solidityImports } from "@/lib/source/solidity";
+import { dependencyRemapGroupsForSource, dependencyRemappingsForSource, importCandidates, parseFoundryRemappings, solcIncludePaths, solcRemapArgs, solidityImports, type SolidityRemapping } from "@/lib/source/solidity";
 
 const execFileAsync = promisify(execFile);
 const TOOL_PATHS = [process.env.ARCHON_ANALYZER_PATH, "/opt/archon-slither/bin", "/root/.local/bin"].filter(Boolean).join(":");
@@ -280,6 +280,33 @@ function missingImportsFromError(error: unknown) {
   ])].slice(0, 20);
 }
 
+function buildSolcArgs(workdir: string) {
+  return ["--base-path", workdir, "--allow-paths", workdir].join(" ");
+}
+
+function slitherAttempts(ctx: ScanContext) {
+  const groups = dependencyRemapGroupsForSource(ctx.sourceCode, ctx.metadata.unresolvedImports as string[] | undefined);
+  const sourceTarget = path.relative(ctx.workdir, ctx.sourceFile).replaceAll("\\", "/");
+  const seen = new Set<string>();
+  return groups.map((remappings) => ({
+    remappings,
+    args: [
+      sourceTarget,
+      "--solc",
+      SOLC_BIN,
+      "--solc-args",
+      buildSolcArgs(ctx.workdir),
+      "--solc-remaps",
+      solcRemapArgs(remappings).join(" "),
+    ],
+  })).filter((attempt) => {
+    const key = attempt.args.join("\u0000");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 2);
+}
+
 async function scanWorkspaceFiles(root: string) {
   const files: string[] = [];
   async function walk(dir: string) {
@@ -294,12 +321,12 @@ async function scanWorkspaceFiles(root: string) {
   return files;
 }
 
-async function workspaceRemappings(workdir: string) {
+async function workspaceRemappings(workdir: string, sourceCode = "") {
   const texts = await Promise.all([
     readFile(path.join(workdir, "remappings.txt"), "utf8").catch(() => ""),
     readFile(path.join(workdir, "foundry.toml"), "utf8").catch(() => ""),
   ]);
-  return texts.flatMap(parseFoundryRemappings);
+  return [...texts.flatMap(parseFoundryRemappings), ...dependencyRemappingsForSource(sourceCode)];
 }
 
 async function copyLocalDependencyImport(workdir: string, importPath: string) {
@@ -314,6 +341,8 @@ async function copyLocalDependencyImport(workdir: string, importPath: string) {
 
 async function copyLocalCandidate(workdir: string, candidatePath: string) {
   const source = [
+    candidatePath,
+    ...solcIncludePaths(workdir).map((base) => path.join(base, candidatePath)),
     path.join(process.cwd(), candidatePath),
     path.join(process.cwd(), "node_modules", candidatePath),
     path.join(process.cwd(), "lib/source/vendor", candidatePath.replace(/^node_modules\//, "")),
@@ -325,8 +354,8 @@ async function copyLocalCandidate(workdir: string, candidatePath: string) {
   return true;
 }
 
-async function hydrateWorkspaceImports(workdir: string) {
-  const remappings = await workspaceRemappings(workdir);
+async function hydrateWorkspaceImports(workdir: string, sourceCode: string) {
+  const remappings = await workspaceRemappings(workdir, sourceCode);
   const seen = new Set<string>();
   const unresolved = new Set<string>();
   const queue = await scanWorkspaceFiles(workdir);
@@ -382,7 +411,7 @@ export async function createInitialContext(scan: ScanRecord): Promise<ScanContex
   const sourceCode = await ensureSource(scan);
   const workdir = await mkdtemp(path.join(tmpdir(), `archon-scan-${scan.id}-`));
   const sourceFile = await writeSourceWorkspace(workdir, sourceCode, scan.source_bundle, displayContractName(scan, sourceCode));
-  const unresolvedImports = await hydrateWorkspaceImports(workdir);
+  const unresolvedImports = await hydrateWorkspaceImports(workdir, sourceCode);
   const pragma = detectPragma(sourceCode);
   return {
     scan,
@@ -425,8 +454,25 @@ async function staticAnalysis(ctx: ScanContext) {
     return ctx;
   }
   const outFile = path.join(ctx.workdir, "slither.json");
+  const attempts = slitherAttempts(ctx);
+  let lastError: unknown = null;
   try {
-    await execFileAsync(SLITHER_BIN, [ctx.sourceFile, "--solc", SOLC_BIN, "--json", outFile], { timeout: 90_000, env: analyzerEnv, maxBuffer: 10 * 1024 * 1024 });
+    for (let index = 0; index < attempts.length; index++) {
+      const attempt = attempts[index]!;
+      try {
+        await execFileAsync(SLITHER_BIN, [...attempt.args, "--json", outFile], { timeout: 90_000, env: analyzerEnv, cwd: ctx.workdir, maxBuffer: 10 * 1024 * 1024 });
+        ctx.metadata.slitherAttempt = { ok: true, index: index + 1, remappings: solcRemapArgs(attempt.remappings) };
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = error;
+        const maybe = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+        await readFile(outFile, "utf8").then(() => { lastError = null; }).catch(() => undefined);
+        if (!lastError) break;
+        await appendScanLog(ctx.scan.id, "WARN", `Slither import attempt ${index + 1}/${attempts.length} failed: ${shortToolError(`${maybe.message}\n${maybe.stderr ?? ""}`)}`);
+      }
+    }
+    if (lastError) throw lastError;
   } catch (error) {
     const maybe = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
     // Slither exits non-zero when it finds issues. The JSON output is the source of truth.

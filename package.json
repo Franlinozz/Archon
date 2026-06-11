@@ -16,7 +16,8 @@
     "secret-scan": "tsx scripts/secret-scan.ts",
     "scope-grep": "tsx scripts/scope-grep.ts",
     "docs:generate": "fumadocs-mdx source.config.ts",
-    "whitepaper:pdf": "node scripts/generate-whitepaper-pdf.mjs"
+    "whitepaper:pdf": "node scripts/generate-whitepaper-pdf.mjs",
+    "deps:scan": "node scripts/ensure-archon-deps.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
