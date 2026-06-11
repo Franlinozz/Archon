@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { importCandidates, parseFoundryRemappings } from "@/lib/source/solidity";
 
 const require = createRequire(import.meta.url);
 
@@ -45,12 +46,18 @@ export async function compileSoliditySource(args: { workdir: string; sourceFile:
       outputSelection: { "*": { "*": ["abi", "evm.bytecode.object"] } },
     },
   };
+  const remappings = [
+    ...parseFoundryRemappings(await readFile(path.join(args.workdir, "remappings.txt"), "utf8").catch(() => "")),
+    ...parseFoundryRemappings(await readFile(path.join(args.workdir, "foundry.toml"), "utf8").catch(() => "")),
+  ];
 
   const resolveImport = (importPath: string) => {
     const candidates = [
+      ...importCandidates(importPath, sourceName, remappings).flatMap((candidate) => [path.join(args.workdir, candidate), path.join(process.cwd(), candidate)]),
       path.join(path.dirname(args.sourceFile), importPath),
       path.join(args.workdir, importPath),
       path.join(process.cwd(), "node_modules", importPath),
+      path.join(process.cwd(), "lib/source/vendor", importPath),
     ];
     const found = candidates.find((candidate) => existsSync(candidate));
     if (!found) return { error: `Source ${importPath} not found in workspace or node_modules.` };

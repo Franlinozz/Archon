@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
-import { chooseOrList, makeSourceFile, MAX_GITHUB_SOL_FILES, MAX_GITHUB_TOTAL_BYTES, type SoliditySourceFile } from "@/lib/source/solidity";
+import { chooseOrList, importCandidates, makeSourceFile, MAX_GITHUB_SOL_FILES, MAX_GITHUB_TOTAL_BYTES, parseFoundryRemappings, solidityImports, type SoliditySourceFile } from "@/lib/source/solidity";
 
 const bodySchema = z.object({ repo: z.string().min(3), path: z.string().optional(), ref: z.string().optional() });
 
 type RepoInfo = { owner: string; repo: string; ref?: string; path?: string };
 type TreeItem = { path: string; type: string; size?: number };
 type GithubError = Error & { status?: number; rateLimited?: boolean };
+
+const MAX_DEPENDENCY_FILES = Number(process.env.ARCHON_GITHUB_MAX_DEPENDENCY_FILES ?? 60);
+const MAX_DEPENDENCY_BYTES = Number(process.env.ARCHON_GITHUB_MAX_DEPENDENCY_BYTES ?? 1_200_000);
+const DEPENDENCY_FALLBACKS = [
+  { prefix: "@openzeppelin/contracts/", owner: "OpenZeppelin", repo: "openzeppelin-contracts", ref: "v5.0.2", base: "contracts/" },
+  { prefix: "@openzeppelin/contracts/", owner: "OpenZeppelin", repo: "openzeppelin-contracts", ref: "v4.9.6", base: "contracts/" },
+  { prefix: "solmate/", owner: "transmissions11", repo: "solmate", ref: "main", base: "src/" },
+];
 
 function parseRepo(input: string): RepoInfo | null {
   const trimmed = input.trim();
@@ -53,6 +63,91 @@ async function fetchSolidityFile(owner: string, repo: string, path: string, ref?
   return makeSourceFile(content.path ?? path, source);
 }
 
+async function fetchRawSolidity(owner: string, repo: string, ref: string, rawPath: string) {
+  const response = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${rawPath.split("/").map(encodeURIComponent).join("/")}`, { headers: { "user-agent": "archon-audit" }, next: { revalidate: 3600 } });
+  if (!response.ok) return null;
+  const source = await response.text();
+  if (!/pragma\s+solidity\b/.test(source)) return null;
+  return source;
+}
+
+async function fetchVendoredSolidity(importPath: string) {
+  const source = await readFile(path.join(process.cwd(), "lib/source/vendor", importPath), "utf8").catch(() => null);
+  return source && /pragma\s+solidity\b/.test(source) ? source : null;
+}
+
+async function fetchRepoText(owner: string, repo: string, ref: string, rawPath: string) {
+  const response = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${rawPath.split("/").map(encodeURIComponent).join("/")}`, { headers: { "user-agent": "archon-audit" }, next: { revalidate: 300 } });
+  return response.ok ? response.text() : null;
+}
+
+function pathMap(files: SoliditySourceFile[]) {
+  return new Map(files.map((file) => [file.path, file]));
+}
+
+async function enrichReferencedDependencies(owner: string, repo: string, ref: string, files: SoliditySourceFile[]) {
+  const map = pathMap(files);
+  const remappingPairs = await Promise.all([
+    fetchRepoText(owner, repo, ref, "remappings.txt").then((source) => source ? { path: "remappings.txt", source } : null),
+    fetchRepoText(owner, repo, ref, "foundry.toml").then((source) => source ? { path: "foundry.toml", source } : null),
+  ]);
+  const configFiles = remappingPairs.filter((item): item is { path: string; source: string } => Boolean(item));
+  const remappings = configFiles.flatMap((file) => parseFoundryRemappings(file.source));
+  const queue: Array<{ importPath: string; fromFile: string }> = [];
+  const unresolved = new Set<string>();
+  let depBytes = 0;
+
+  const enqueueImports = (file: SoliditySourceFile) => {
+    for (const importPath of solidityImports(file.source)) queue.push({ importPath, fromFile: file.path });
+  };
+  files.forEach(enqueueImports);
+
+  while (queue.length && files.length < MAX_GITHUB_SOL_FILES + MAX_DEPENDENCY_FILES) {
+    const next = queue.shift()!;
+    const candidates = importCandidates(next.importPath, next.fromFile, remappings);
+    if (candidates.some((candidate) => map.has(candidate))) continue;
+
+    let resolved: SoliditySourceFile | null = null;
+    const repoCandidate = candidates.find((candidate) => !candidate.startsWith("@") && !candidate.startsWith("solmate/"));
+    if (repoCandidate) {
+      const source = await fetchRawSolidity(owner, repo, ref, repoCandidate).catch(() => null);
+      if (source) resolved = makeSourceFile(repoCandidate, source);
+    }
+
+    if (!resolved) {
+      for (const fallback of DEPENDENCY_FALLBACKS) {
+        if (!next.importPath.startsWith(fallback.prefix)) continue;
+        const depPath = `${fallback.base}${next.importPath.slice(fallback.prefix.length)}`;
+        const source = await fetchRawSolidity(fallback.owner, fallback.repo, fallback.ref, depPath).catch(() => null) ?? await fetchVendoredSolidity(next.importPath);
+        if (source) {
+          resolved = makeSourceFile(next.importPath, source);
+          break;
+        }
+      }
+    }
+
+    if (!resolved) {
+      unresolved.add(next.importPath);
+      continue;
+    }
+    depBytes += resolved.size;
+    if (depBytes > MAX_DEPENDENCY_BYTES) {
+      unresolved.add(`${next.importPath} (dependency cap reached)`);
+      break;
+    }
+    files.push(resolved);
+    map.set(resolved.path, resolved);
+    enqueueImports(resolved);
+  }
+
+  return { files, configFiles, unresolved: [...unresolved] };
+}
+
+function withConfigFiles(response: ReturnType<typeof chooseOrList>, configFiles: Array<{ path: string; source: string }>) {
+  if (!configFiles.length || response.mode !== "single") return response;
+  return { ...response, sourceFiles: [...(response.sourceFiles ?? []), ...configFiles] };
+}
+
 export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Provide a GitHub repo like owner/name, a GitHub URL, or owner/name#path/to/File.sol." }, { status: 400 });
@@ -74,7 +169,8 @@ export async function POST(request: Request) {
         .slice(0, MAX_GITHUB_SOL_FILES);
       const files = await Promise.all(siblings.map((item) => fetchSolidityFile(owner, repo, item.path, branch)));
       const selected = files.find((file) => file.path === selectedPath) ?? await fetchSolidityFile(owner, repo, selectedPath, branch);
-      return NextResponse.json({ repo: `${owner}/${repo}`, ref: branch, ...chooseOrList(files.some((file) => file.path === selected.path) ? files : [selected, ...files], selected.path) });
+      const enriched = await enrichReferencedDependencies(owner, repo, branch, files.some((file) => file.path === selected.path) ? files : [selected, ...files]);
+      return NextResponse.json({ repo: `${owner}/${repo}`, ref: branch, unresolvedImports: enriched.unresolved, ...withConfigFiles(chooseOrList(enriched.files, selected.path), enriched.configFiles) });
     }
 
 
@@ -89,7 +185,8 @@ export async function POST(request: Request) {
     if (total > MAX_GITHUB_TOTAL_BYTES) throw Object.assign(new Error(`Repository Solidity files exceed ${Math.round(MAX_GITHUB_TOTAL_BYTES / 1000)} KB. Select a specific file with owner/repo#path/to/File.sol.`), { status: 413 });
 
     const files = await Promise.all(candidates.map((item) => fetchSolidityFile(owner, repo, item.path, branch)));
-    return NextResponse.json({ repo: `${owner}/${repo}`, ref: branch, ...chooseOrList(files) });
+    const enriched = await enrichReferencedDependencies(owner, repo, branch, files);
+    return NextResponse.json({ repo: `${owner}/${repo}`, ref: branch, unresolvedImports: enriched.unresolved, ...withConfigFiles(chooseOrList(enriched.files), enriched.configFiles) });
   } catch (error) {
     const friendly = friendlyGithubError(error);
     return NextResponse.json({ error: friendly.error }, { status: friendly.status });

@@ -57,6 +57,7 @@ export type ScanContext = {
   reportId?: string;
   logs: string[];
   metadata: Record<string, unknown>;
+  reducedMode?: { reason: string; unresolvedImports: string[]; detail?: string };
 };
 
 export type ScanEvent =

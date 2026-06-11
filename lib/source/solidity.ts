@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import path from "node:path";
 
 export const MAX_SOURCE_BYTES = Number(process.env.ARCHON_SOURCE_MAX_BYTES ?? 350_000);
 export const MAX_UPLOAD_BYTES = Number(process.env.ARCHON_UPLOAD_MAX_BYTES ?? 1_500_000);
@@ -13,6 +14,8 @@ export type SoliditySourceFile = {
   size: number;
   contractNames: string[];
 };
+
+export type SourceBundleFile = { path: string; source: string };
 
 export type SourceSelectionResponse = {
   mode: "single" | "select";
@@ -35,6 +38,48 @@ export function validateSoliditySource(source: string, label = "Source") {
 
 export function contractNames(source: string) {
   return Array.from(source.matchAll(/\b(?:contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/g)).map((match) => match[1]!).slice(0, 20);
+}
+
+export function solidityImports(source: string) {
+  const imports = new Set<string>();
+  for (const match of source.matchAll(/import\s+(?:[^"']*from\s+)?["']([^"']+)["']\s*;/g)) {
+    const specifier = match[1]?.trim();
+    if (specifier && specifier.endsWith(".sol") && !specifier.startsWith("http://") && !specifier.startsWith("https://")) imports.add(specifier);
+  }
+  return [...imports];
+}
+
+export function parseFoundryRemappings(source: string) {
+  const remappings: Array<{ from: string; to: string }> = [];
+  const add = (line: string) => {
+    const trimmed = line.trim().replace(/^['"]|['"]$/g, "");
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return;
+    const [from, ...rest] = trimmed.split("=");
+    const to = rest.join("=");
+    if (from && to) remappings.push({ from: from.trim(), to: to.trim() });
+  };
+
+  for (const line of source.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.includes("=") && !trimmed.startsWith("remappings")) add(trimmed);
+    const arrayMatch = trimmed.match(/remappings\s*=\s*\[(.*)\]/);
+    if (arrayMatch) {
+      for (const item of arrayMatch[1]!.split(",")) add(item.trim());
+    }
+  }
+  return remappings;
+}
+
+export function importCandidates(importPath: string, fromFile: string, remappings: Array<{ from: string; to: string }> = []) {
+  const fromDir = fromFile.includes("/") ? fromFile.split("/").slice(0, -1).join("/") : "";
+  const normalize = (value: string) => path.posix.normalize(value.replaceAll("\\", "/")).replace(/^\.\//, "");
+  const candidates = new Set<string>();
+  if (importPath.startsWith("./") || importPath.startsWith("../")) candidates.add(normalize(`${fromDir}/${importPath}`));
+  candidates.add(normalize(importPath));
+  for (const mapping of remappings) {
+    if (importPath.startsWith(mapping.from)) candidates.add(normalize(`${mapping.to}${importPath.slice(mapping.from.length)}`));
+  }
+  return [...candidates].filter((candidate) => candidate && !candidate.startsWith("../") && candidate !== "..");
 }
 
 export function sanitizeArchivePath(rawPath: string) {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { Download, Search, Share2 } from "lucide-react";
+import { AlertTriangle, Download, Search, Share2 } from "lucide-react";
 import { GenerateProofModal } from "./GenerateProofModal";
 import { ChallengePanel } from "@/components/challenges/ChallengePanel";
 import { RiskScoreCard, SeverityPill } from "@/components/archon";
@@ -37,7 +37,8 @@ type GasOptimizerScope = {
     forge: { attempted: boolean; ok: boolean; command: string | null; error: string | null };
   } | null;
 };
-type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; lineCount?: number; pragma?: string; solcVersion?: string; sourceKind?: string; protocols?: string[]; dependencies?: string[]; blockNumber?: string | number | null };
+type ReducedModeScope = { reason: string; unresolvedImports?: string[]; detail?: string };
+type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; reducedMode?: ReducedModeScope | null; lineCount?: number; pragma?: string; solcVersion?: string; sourceKind?: string; protocols?: string[]; dependencies?: string[]; blockNumber?: string | number | null };
 type Report = { id: string; scanId: string; contractName: string; riskScore: number; severityCounts: Record<string, number>; scope: ReportScope; executiveSummary: string; reportHash: string; createdAt: string; startedAt: string | null; finishedAt: string | null; scanDepth: string; network: string };
 type Challenge = { id: string; targetType: string; challenger: string | null; title: string; rationale: string; evidenceUrl: string | null; status: string; challengeHash: string; referenceTxHash: string | null; referenceReportHash: string | null; createdAt: string };
 
@@ -62,6 +63,7 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
   const duration = report.startedAt && report.finishedAt ? `${Math.max(1, Math.round((Date.parse(report.finishedAt) - Date.parse(report.startedAt)) / 1000))}s` : "not captured";
   const publicReportPath = `/r/${report.id}`;
   const gasOptimizer = report.scope?.gasOptimizer ?? null;
+  const reducedMode = report.scope?.reducedMode ?? null;
   const pricedDeployFee = gasOptimizer?.pricing?.deployDataFeeMnt ? `${Number(gasOptimizer.pricing.deployDataFeeMnt).toFixed(6)} MNT` : "not measured";
   const l2GasPrice = gasOptimizer?.pricing?.l2GasPriceWei ? `${Number(gasOptimizer.pricing.l2GasPriceWei) / 1e9} gwei` : "unavailable";
   const gasOpportunities = gasOptimizer?.opportunities ?? [];
@@ -90,6 +92,13 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
         <GenerateProofModal reportId={report.id} />
       </div>
     </div>
+
+    {reducedMode ? <details className="rounded-card border border-warning/30 bg-warning/10 p-4 text-sm text-warning" open>
+      <summary className="flex cursor-pointer items-center gap-2 font-semibold"><AlertTriangle size={16} /> External imports could not be resolved; static analysis ran in reduced mode.</summary>
+      <p className="mt-2 leading-6 text-text-mid">Archon skipped Slither/import-dependent checks and ran deterministic AST/rule analysis on the parseable units.</p>
+      {reducedMode.unresolvedImports?.length ? <p className="mt-2 font-mono text-xs text-text-low">Unresolved: {reducedMode.unresolvedImports.join(", ")}</p> : null}
+      {reducedMode.detail ? <p className="mt-2 font-mono text-xs text-text-low">Detail: {reducedMode.detail}</p> : null}
+    </details> : null}
 
     <div className="grid gap-4 xl:grid-cols-4">
       <RiskScoreCard score={report.riskScore} severity={report.riskScore >= 85 ? "critical" : report.riskScore >= 65 ? "high" : "medium"} />

@@ -26,6 +26,7 @@ type Scan = {
   startedAt: string | null;
   finishedAt: string | null;
   error: string | null;
+  contractName?: string;
 };
 
 type Finding = {
@@ -58,6 +59,11 @@ function stageState(stage: string, currentStage: string, status: string): StepSt
 
 function displayNetwork(network: string) {
   return network === "mantle-mainnet" ? "Mantle Mainnet · Live" : network;
+}
+
+function reducedModeFromLogs(logs: LogLine[]) {
+  const warning = logs.find((line) => /External imports could not be resolved|reduced mode|Slither skipped/i.test(line.message));
+  return warning?.message ?? null;
 }
 
 export function LiveScanClient({ scanId }: { scanId: string }) {
@@ -128,13 +134,14 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
 
   if (!scan) return <div className="rounded-card border border-border-subtle bg-surface-1 p-8 text-text-mid">Loading live scan…</div>;
   const isRunning = scan.status !== "done" && scan.status !== "failed";
+  const reducedMode = reducedModeFromLogs(logs);
 
   return <div className="space-y-6">
     <header className="rounded-card border border-border-subtle bg-surface-1 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-green-400">Live Scan Progress</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-text-hi">{report?.contractName ?? "VaultV2"} audit run</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-text-hi">{report?.contractName ?? scan.contractName ?? "Contract"} audit run</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-mid">Seven-stage read-only analysis running against {displayNetwork(scan.network)}.</p>
         </div>
         <div className="flex items-center gap-2 rounded-pill border border-success/30 bg-success/10 px-3 py-2 text-sm text-success"><span className="size-2 rounded-full bg-success"/> {connected ? "Live stream" : "Reconnecting"}</div>
@@ -146,6 +153,10 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
         <InfoCard icon={<Clock size={18}/>} label="Started" value={scan.startedAt ? new Date(scan.startedAt).toLocaleString() : "Queued"} />
         <InfoCard icon={<RefreshCw size={18}/>} label="Scan Type" value={scan.scanDepth} />
       </div>
+      {reducedMode ? <details className="mt-4 rounded-card border border-warning/30 bg-warning/10 p-3 text-sm text-warning" open>
+        <summary className="cursor-pointer font-semibold">External imports could not be resolved; static analysis ran in reduced mode.</summary>
+        <p className="mt-2 leading-6 text-text-mid">{reducedMode}</p>
+      </details> : null}
       {scan.error ? <div className="mt-4 flex gap-2 rounded-card border border-danger/30 bg-danger/10 p-3 text-sm text-danger"><AlertTriangle size={18}/>{scan.error}</div> : null}
     </header>
 

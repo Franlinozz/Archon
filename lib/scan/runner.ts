@@ -91,6 +91,14 @@ async function markStage(scanId: string, stage: string, progress: number, status
   await publishScanEvent({ type: "stage", scanId, stage: stage as never, progress, status, at: new Date().toISOString() });
 }
 
+function publicScanError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/Traceback|crytic_compile|Invalid solc compilation|Source .* not found|File not found/i.test(message)) {
+    return "Static analyzer could not fully resolve external imports. Review scan logs for details; Archon avoids showing raw tool tracebacks in the UI.";
+  }
+  return message.split("\n")[0]?.slice(0, 500) || "Scan failed.";
+}
+
 export async function runScan(scanId: string) {
   await db.query("delete from scan_logs where scan_id = $1", [scanId]);
   await db.query("delete from findings where scan_id = $1 and report_id is null", [scanId]);
@@ -119,9 +127,11 @@ export async function runScan(scanId: string) {
     await publishScanEvent({ type: "done", scanId, reportId: ctx.reportId!, progress: 100, status: "done", at: new Date().toISOString() });
     return ctx;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const detail = error instanceof Error ? error.message : String(error);
+    const message = publicScanError(error);
     await db.query("update scans set status = 'failed', error = $2, current_stage = coalesce(current_stage, 'Failed'), finished_at = now() where id = $1", [scanId, message]);
     await appendScanLog(scanId, "ERROR", message);
+    if (detail !== message) await appendScanLog(scanId, "ERROR", `Diagnostic detail: ${detail.slice(0, 1800)}`);
     await publishScanEvent({ type: "failed", scanId, error: message, status: "failed", at: new Date().toISOString() });
     throw error;
   } finally {

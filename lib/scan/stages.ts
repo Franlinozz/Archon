@@ -1,4 +1,5 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -12,6 +13,7 @@ import { analyzeGasOptimizations } from "@/lib/gas/optimizer";
 import { generateTestsForScan } from "@/lib/tests/generation";
 import { appendScanLog } from "./events";
 import type { PipelineStage, ScanContext, ScanFinding, ScanRecord, Severity } from "./types";
+import { importCandidates, parseFoundryRemappings, solidityImports } from "@/lib/source/solidity";
 
 const execFileAsync = promisify(execFile);
 const TOOL_PATHS = [process.env.ARCHON_ANALYZER_PATH, "/opt/archon-slither/bin", "/root/.local/bin"].filter(Boolean).join(":");
@@ -254,8 +256,109 @@ async function ensureSource(scan: ScanRecord) {
 
 function safeBundlePath(rawPath: string) {
   const normalized = rawPath.replaceAll("\\", "/").split("/").filter(Boolean).join("/");
-  if (!normalized || normalized.startsWith("/") || normalized.includes("../") || normalized === ".." || !normalized.endsWith(".sol")) throw new Error(`Unsafe Solidity bundle path: ${rawPath}`);
+  const allowedConfig = normalized === "remappings.txt" || normalized === "foundry.toml";
+  if (!normalized || normalized.startsWith("/") || normalized.includes("../") || normalized === ".." || (!normalized.endsWith(".sol") && !allowedConfig)) throw new Error(`Unsafe Solidity bundle path: ${rawPath}`);
   return normalized;
+}
+
+function isImportResolutionError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Source .* not found|File not found|not found in workspace|Invalid solc compilation/i.test(message);
+}
+
+function shortToolError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.split("\n").find((line) => /not found|failed|Error:/i.test(line))?.trim().slice(0, 260) ?? message.slice(0, 260);
+}
+
+function missingImportsFromError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return [...new Set([
+    ...Array.from(message.matchAll(/Source\s+"?([^"\n]+\.sol)"?\s+not found/gi)).map((match) => match[1]!),
+    ...Array.from(message.matchAll(/Source\s+([^\s]+\.sol)\s+not found/gi)).map((match) => match[1]!),
+    ...Array.from(message.matchAll(/import\s+\{?[^"']*\}?\s+from\s+"([^"]+\.sol)"/gi)).map((match) => match[1]!),
+  ])].slice(0, 20);
+}
+
+async function scanWorkspaceFiles(root: string) {
+  const files: string[] = [];
+  async function walk(dir: string) {
+    const entries = await import("node:fs/promises").then(({ readdir }) => readdir(dir, { withFileTypes: true })).catch(() => []);
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else if (entry.isFile() && entry.name.endsWith(".sol")) files.push(full);
+    }
+  }
+  await walk(root);
+  return files;
+}
+
+async function workspaceRemappings(workdir: string) {
+  const texts = await Promise.all([
+    readFile(path.join(workdir, "remappings.txt"), "utf8").catch(() => ""),
+    readFile(path.join(workdir, "foundry.toml"), "utf8").catch(() => ""),
+  ]);
+  return texts.flatMap(parseFoundryRemappings);
+}
+
+async function copyLocalDependencyImport(workdir: string, importPath: string) {
+  if (importPath.startsWith("./") || importPath.startsWith("../")) return false;
+  const source = [path.join(process.cwd(), "node_modules", importPath), path.join(process.cwd(), "lib/source/vendor", importPath)].find((candidate) => existsSync(candidate));
+  if (!source) return false;
+  const target = path.join(workdir, importPath);
+  await mkdir(path.dirname(target), { recursive: true });
+  await copyFile(source, target);
+  return true;
+}
+
+async function copyLocalCandidate(workdir: string, candidatePath: string) {
+  const source = [
+    path.join(process.cwd(), candidatePath),
+    path.join(process.cwd(), "node_modules", candidatePath),
+    path.join(process.cwd(), "lib/source/vendor", candidatePath.replace(/^node_modules\//, "")),
+  ].find((candidate) => existsSync(candidate));
+  if (!source) return false;
+  const target = path.join(workdir, candidatePath);
+  await mkdir(path.dirname(target), { recursive: true });
+  await copyFile(source, target);
+  return true;
+}
+
+async function hydrateWorkspaceImports(workdir: string) {
+  const remappings = await workspaceRemappings(workdir);
+  const seen = new Set<string>();
+  const unresolved = new Set<string>();
+  const queue = await scanWorkspaceFiles(workdir);
+
+  while (queue.length && seen.size < 240) {
+    const file = queue.shift()!;
+    const rel = path.relative(workdir, file).replaceAll("\\", "/");
+    if (seen.has(rel)) continue;
+    seen.add(rel);
+    const source = await readFile(file, "utf8").catch(() => "");
+    for (const specifier of solidityImports(source)) {
+      const candidates = importCandidates(specifier, rel, remappings);
+      const found = candidates.find((candidate) => existsSync(path.join(workdir, candidate)));
+      if (found) continue;
+      const copiedCandidate = await (async () => {
+        for (const candidate of candidates) {
+          if (await copyLocalCandidate(workdir, candidate)) return candidate;
+        }
+        return null;
+      })();
+      if (copiedCandidate) {
+        queue.push(path.join(workdir, copiedCandidate));
+        continue;
+      }
+      if (await copyLocalDependencyImport(workdir, specifier)) {
+        queue.push(path.join(workdir, specifier));
+        continue;
+      }
+      unresolved.add(specifier);
+    }
+  }
+  return [...unresolved];
 }
 
 async function writeSourceWorkspace(workdir: string, sourceCode: string, bundle: ScanRecord["source_bundle"], fallbackName: string) {
@@ -279,6 +382,7 @@ export async function createInitialContext(scan: ScanRecord): Promise<ScanContex
   const sourceCode = await ensureSource(scan);
   const workdir = await mkdtemp(path.join(tmpdir(), `archon-scan-${scan.id}-`));
   const sourceFile = await writeSourceWorkspace(workdir, sourceCode, scan.source_bundle, displayContractName(scan, sourceCode));
+  const unresolvedImports = await hydrateWorkspaceImports(workdir);
   const pragma = detectPragma(sourceCode);
   return {
     scan,
@@ -291,7 +395,8 @@ export async function createInitialContext(scan: ScanRecord): Promise<ScanContex
     findings: [],
     insertedFindingIds: new Set<string>(),
     logs: [],
-    metadata: {},
+    metadata: unresolvedImports.length ? { unresolvedImports } : {},
+    reducedMode: unresolvedImports.length ? { reason: "External imports could not be resolved.", unresolvedImports } : undefined,
   };
 }
 
@@ -300,12 +405,25 @@ export async function cleanupContext(ctx: ScanContext) {
 }
 
 async function codeParse(ctx: ScanContext) {
-  const result = await compileSoliditySource({ workdir: ctx.workdir, sourceFile: ctx.sourceFile, pragma: ctx.pragma });
-  ctx.metadata.compile = { ok: true, pragma: ctx.pragma, solcVersion: result.compilerVersion, contractName: ctx.contractName, warnings: result.warnings };
+  try {
+    const result = await compileSoliditySource({ workdir: ctx.workdir, sourceFile: ctx.sourceFile, pragma: ctx.pragma });
+    ctx.metadata.compile = { ok: true, pragma: ctx.pragma, solcVersion: result.compilerVersion, contractName: ctx.contractName, warnings: result.warnings };
+  } catch (error) {
+    if (!isImportResolutionError(error)) throw error;
+    const unresolvedImports = [...new Set([...(ctx.reducedMode?.unresolvedImports ?? []), ...missingImportsFromError(error)])];
+    ctx.reducedMode = { reason: "External imports could not be resolved.", unresolvedImports, detail: shortToolError(error) };
+    ctx.metadata.compile = { ok: false, pragma: ctx.pragma, solcVersion: ctx.solcVersion, reducedMode: true, unresolvedImports, detail: shortToolError(error) };
+    await appendScanLog(ctx.scan.id, "WARN", `External imports could not be resolved (${unresolvedImports.join(", ") || "unknown import"}); static analysis will run in reduced mode.`);
+  }
   return ctx;
 }
 
 async function staticAnalysis(ctx: ScanContext) {
+  if (ctx.reducedMode) {
+    ctx.metadata.slither = { skipped: true, reducedMode: true, unresolvedImports: ctx.reducedMode.unresolvedImports, detail: ctx.reducedMode.detail ?? null };
+    await appendScanLog(ctx.scan.id, "WARN", "Slither skipped because external imports could not be resolved. Archon deterministic rules will still run.");
+    return ctx;
+  }
   const outFile = path.join(ctx.workdir, "slither.json");
   try {
     await execFileAsync(SLITHER_BIN, [ctx.sourceFile, "--solc", SOLC_BIN, "--json", outFile], { timeout: 90_000, env: analyzerEnv, maxBuffer: 10 * 1024 * 1024 });
@@ -315,7 +433,14 @@ async function staticAnalysis(ctx: ScanContext) {
     try {
       await readFile(outFile, "utf8");
     } catch {
-      throw new Error(`Slither failed before producing JSON: ${maybe.message}`);
+      if (isImportResolutionError(`${maybe.message}\n${maybe.stderr ?? ""}`)) {
+        const unresolvedImports = missingImportsFromError(`${maybe.message}\n${maybe.stderr ?? ""}`);
+        ctx.reducedMode = { reason: "External imports could not be resolved.", unresolvedImports, detail: shortToolError(`${maybe.message}\n${maybe.stderr ?? ""}`) };
+        ctx.metadata.slither = { skipped: true, reducedMode: true, unresolvedImports, detail: ctx.reducedMode.detail };
+        await appendScanLog(ctx.scan.id, "WARN", `Slither skipped because external imports could not be resolved (${unresolvedImports.join(", ") || "unknown import"}).`);
+        return ctx;
+      }
+      throw new Error(`Slither failed before producing JSON: ${shortToolError(maybe)}`);
     }
   }
 
@@ -366,13 +491,22 @@ async function gasOptimization(ctx: ScanContext) {
     contractName: ctx.contractName,
   });
   for (const finding of analysis.findings) addFinding(ctx, finding);
-  const measurement = await measureGasOptimizations({
-    source: ctx.sourceCode,
-    sourceFile: ctx.sourceFile,
-    contractName: ctx.contractName,
-    opportunities: analysis.profile.opportunities,
-    onProgress: (message) => appendScanLog(ctx.scan.id, "INFO", message),
-  });
+  const measurement = ctx.reducedMode ? {
+    version: "archon.gasMeasurement.v1",
+    rulesetHash: "reduced-mode",
+    contractHash: createHash("sha256").update(ctx.sourceCode).digest("hex"),
+    status: "skipped",
+    measuredAt: new Date().toISOString(),
+    source: "deterministic-estimate",
+    patches: [],
+    forge: { attempted: false, ok: false, command: null, gasReport: null, error: "Reduced mode: external imports unresolved." },
+  } : await measureGasOptimizations({
+      source: ctx.sourceCode,
+      sourceFile: ctx.sourceFile,
+      contractName: ctx.contractName,
+      opportunities: analysis.profile.opportunities,
+      onProgress: (message) => appendScanLog(ctx.scan.id, "INFO", message),
+    });
   ctx.metadata.gasOptimizer = { ...analysis.profile, measurement };
   return ctx;
 }
@@ -411,6 +545,7 @@ async function reportAssembly(ctx: ScanContext) {
     [ctx.scan.id],
   );
   const top = enriched.rows.find((row) => row.severity === "critical" || row.severity === "high") ?? enriched.rows[0];
+  const reducedNote = ctx.reducedMode ? ` External imports could not be resolved (${ctx.reducedMode.unresolvedImports.join(", ") || "unknown import"}); static analysis ran in reduced mode, so Slither/import-dependent checks were skipped while Archon's deterministic rules still ran.` : "";
   const executiveSummary = top
     ? `Archon completed a read-only Mantle Mainnet audit of ${ctx.contractName} and found ${ctx.findings.length} deterministic finding${ctx.findings.length === 1 ? "" : "s"}. The highest-priority issue is ${top.title}, with risk score ${risk}/100 based on severity-weighted findings. ${top.summary ?? "Each finding includes line-level traceability and recommended engineering remediation."} Review the recommended fixes and run regression tests before deployment.`
     : `Archon completed a read-only Mantle Mainnet audit of ${ctx.contractName}. No deterministic findings were persisted for this scan, but this report should still be reviewed before relying on the result.`;
@@ -422,9 +557,9 @@ async function reportAssembly(ctx: ScanContext) {
       ctx.contractName,
       risk,
       JSON.stringify(counts),
-      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [], lineCount: ctx.sourceCode.split("\n").length, gasOptimizer: ctx.metadata.gasOptimizer ?? null }),
+      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [], lineCount: ctx.sourceCode.split("\n").length, gasOptimizer: ctx.metadata.gasOptimizer ?? null, reducedMode: ctx.reducedMode ?? null }),
       JSON.stringify(ctx.metadata.generatedTests ?? null),
-      executiveSummary,
+      `${executiveSummary}${reducedNote}`,
       createHash("sha256").update(`${ctx.scan.id}:${ctx.contractName}:${JSON.stringify(counts)}:${ctx.findings.length}`).digest("hex"),
     ],
   );
