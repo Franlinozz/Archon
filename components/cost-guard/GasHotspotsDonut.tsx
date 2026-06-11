@@ -67,7 +67,7 @@ export function GasHotspotsDonut({ data, total }: { data: Hotspot[]; total: numb
           viewport={viewportOnce}
           transition={{ duration: 0.3 }}
         >
-          <svg viewBox={`0 0 ${VB} ${VB}`} width="240" height="240" className="overflow-visible" role="img" aria-label="Gas hotspots by contract (sample data)">
+          <svg viewBox={`0 0 ${VB} ${VB}`} width="240" height="240" className="overflow-visible" role="img" aria-label="Gas hotspots by contract from persisted gas reports">
             <defs>
               {slices.map((s, i) => (
                 <linearGradient key={i} id={`donut-${i}`} x1="0" y1="0" x2="1" y2="1">

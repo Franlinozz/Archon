@@ -66,6 +66,11 @@ function reducedModeFromLogs(logs: LogLine[]) {
   return warning?.message ?? null;
 }
 
+function aiPartialFromLogs(logs: LogLine[]) {
+  const warning = [...logs].reverse().find((line) => /AI enrichment partial|AI enrichment bounded|deterministic explanations used/i.test(line.message));
+  return warning?.message ?? null;
+}
+
 export function LiveScanClient({ scanId }: { scanId: string }) {
   const reduceMotion = useReducedMotion();
   const [scan, setScan] = useState<Scan | null>(null);
@@ -135,6 +140,7 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
   if (!scan) return <div className="rounded-card border border-border-subtle bg-surface-1 p-8 text-text-mid">Loading live scan…</div>;
   const isRunning = scan.status !== "done" && scan.status !== "failed";
   const reducedMode = reducedModeFromLogs(logs);
+  const aiPartial = aiPartialFromLogs(logs);
 
   return <div className="space-y-6">
     <header className="rounded-card border border-border-subtle bg-surface-1 p-5">
@@ -156,6 +162,10 @@ export function LiveScanClient({ scanId }: { scanId: string }) {
       {reducedMode ? <details className="mt-4 rounded-card border border-warning/30 bg-warning/10 p-3 text-sm text-warning" open>
         <summary className="cursor-pointer font-semibold">External imports could not be resolved; static analysis ran in reduced mode.</summary>
         <p className="mt-2 leading-6 text-text-mid">{reducedMode}</p>
+      </details> : null}
+      {aiPartial ? <details className="mt-4 rounded-card border border-info/30 bg-info/10 p-3 text-sm text-info" open>
+        <summary className="cursor-pointer font-semibold">AI enrichment partial — deterministic explanations were used.</summary>
+        <p className="mt-2 leading-6 text-text-mid">{aiPartial}</p>
       </details> : null}
       {scan.error ? <div className="mt-4 flex gap-2 rounded-card border border-danger/30 bg-danger/10 p-3 text-sm text-danger"><AlertTriangle size={18}/>{scan.error}</div> : null}
     </header>

@@ -88,8 +88,12 @@ async function loadRows({ metric, sourceKind, q }: { metric: string; sourceKind:
        left join gas_optimizations go on go.gas_report_id=gr.id
        where ${conditions.join(" and ")}
        group by gr.id
+     ), deduped as (
+       select *, row_number() over (partition by coalesce("sourceHash", "gasReportId"::text) order by ${orderBy[metric as keyof typeof orderBy]}) as rn
+       from ranked
      )
-     select * from ranked
+     select * from deduped
+     where rn = 1
      order by ${orderBy[metric as keyof typeof orderBy]}
      limit 50`,
     values,

@@ -1,20 +1,22 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
-import { appendScanLog } from "@/lib/scan/events";
+import { appendScanLog, publishScanEvent } from "@/lib/scan/events";
 
 export const FINDING_ENRICHMENT_PROMPT_VERSION = "finding-enrichment-v1-2026-05-22";
 const MODEL = "gpt-4o-mini";
-const BATCH_SIZE = 4;
+const BATCH_SIZE = Number(process.env.ARCHON_AI_ENRICHMENT_BATCH_SIZE ?? 5);
+const CALL_TIMEOUT_MS = Number(process.env.ARCHON_AI_ENRICHMENT_TIMEOUT_MS ?? 45_000);
+const MAX_BATCHES_DEFAULT = Number(process.env.ARCHON_AI_ENRICHMENT_MAX_BATCHES ?? 8);
 
 const enrichmentSchema = z.object({
-  summary: z.string().min(20).max(900),
-  why_mantle: z.string().min(20).max(900),
-  exploit_scenario: z.string().min(20).max(900),
-  recommended_fix: z.string().min(20).max(1200),
-  patch_diff: z.string().min(10).max(5000),
-  confidence: z.number().min(0).max(1),
-  gas_impact: z.string().nullable().optional(),
+  summary: z.coerce.string().min(20).max(900),
+  why_mantle: z.coerce.string().min(20).max(900),
+  exploit_scenario: z.coerce.string().min(20).max(900),
+  recommended_fix: z.coerce.string().min(20).max(1200),
+  patch_diff: z.coerce.string().min(10).max(5000),
+  confidence: z.coerce.number().min(0).max(1).catch(0.74),
+  gas_impact: z.coerce.string().nullable().optional().catch(null),
 });
 
 const batchResponseSchema = z.object({
@@ -35,6 +37,7 @@ type FindingRow = {
 };
 
 type Enrichment = z.infer<typeof enrichmentSchema>;
+type ScanAiBudget = { lineCount: number; maxBatches: number };
 
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -63,10 +66,10 @@ function stripJsonFences(content: string) {
 function patchFor(finding: FindingRow) {
   const text = `${finding.category} ${finding.title}`.toLowerCase();
   if (text.includes("reentrancy") || text.includes("external value transfer")) {
-    return `--- a/${finding.file}\n+++ b/${finding.file}\n@@\n-        (bool ok, ) = msg.sender.call{value: amount}(\"\");\n-        require(ok, \"TRANSFER_FAILED\");\n-\n         balances[msg.sender] -= amount;\n+\n+        (bool ok, ) = msg.sender.call{value: amount}(\"\");\n+        require(ok, \"TRANSFER_FAILED\");`;
+    return `--- a/${finding.file}\n+++ b/${finding.file}\n@@\n-        (bool ok, ) = msg.sender.call{value: amount}("");\n-        require(ok, "TRANSFER_FAILED");\n-\n         balances[msg.sender] -= amount;\n+\n+        (bool ok, ) = msg.sender.call{value: amount}("");\n+        require(ok, "TRANSFER_FAILED");`;
   }
   if (text.includes("slippage")) {
-    return `--- a/${finding.file}\n+++ b/${finding.file}\n@@\n         amountOut = (amountIn * 97) / 100;\n-        minAmountOut;\n+        require(amountOut >= minAmountOut, \"SLIPPAGE_EXCEEDED\");`;
+    return `--- a/${finding.file}\n+++ b/${finding.file}\n@@\n         amountOut = (amountIn * 97) / 100;\n-        minAmountOut;\n+        require(amountOut >= minAmountOut, "SLIPPAGE_EXCEEDED");`;
   }
   if (text.includes("gas") || text.includes("cache-array")) {
     return `--- a/${finding.file}\n+++ b/${finding.file}\n@@\n-        for (uint256 i = 0; i < depositors.length; i++) {\n+        uint256 depositorCount = depositors.length;\n+        for (uint256 i = 0; i < depositorCount; i++) {`;
@@ -94,7 +97,8 @@ function fallbackEnrichment(finding: FindingRow): Enrichment {
 async function fetchCache(finding: FindingRow) {
   const key = cacheKey(finding);
   const result = await db.query<{ response: Enrichment }>("select response from ai_cache where cache_key = $1", [key]);
-  return result.rows[0]?.response ? { key, enrichment: enrichmentSchema.parse(result.rows[0].response), hit: true } : { key, enrichment: null, hit: false };
+  const fallback = fallbackEnrichment(finding);
+  return result.rows[0]?.response ? { key, enrichment: enrichmentSchema.catch(fallback).parse(result.rows[0].response), hit: true } : { key, enrichment: null, hit: false };
 }
 
 async function storeCache(key: string, enrichment: Enrichment) {
@@ -114,6 +118,7 @@ function promptFor(findings: FindingRow[]) {
     "Explain and recommend; do not claim the contract is safe, unsafe, guaranteed exploitable, certified, or fully audited.",
     "Patch diffs must be minimal unified diffs and must only touch the shown file/snippet. If unsure, provide a conservative validation/checks-effects-interactions diff.",
     "Return shape: { findings: [{ id, enrichment: { summary, why_mantle, exploit_scenario, recommended_fix, patch_diff, confidence, gas_impact } }] }.",
+    "confidence must be a number from 0 to 1.",
     "Findings:",
     JSON.stringify(findings.map((finding) => ({
       id: finding.id,
@@ -132,7 +137,7 @@ async function callOpenAI(findings: FindingRow[]) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -158,31 +163,55 @@ async function callOpenAI(findings: FindingRow[]) {
   }
 }
 
-async function enrichMisses(scanId: string, misses: Array<{ finding: FindingRow; key: string }>) {
-  for (let i = 0; i < misses.length; i += BATCH_SIZE) {
-    const batch = misses.slice(i, i + BATCH_SIZE);
+async function emitAiProgress(scanId: string, batchIndex: number, totalBatches: number) {
+  const progress = Math.min(74, 63 + Math.ceil(((batchIndex + 1) / Math.max(1, totalBatches)) * 10));
+  await db.query("update scans set progress=$2, current_stage='AI Reasoning' where id=$1 and status='running'", [scanId, progress]);
+  await publishScanEvent({ type: "stage", scanId, stage: "AI Reasoning", progress, status: "running", at: new Date().toISOString() });
+}
+
+async function enrichMisses(scanId: string, misses: Array<{ finding: FindingRow; key: string }>, budget: ScanAiBudget) {
+  const maxFindings = Math.max(0, budget.maxBatches * BATCH_SIZE);
+  const eligible = misses.slice(0, maxFindings);
+  const skipped = misses.slice(maxFindings);
+  const batches: Array<Array<{ finding: FindingRow; key: string }>> = [];
+  for (let i = 0; i < eligible.length; i += BATCH_SIZE) batches.push(eligible.slice(i, i + BATCH_SIZE));
+  let fallbackCount = 0;
+
+  if (skipped.length) {
+    await appendScanLog(scanId, "WARN", `AI enrichment bounded for large contract (${budget.lineCount} lines): deterministic explanations used for ${skipped.length} finding(s) beyond ${budget.maxBatches} timed batch(es).`);
+  }
+
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex]!;
     let byId = new Map<string, Enrichment>();
     try {
       const parsed = await callOpenAI(batch.map((item) => item.finding));
       byId = new Map(parsed.findings.map((item) => [item.id, item.enrichment]));
-      await appendScanLog(scanId, "INFO", `AI enrichment miss: gpt-4o-mini enriched ${batch.length} finding(s)`);
-    } catch (firstError) {
-      try {
-        const parsed = await callOpenAI(batch.map((item) => item.finding));
-        byId = new Map(parsed.findings.map((item) => [item.id, item.enrichment]));
-        await appendScanLog(scanId, "INFO", `AI enrichment retry succeeded for ${batch.length} finding(s)`);
-      } catch (secondError) {
-        await appendScanLog(scanId, "WARN", `AI enrichment fallback used for ${batch.length} finding(s): ${secondError instanceof Error ? secondError.message : String(secondError)}`);
-      }
+      await appendScanLog(scanId, "INFO", `AI enrichment batch ${batchIndex + 1}/${batches.length}: gpt-4o-mini enriched ${parsed.findings.length}/${batch.length} finding(s).`);
+    } catch {
+      fallbackCount += batch.length;
+      await appendScanLog(scanId, "WARN", `AI enrichment batch ${batchIndex + 1}/${batches.length} timed out or failed; deterministic explanations used for ${batch.length} finding(s).`);
     }
 
     for (const item of batch) {
-      const enrichment = byId.get(item.finding.id) ?? fallbackEnrichment(item.finding);
-      const safe = enrichmentSchema.parse(enrichment);
+      const fallback = fallbackEnrichment(item.finding);
+      const enrichment = byId.get(item.finding.id);
+      if (!enrichment && byId.size) fallbackCount += 1;
+      const safe = enrichmentSchema.catch(fallback).parse(enrichment ?? fallback);
       await storeCache(item.key, safe);
       await updateFinding(item.finding.id, safe);
     }
+    await emitAiProgress(scanId, batchIndex, batches.length + (skipped.length ? 1 : 0));
   }
+
+  for (const item of skipped) {
+    const safe = fallbackEnrichment(item.finding);
+    await storeCache(item.key, safe);
+    await updateFinding(item.finding.id, safe);
+    fallbackCount += 1;
+  }
+  if (fallbackCount) await appendScanLog(scanId, "WARN", `AI enrichment partial — deterministic explanations used for ${fallbackCount} finding(s).`);
+  return { batches: batches.length, fallbackCount, skipped: skipped.length };
 }
 
 async function updateFinding(id: string, enrichment: Enrichment) {
@@ -193,11 +222,16 @@ async function updateFinding(id: string, enrichment: Enrichment) {
 }
 
 export async function enrichFindingsForScan(scanId: string) {
-  const result = await db.query<FindingRow>(
-    `select id, severity, category, title, file, line_start, line_end, code_snippet, summary, recommended_fix
-     from findings where scan_id = $1 order by sort_index nulls last, id`,
-    [scanId],
-  );
+  const [result, scanResult] = await Promise.all([
+    db.query<FindingRow>(
+      `select id, severity, category, title, file, line_start, line_end, code_snippet, summary, recommended_fix
+       from findings where scan_id = $1 order by sort_index nulls last, id`,
+      [scanId],
+    ),
+    db.query<{ lines: string }>("select coalesce(array_length(string_to_array(source_code, E'\\n'), 1), 0)::text as lines from scans where id=$1", [scanId]),
+  ]);
+  const lineCount = Number(scanResult.rows[0]?.lines ?? 0);
+  const maxBatches = lineCount >= 1500 ? Math.min(MAX_BATCHES_DEFAULT, 4) : MAX_BATCHES_DEFAULT;
   const misses: Array<{ finding: FindingRow; key: string }> = [];
   let hits = 0;
   for (const finding of result.rows) {
@@ -210,6 +244,6 @@ export async function enrichFindingsForScan(scanId: string) {
     }
   }
   if (hits) await appendScanLog(scanId, "INFO", `ai_cache hit for ${hits}/${result.rows.length} finding enrichment(s)`);
-  if (misses.length) await enrichMisses(scanId, misses);
-  return { total: result.rows.length, hits, misses: misses.length };
+  const batchResult = misses.length ? await enrichMisses(scanId, misses, { lineCount, maxBatches }) : { batches: 0, fallbackCount: 0, skipped: 0 };
+  return { total: result.rows.length, hits, misses: misses.length, ...batchResult, timeoutMs: CALL_TIMEOUT_MS };
 }

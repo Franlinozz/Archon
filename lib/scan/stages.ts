@@ -14,6 +14,7 @@ import { generateTestsForScan } from "@/lib/tests/generation";
 import { appendScanLog } from "./events";
 import type { PipelineStage, ScanContext, ScanFinding, ScanRecord, Severity } from "./types";
 import { dependencyRemapGroupsForSource, dependencyRemappingsForSource, importCandidates, parseFoundryRemappings, solcIncludePaths, solcRemapArgs, solidityImports, type SolidityRemapping } from "@/lib/source/solidity";
+import { deriveContractName } from "@/lib/source/names";
 
 const execFileAsync = promisify(execFile);
 const TOOL_PATHS = [process.env.ARCHON_ANALYZER_PATH, "/opt/archon-slither/bin", "/root/.local/bin"].filter(Boolean).join(":");
@@ -210,14 +211,9 @@ export function collectProtocolRuleFindings(source: string, sourceFile = "Contra
   return findings;
 }
 
-function detectContractName(source: string) {
-  return source.match(/\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? "Contract";
-}
-
-function displayContractName(scan: ScanRecord, source: string) {
+function displayContractName(scan: ScanRecord, source: string, compiledNames?: string[]) {
   const label = scan.source_kind === "paste" ? scan.source_ref?.trim() : null;
-  if (label && !/^0x[a-fA-F0-9]{40}$/.test(label) && label.length <= 80) return label;
-  return detectContractName(source);
+  return deriveContractName(source, { label, compiledNames });
 }
 
 function detectPragma(source: string) {
@@ -436,6 +432,7 @@ export async function cleanupContext(ctx: ScanContext) {
 async function codeParse(ctx: ScanContext) {
   try {
     const result = await compileSoliditySource({ workdir: ctx.workdir, sourceFile: ctx.sourceFile, pragma: ctx.pragma });
+    ctx.contractName = displayContractName(ctx.scan, ctx.sourceCode, result.contractNames);
     ctx.metadata.compile = { ok: true, pragma: ctx.pragma, solcVersion: result.compilerVersion, contractName: ctx.contractName, warnings: result.warnings };
   } catch (error) {
     if (!isImportResolutionError(error)) throw error;
@@ -603,7 +600,7 @@ async function reportAssembly(ctx: ScanContext) {
       ctx.contractName,
       risk,
       JSON.stringify(counts),
-      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [], lineCount: ctx.sourceCode.split("\n").length, gasOptimizer: ctx.metadata.gasOptimizer ?? null, reducedMode: ctx.reducedMode ?? null }),
+      JSON.stringify({ sourceKind: ctx.scan.source_kind, network: ctx.scan.network, pragma: ctx.pragma, solcVersion: ctx.solcVersion, protocols: ctx.scan.protocols ?? [], lineCount: ctx.sourceCode.split("\n").length, gasOptimizer: ctx.metadata.gasOptimizer ?? null, reducedMode: ctx.reducedMode ?? null, aiReasoning: ctx.metadata.aiReasoning ?? null }),
       JSON.stringify(ctx.metadata.generatedTests ?? null),
       `${executiveSummary}${reducedNote}`,
       createHash("sha256").update(`${ctx.scan.id}:${ctx.contractName}:${JSON.stringify(counts)}:${ctx.findings.length}`).digest("hex"),

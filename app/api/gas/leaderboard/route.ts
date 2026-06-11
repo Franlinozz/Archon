@@ -63,8 +63,12 @@ export async function GET(request: Request) {
        left join gas_optimizations go on go.gas_report_id=gr.id
        where ${conditions.join(" and ")}
        group by gr.id
+     ), deduped as (
+       select *, row_number() over (partition by coalesce("sourceHash", "gasReportId"::text) order by ${orderBy[metric]}) as rn
+       from ranked
      )
-     select * from ranked gr
+     select * from deduped gr
+     where rn = 1
      order by ${orderBy[metric]}
      limit $${values.length}`,
     values,

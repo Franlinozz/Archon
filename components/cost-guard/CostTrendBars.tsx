@@ -49,7 +49,7 @@ export function CostTrendBars({ data }: { data: TrendPoint[] }) {
         ))}
       </div>
 
-      <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" className="h-72 overflow-visible" role="img" aria-label="Stacked cost trend by day (sample data)">
+      <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" className="h-72 overflow-visible" role="img" aria-label="Stacked cost trend by day from persisted gas reports">
         <defs>
           {SERIES.map((s) => (
             <linearGradient key={s.key} id={`bar-${s.key}`} x1="0" y1="0" x2="0" y2="1">

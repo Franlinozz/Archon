@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: "Independently re-check Archon audit proofs anchored on Mantle Mainnet. No wallet required.",
 };
 
-type ProofRow = { reportId: string; contractName: string; riskScore: number; reportHash: string; txHash: string | null; loggedAt: string | null };
+type ProofRow = { reportId: string; contractName: string; riskScore: number; reportHash: string; txHash: string | null; loggedAt: string | null; sourceHash: string | null };
 
 function short(v: string) { return v.length > 18 ? `${v.slice(0, 10)}…${v.slice(-6)}` : v; }
 
@@ -23,10 +23,13 @@ export default async function PublicProofsPage() {
   let degraded = false;
   try {
     const result = await db.query<ProofRow>(
-      `select p.report_id as "reportId", r.contract_name as "contractName", r.risk_score as "riskScore", p.report_hash as "reportHash", p.tx_hash as "txHash", p.logged_at as "loggedAt"
-         from proofs p join reports r on r.id = p.report_id
-        where p.tx_hash is not null
-        order by p.logged_at desc nulls last limit 50`,
+      `with ranked as (
+         select p.report_id as "reportId", r.contract_name as "contractName", r.risk_score as "riskScore", p.report_hash as "reportHash", p.tx_hash as "txHash", p.logged_at as "loggedAt", encode(digest(coalesce(s.source_code,''), 'sha256'), 'hex') as "sourceHash",
+                row_number() over (partition by encode(digest(coalesce(s.source_code,''), 'sha256'), 'hex') order by p.logged_at desc nulls last, r.risk_score desc, r.created_at desc) as rn
+           from proofs p join reports r on r.id = p.report_id join scans s on s.id = r.scan_id
+          where p.tx_hash is not null
+       )
+       select "reportId", "contractName", "riskScore", "reportHash", "txHash", "loggedAt", "sourceHash" from ranked where rn=1 order by "loggedAt" desc nulls last limit 50`,
     );
     rows = result.rows;
   } catch (error) {

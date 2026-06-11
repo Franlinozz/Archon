@@ -16,6 +16,7 @@ import type { GasOptimizerProfile } from "@/lib/gas/optimizer";
 import { proofRegistryAddress } from "@/lib/proof/archonRegistry";
 import { deterministicReportHash } from "@/lib/proof/canonical";
 import { compileSoliditySource } from "@/lib/solidity/compiler";
+import { deriveContractName } from "@/lib/source/names";
 
 const execFileAsync = promisify(execFile);
 const FORGE_BIN = process.env.FORGE_BIN ?? "forge";
@@ -43,13 +44,11 @@ function sha256(value: string) {
 }
 
 function contractName(source: string) {
-  return source.match(/\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? "Contract";
+  return deriveContractName(source);
 }
 
 function displayContractName(input: GasScanInput, source: string) {
-  const label = input.contractLabel?.trim();
-  if (label && label.length <= 80) return label;
-  return contractName(source);
+  return deriveContractName(source, { label: input.contractLabel });
 }
 
 async function sourceFromAddress(address: string) {

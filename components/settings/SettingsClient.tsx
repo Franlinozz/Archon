@@ -311,7 +311,7 @@ function PlanCard() {
   return (
     <Card title="Plan">
       <Row label="Tier" value="Hackathon build" />
-      <Row label="Cost controls" value="Cost Guard (advisory, sample data)" />
+      <Row label="Cost controls" value="Cost Guard (persisted gas reports only; samples labeled)" />
       <span className="mt-1 inline-flex items-center gap-2 rounded-pill border border-border-subtle bg-surface-2 px-3 py-1 text-xs text-text-low">Personal workspace</span>
     </Card>
   );

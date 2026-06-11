@@ -38,7 +38,8 @@ type GasOptimizerScope = {
   } | null;
 };
 type ReducedModeScope = { reason: string; unresolvedImports?: string[]; detail?: string };
-type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; reducedMode?: ReducedModeScope | null; lineCount?: number; pragma?: string; solcVersion?: string; sourceKind?: string; protocols?: string[]; dependencies?: string[]; blockNumber?: string | number | null };
+type AiReasoningScope = { fallbackCount?: number; skipped?: number; timeoutMs?: number; batches?: number };
+type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; reducedMode?: ReducedModeScope | null; aiReasoning?: AiReasoningScope | null; lineCount?: number; pragma?: string; solcVersion?: string; sourceKind?: string; protocols?: string[]; dependencies?: string[]; blockNumber?: string | number | null };
 type Report = { id: string; scanId: string; contractName: string; riskScore: number; severityCounts: Record<string, number>; scope: ReportScope; executiveSummary: string; reportHash: string; createdAt: string; startedAt: string | null; finishedAt: string | null; scanDepth: string; network: string };
 type Challenge = { id: string; targetType: string; challenger: string | null; title: string; rationale: string; evidenceUrl: string | null; status: string; challengeHash: string; referenceTxHash: string | null; referenceReportHash: string | null; createdAt: string };
 
@@ -64,6 +65,7 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
   const publicReportPath = `/r/${report.id}`;
   const gasOptimizer = report.scope?.gasOptimizer ?? null;
   const reducedMode = report.scope?.reducedMode ?? null;
+  const aiReasoning = report.scope?.aiReasoning ?? null;
   const pricedDeployFee = gasOptimizer?.pricing?.deployDataFeeMnt ? `${Number(gasOptimizer.pricing.deployDataFeeMnt).toFixed(6)} MNT` : "not measured";
   const l2GasPrice = gasOptimizer?.pricing?.l2GasPriceWei ? `${Number(gasOptimizer.pricing.l2GasPriceWei) / 1e9} gwei` : "unavailable";
   const gasOpportunities = gasOptimizer?.opportunities ?? [];
@@ -98,6 +100,10 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
       <p className="mt-2 leading-6 text-text-mid">Archon skipped Slither/import-dependent checks and ran deterministic AST/rule analysis on the parseable units.</p>
       {reducedMode.unresolvedImports?.length ? <p className="mt-2 font-mono text-xs text-text-low">Unresolved: {reducedMode.unresolvedImports.join(", ")}</p> : null}
       {reducedMode.detail ? <p className="mt-2 font-mono text-xs text-text-low">Detail: {reducedMode.detail}</p> : null}
+    </details> : null}
+    {aiReasoning && Number(aiReasoning.fallbackCount ?? 0) > 0 ? <details className="rounded-card border border-info/30 bg-info/10 p-4 text-sm text-info" open>
+      <summary className="flex cursor-pointer items-center gap-2 font-semibold"><AlertTriangle size={16} /> AI enrichment partial — deterministic explanations were used.</summary>
+      <p className="mt-2 leading-6 text-text-mid">{Number(aiReasoning.fallbackCount ?? 0)} finding(s) used deterministic fallback after bounded AI enrichment. Timed calls are capped at {Math.round(Number(aiReasoning.timeoutMs ?? 45000) / 1000)}s per batch so large scans keep moving.</p>
     </details> : null}
 
     <div className="grid gap-4 xl:grid-cols-4">

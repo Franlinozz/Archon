@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import path from "node:path";
+import { solidityDefinitionNames } from "@/lib/source/names";
 
 export const MAX_SOURCE_BYTES = Number(process.env.ARCHON_SOURCE_MAX_BYTES ?? 350_000);
 export const MAX_UPLOAD_BYTES = Number(process.env.ARCHON_UPLOAD_MAX_BYTES ?? 1_500_000);
@@ -42,7 +43,7 @@ export function validateSoliditySource(source: string, label = "Source") {
 }
 
 export function contractNames(source: string) {
-  return Array.from(source.matchAll(/\b(?:contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/g)).map((match) => match[1]!).slice(0, 20);
+  return solidityDefinitionNames(source).slice(0, 20);
 }
 
 export function solidityImports(source: string) {

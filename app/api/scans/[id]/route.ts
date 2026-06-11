@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
+import { deriveContractName } from "@/lib/source/names";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
 function fallbackContractName(scan: { sourceKind?: string; sourceRef?: string | null; source_code?: string | null }) {
   const label = scan.sourceKind === "paste" ? scan.sourceRef?.trim() : null;
-  if (label && !/^0x[a-fA-F0-9]{40}$/.test(label)) return label;
-  return scan.source_code?.match(/\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? "Contract";
+  return deriveContractName(scan.source_code ?? "", { label });
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
