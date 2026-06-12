@@ -48,6 +48,7 @@ export const docsNav: DocsNavGroup[] = [
       { title: "ERC-8004 identity", href: "/docs/on-chain-proofs/erc-8004-identity" },
       { title: "Proof logging", href: "/docs/on-chain-proofs/proof-logging" },
       { title: "Verifying a proof", href: "/docs/on-chain-proofs/verifying-a-proof" },
+      { title: "Verified builds", href: "/docs/on-chain-proofs/verified-builds" },
       { title: "ArchonProofRegistry", href: "/docs/on-chain-proofs/archon-proof-registry" },
     ],
   },

@@ -5,6 +5,12 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V4.1 — Verified build attestations
+
+- New `/app/attest`: deterministic compile-and-compare between deployed Mantle runtime bytecode and claimed Solidity source — immutable references masked via the compiler's own `immutableReferences`, CBOR metadata trailer handled as a distinct `partial-metadata` result, config/compile failures reported as errors, never as mismatches.
+- Every attestation gets a public, wallet-free verification page at `/attest/<id>` with the canonical result object and re-derivation instructions; the attestation hash is anchorable via ArchonProofRegistry's permissionless `logAuditProof`.
+- Address-scan audit reports display an "Audited source = deployed bytecode (attested)" marker when a passing attestation exists for the scanned address.
+
 ## V4.0 — Archon Sentinel: continuous audit for deployed contracts
 
 - New `/app/sentinel` watchlist: deployed Mantle addresses are checked every cycle for bytecode drift, EIP-1967 implementation/admin drift, owner changes, and newly verified source (reduced mode for unverified bytecode, clearly labeled).

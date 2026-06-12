@@ -65,6 +65,7 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **Leaderboard** | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
 | **Challenge** | Public challenge records against reports and optimizations | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
 | **Sentinel** | Continuous audit of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
+| **Verified builds** | Deterministic attestation that deployed bytecode matches claimed source (immutables masked, metadata-aware), with public verification pages and anchorable hashes | [Verified builds docs](https://archonaudit.xyz/docs/on-chain-proofs/verified-builds) |
 
 ## Quickstart
 

@@ -82,8 +82,10 @@
 <text x="336.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">ArchonProofRegistry</text>
 <rect x="423" y="573" width="167" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
 <text x="506.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">ERC-8004 identity #97</text>
-<rect x="600" y="573" width="195" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="697.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">Public verify + challenge</text>
+<rect x="600" y="573" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="673" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">Build attestations</text>
+<rect x="756" y="573" width="195" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="853.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">Public verify + challenge</text>
 <line x1="133" y1="627" x2="133" y2="646" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
 <rect x="24" y="650" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
 <rect x="24" y="650" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>

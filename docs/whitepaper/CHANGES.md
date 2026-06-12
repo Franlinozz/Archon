@@ -12,6 +12,7 @@ The PDF is the citable edition and is versioned — never silently edited. Claim
 ### Post-v2.0 deliveries (no claim changes; roadmap items shipped)
 
 - 2026-06-12 — Sentinel (roadmap "Next" item: continuous monitoring of deployed contracts with drift alerts) shipped; documented at `/docs/audit/sentinel`.
+- 2026-06-12 — Verified build attestations (roadmap "Later" item: source-to-bytecode matching, extends §06) shipped; documented at `/docs/on-chain-proofs/verified-builds`.
 
 ## v1 — 2026-06-08 (generated `archon-whitepaper.pdf`)
 

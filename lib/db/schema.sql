@@ -217,3 +217,26 @@ create table if not exists sentinel_settings (
   webhook_url text,
   updated_at timestamptz default now()
 );
+
+-- Verified build attestations (F2): deployed bytecode vs claimed source.
+create table if not exists attestations (
+  id uuid primary key default gen_random_uuid(),
+  address text not null,
+  chain_id int default 5000,
+  source_ref text,
+  contract_name text,
+  compiler_version text,
+  settings jsonb,
+  source_hash text,
+  status text default 'queued',
+  match_type text,
+  onchain_bytecode_hash text,
+  compiled_bytecode_hash text,
+  attestation_hash text,
+  detail jsonb,
+  source_bundle jsonb,
+  error text,
+  created_at timestamptz default now(),
+  finished_at timestamptz
+);
+create index if not exists attestations_address_idx on attestations(address, created_at desc);

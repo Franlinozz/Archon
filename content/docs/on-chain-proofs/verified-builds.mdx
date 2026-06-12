@@ -1,0 +1,31 @@
+---
+title: Verified builds
+description: Attest that deployed Mantle bytecode matches claimed Solidity source — deterministic, metadata-aware, anchorable.
+---
+
+# Verified builds (attestations)
+
+An audit of source code means little if the deployed bytecode is something else. A **build attestation** proves the link: Archon fetches the runtime bytecode at a Mantle address, compiles the claimed source with the declared compiler settings in an isolated workspace, and compares — deterministically, with no AI anywhere in the path.
+
+## Match types
+
+| Result | Meaning |
+| --- | --- |
+| `exact` | Byte-for-byte identical runtime bytecode (after immutable-reference masking). |
+| `partial-metadata` | The executable code matches exactly; only the CBOR metadata trailer differs (compiler fingerprint/source-path encoding). The deployed logic **is** the claimed logic — labeled distinctly, never passed off as `exact`. |
+| `mismatch` | The deployed code genuinely differs from this source compiled with these settings. |
+
+Compile and configuration failures (e.g. a declared compiler version that isn't available) are reported as **errors, never as mismatches** — a config problem must not read like a security finding.
+
+## How the comparison works
+
+- **Runtime bytecode only.** Creation bytecode embeds constructor arguments; comparing runtime code removes that ambiguity entirely.
+- **Immutables masked correctly.** The ranges come from the compiler's own `immutableReferences` output, not regex guessing.
+- **Metadata-aware.** The CBOR trailer's length is decoded from its final two bytes; stripped comparison is its own labeled result.
+- **Deterministic record.** The result object `{address, chainId, sourceRef, sourceHash, contractName, compiler, settings, matchType, bytecodeHashes}` is canonicalized and hashed exactly like report proofs — and that hash is anchorable on-chain via ArchonProofRegistry's permissionless `logAuditProof`. No new contract.
+
+## Using it
+
+Run attestations at [/app/attest](/app/attest); every result has a public, wallet-free verification page at `/attest/<id>` showing the full result object and how to re-derive it yourself. Supported compilers today: solc `0.8.24` (pinned) and `0.8.30`.
+
+Audit reports for address scans display an **“Audited source = deployed bytecode (attested)”** marker when a passing attestation exists for that address — closing the classic audit loophole.

@@ -8,6 +8,7 @@ import {
   FileCode2,
   FileSearch,
   FileText,
+  Fingerprint,
   FlaskConical,
   Gauge,
   LayoutDashboard,
@@ -47,6 +48,7 @@ const navGroups: NavGroup[] = [
   ] },
   { title: "Attestation", items: [
     { label: "On-chain Proof", href: "/app/proofs", icon: BadgeCheck },
+    { label: "Verified Builds", href: "/app/attest", icon: Fingerprint, match: "/app/attest" },
     { label: "Validation", href: "/app/validation", icon: ListChecks },
   ] },
   { title: "Control", items: [

@@ -10,6 +10,8 @@ import { runScan } from "../lib/scan/runner";
 import { runApplyPatch, runGasReport } from "../lib/gas/service";
 import { runSentinelCycle } from "../lib/sentinel/service";
 import { ensureSentinelRepeatable, type SentinelJobPayload } from "../lib/queue/sentinel";
+import { runAttestation } from "../lib/attest/service";
+import type { AttestJobPayload } from "../lib/queue/attest";
 import type { GasJobPayload } from "../lib/queue/gas";
 import type { ScanJobPayload } from "../lib/queue/scans";
 
@@ -57,6 +59,15 @@ const gasWorker = new Worker<GasJobPayload>(
   },
 );
 
+// Verified build attestations: deterministic compile-and-compare jobs.
+const attestWorker = new Worker<AttestJobPayload>(
+  "archon-attest",
+  async (job) => { await runAttestation(job.data.attestationId); },
+  { ...redisConnection, concurrency: 1, lockDuration: 300_000, stalledInterval: 30_000, maxStalledCount: 1 },
+);
+attestWorker.on("error", (error) => console.error("attest worker error (recovering):", error instanceof Error ? error.message : error));
+attestWorker.on("failed", (job, error) => console.error(`attest job ${job?.id ?? "unknown"} failed`, error));
+
 // Sentinel: one repeatable cycle (drift detection over watched addresses).
 const sentinelWorker = new Worker<SentinelJobPayload>(
   "archon-sentinel",
@@ -87,6 +98,7 @@ async function shutdown() {
   await worker.close();
   await gasWorker.close();
   await sentinelWorker.close();
+  await attestWorker.close();
   await closeDb();
   process.exit(0);
 }
