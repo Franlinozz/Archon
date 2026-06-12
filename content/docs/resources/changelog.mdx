@@ -5,6 +5,18 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V3.1 — Whitepaper v2, front-door overhaul, and DA-claim corrections
+
+- Published whitepaper v2.0: citable PDF served at `/whitepaper.pdf`; this docs page is the aligned HTML edition with the same sections, claims, and labels (including Table 1, the oracle-vs-receipt divergence evidence).
+- Regenerated the repository architecture diagram to the seven-layer system (the gas engine is now visible), rebuilt the README around live, linkable evidence, and adopted a standing doc-sync ritual (`docs/DOC-SYNC.md`).
+- Corrected the DA narrative across landing, README, and CLI output: the legacy `getL1Fee` oracle **under-reports** Mantle's charged DA fee by ~99.96% (≈2,200–2,900×), and gas-report splits are explicitly labeled as **identified-savings** splits, not transaction fee splits.
+
+## V3.0 — Cloud provider layer, CLI, pricing
+
+- AI enrichment now runs behind a pluggable provider interface (OpenAI live; ELFA and Tencent Cloud Hunyuan adapters built-in and inert until credentialed) with public status at `/api/providers`, plus a Tencent COS artifact-backup adapter.
+- Shipped the zero-dependency `archon-scan` CLI (npx via `github:Franlinozz/archon-cli`) and a live CI Action demo repository with real green/red pull-request evidence.
+- Published the `/pricing` page (all tiers free during the hackathon period) and repaired public demo-data contract names from their real source definitions.
+
 ## V2.5 — Docs revamp
 
 - Replaced the single-page docs experience with a Fumadocs-backed MDX documentation system.

@@ -94,7 +94,7 @@ function SeverityBar({ severity, findingsTotal, scansTotal, reduce }: { severity
   );
 }
 
-/** L2-execution vs DA split — DA renders as a hairline because that is the real ratio. */
+/** How identified savings split between L2 execution and DA (a savings split, not a fee split). */
 function SplitBar({ da, reduce }: { da: { daLabel: string; l2Label: string }; reduce: boolean }) {
   return (
     <div>
@@ -107,9 +107,9 @@ function SplitBar({ da, reduce }: { da: { daLabel: string; l2Label: string }; re
           viewport={viewportOnce}
           transition={{ duration: reduce ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
         />
-        <span className="w-[3px] shrink-0 rounded-r-pill" style={{ background: "var(--warning)" }} title={`DA ${da.daLabel} of per-call fees`} />
+        <span className="w-[3px] shrink-0 rounded-r-pill" style={{ background: "var(--warning)" }} title={`DA ${da.daLabel} of identified savings`} />
       </div>
-      <p className="mt-2 font-mono text-[11px] text-muted">L2 execution {da.l2Label} · DA {da.daLabel}</p>
+      <p className="mt-2 font-mono text-[11px] text-muted">identified savings: L2 {da.l2Label} · DA {da.daLabel}</p>
     </div>
   );
 }

@@ -83,7 +83,11 @@ export function shortHash(value: string, head = 10, tail = 6): string {
   return value.length > head + tail + 2 ? `${value.slice(0, head)}…${value.slice(-tail)}` : value;
 }
 
-/** DA share of the aggregate per-call fee as a display string; never overstates precision. */
+/**
+ * Share of identified SAVINGS that comes from DA vs L2 execution (these splits
+ * are savings splits, not a transaction's fee split — see lib/gas/service.ts
+ * totals()). Display strings never overstate precision.
+ */
 export function daShareLabel(split: { l2Wei: bigint; daWei: bigint }): { da: string; l2: string; daFraction: number } {
   const total = split.l2Wei + split.daWei;
   if (total === 0n) return { da: "0%", l2: "0%", daFraction: 0 };
@@ -92,3 +96,17 @@ export function daShareLabel(split: { l2Wei: bigint; daWei: bigint }): { da: str
   if (daBp < 0.01) return { da: "<0.01%", l2: "99.99%+", daFraction: daBp / 100 };
   return { da: `${daBp.toFixed(2)}%`, l2: `${(100 - daBp).toFixed(2)}%`, daFraction: daBp / 100 };
 }
+
+/**
+ * Immutable on-chain facts behind the oracle-divergence story (ADR 0007,
+ * whitepaper v2 Table 1): the legacy GasPriceOracle.getL1Fee UNDER-reports the
+ * DA fee Mantle actually charges (receipt `l1Fee`) by ~99.96% (≈2,200–2,900×).
+ */
+export const ORACLE_DIVERGENCE = {
+  rows: [
+    { txShort: "0x82d995…088ef", txHash: "0x82d99588e5f1bff33d618743025d598445493032637de25844a67aa8e88088ef", bytes: 342, actualWei: 699231354481640n, oracleWei: 313344079825n, underReportPct: "99.955%" },
+    { txShort: "0xb9ce87…1a7c5", txHash: "0xb9ce87de86b212b91eb64012bbdab91014373da1f6d960470b340e1991a1a7c5", bytes: 2037, actualWei: 6874261528561290n, oracleWei: 2361496520609n, underReportPct: "99.966%" },
+  ],
+  ratioLabel: "≈2,200–2,900×",
+  adrPath: "docs/decisions/0007-mantle-gas-oracle-verification.md",
+} as const;

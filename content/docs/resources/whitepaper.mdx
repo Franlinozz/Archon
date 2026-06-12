@@ -1,313 +1,114 @@
 ---
 title: Whitepaper
-description: Archon's public technical thesis for verifiable DevTools on Mantle.
+description: Archon whitepaper v2.0 — verifiable DevTools for Mantle. HTML edition; the PDF is the citable edition.
 ---
 
 # Archon whitepaper
 
 <div className="not-prose my-6 rounded-card border border-brand-500/25 bg-surface-2 p-5 shadow-card">
-  <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Archon Whitepaper · V2.9</p>
-  <p className="mt-2 text-sm text-body">A public, technical overview of Archon's audit engine, Mantle gas optimization system, ERC-8004 identity model, proof architecture, challenge ledger, business model, and roadmap.</p>
+  <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Archon Whitepaper · V2.0 · June 2026</p>
+  <p className="mt-2 text-sm text-body">Verifiable DevTools for Mantle: AI-assisted smart-contract auditing and receipt-calibrated gas optimization, with every report anchored on Mantle as a challengeable on-chain proof. This page is the HTML edition; the PDF is the citable edition — same claims, same labels.</p>
   <div className="mt-4 flex flex-wrap gap-2">
-    <a href="/docs/archon-whitepaper.pdf" className="inline-flex rounded-input bg-green-500 px-4 py-2 text-sm font-bold text-on-green shadow-sm hover:bg-green-400">Download PDF</a>
+    <a href="/whitepaper.pdf" className="inline-flex rounded-input bg-green-500 px-4 py-2 text-sm font-bold text-on-green shadow-sm hover:bg-green-400">Download PDF (v2.0)</a>
     <a href="/api-reference" className="inline-flex rounded-input border border-subtle bg-surface-1 px-4 py-2 text-sm font-semibold text-ink hover:border-emphasis">API reference</a>
   </div>
 </div>
 
+**Reading convention.** This document describes the live product as deployed at the time of writing. Capabilities that are planned rather than shipped are explicitly labeled as planned. That convention is itself part of Archon's design: a tool whose claims cannot be trusted in its own whitepaper cannot be trusted in its reports.
+
 ## Executive summary
 
-Archon is a verifiable security and gas-optimization platform for Mantle builders. It turns Solidity source into structured audit reports, Mantle-aware gas reports, public proof artifacts, and challengeable validation records. The product is intentionally pragmatic: it does not claim to replace expert review, and it does not treat AI output as unquestionable truth. Instead, it preserves provenance, separates measured values from estimates, and makes reports easier to inspect, export, integrate, and verify.
+Archon turns Solidity source into three connected artifacts for Mantle builders: a deterministic, AI-explained **audit report**; a **gas report** whose data-availability numbers are calibrated against what Mantle actually charges; and an **on-chain proof** that lets anyone re-derive, re-check, and publicly challenge the work. It rejected the legacy fee oracle after finding it under-reports Mantle's real charged DA fee by roughly 99.96%, and built a receipt-calibrated model in its place ([§05](#05--the-mantle-gas-engine), Table 1).
 
-This paper argues that the next generation of crypto DevTools will be judged by evidence quality. A useful tool must show what source was analyzed, what assumptions were used, what was measured, what was estimated, which proof belongs to the artifact, and how another developer can challenge or reproduce the result. Archon's architecture — queued workers, deterministic hashing, source-bundle compilation, Fumadocs documentation, public API, GitHub Action, gas leaderboard, proof registry integration, and public challenge ledger — is built around that evidence trail.
+Trust the reproducible evidence, not the auditor's claim. Archon is deliberately not positioned as a replacement for expert human review, formal verification, or protocol-specific audits — it is the verifiable layer underneath them: faster feedback for builders, stronger evidence trails for teams, and a public, machine-checkable record for the ecosystem.
 
-## Contents
+## 01 · The problem
 
-1. Abstract
-2. The problem
-3. Thesis: verifiable DevTools
-4. System architecture
-5. The Audit Engine
-6. The Mantle Gas Optimization Engine
-7. ERC-8004 identity and on-chain proofs
-8. Public validation and challenge ledger
-9. Trust and verifiability model
-10. Business model and GTM
-11. Roadmap
-12. Security, limitations, and references
+**Audits are distributed as unverifiable PDFs.** The dominant audit artifact is a static report that behaves like a final presentation rather than a verifiable record: a reader is expected to trust the brand on the cover. Teams cannot answer which exact source was analyzed, under what assumptions, or whether the deployed bytecode still corresponds to the audited code.
 
-## Abstract
+**DA cost is invisible — and the canonical oracle misreports it.** Mantle's modular DA architecture makes the data-availability component of gas opaque to most tooling. The interface most tools reach for, `GasPriceOracle.getL1Fee`, diverges from what the chain actually charges by orders of magnitude ([Table 1](#05--the-mantle-gas-engine)). Cost advice built on it is invisibly wrong.
 
-Smart-contract security has become a coordination problem as much as a code-quality problem. Teams ship increasingly complex protocols, integrate across chains, and depend on external reviewers, internal checklists, static analyzers, and PDF reports that are difficult to verify after the fact. A report may look authoritative, but the reader often cannot answer simple operational questions: what exact source was analyzed, what assumptions were used, which findings were deterministic, which were model-assisted, which proof belongs to this report, and whether the claimed optimization actually reduced cost under the target chain's fee model.
+## 02 · Thesis: verifiable DevTools
 
-Archon is a Mantle-native DevTools platform designed to make smart-contract audits and gas optimization measurable, reproducible, and publicly verifiable. The product turns a repository, uploaded Solidity source, pasted contract, or verified-source input into three artifacts: an explainable audit report, a Mantle-aware gas optimization report, and an on-chain proof record tied to Archon's agent identity. The system is intentionally practical: it combines deterministic static analysis, Mantle-specific rules, reproducible source hashing, AI-assisted explanation, CI workflows, a public gas leaderboard, and proof metadata that can be anchored on-chain.
+DevTools for crypto should be verifiable by default — producing artifacts humans can inspect, machines can consume, and public infrastructure can anchor. Four commitments shape every architectural decision:
 
-This whitepaper describes Archon's thesis: the next generation of developer security tooling will not be judged only by how convincing its UI looks, but by whether its outputs can be traced, challenged, reproduced, and integrated into the developer workflow. Archon is not a replacement for expert human audits, formal verification, or protocol-specific review. It is a verifiable DevTools layer that gives builders faster feedback, gives teams stronger evidence trails, and gives ecosystems a way to rank and reason about security and cost improvements using real artifacts rather than unverifiable claims.
+| Commitment | Meaning in practice |
+| --- | --- |
+| **Deterministic first** | Detection is rule-based (solc, Slither, Archon's Mantle rule engine, AST detectors). AI explains and prioritizes findings; it never invents them. Identical input produces identical findings — which is what makes reports hashable and challengeable. |
+| **Measured, or labeled** | Gas deltas come from Foundry measurement runs and on-chain receipts. Where measurement is impossible (pre-deployment), the value is a calibrated estimate and is tagged as such in the UI, API, and stored record. The distinction is structural. |
+| **Anchored and challengeable** | Every report yields a deterministic SHA-256 hash and IPFS metadata, anchorable on Mantle. A public challenge ledger accepts scoped disputes referencing the on-chain proof. Verifiability without a feedback channel is theater. |
+| **Read-only by default** | Scanning never sends a transaction and never touches user funds. The single on-chain write is explicit, user-approved proof logging — gasless via Archon's server agent, or self-custody from the user's wallet. |
 
-## The problem
+## 03 · System architecture
 
-### Audits are still distributed as unverifiable PDFs
+One pipeline, three artifacts, seven layers. Every layer can improve independently: gas pricing can be recalibrated without touching the proof model; the proof registry can evolve without breaking report exports.
 
-The dominant audit artifact is still a static report. That report may contain useful findings, but it usually behaves like a final presentation rather than a verifiable record. A reader is expected to trust the audit brand, the reviewer, or the client announcement. In practice, teams and ecosystems need more granular evidence.
+<img src="/docs/archon-architecture.svg" alt="Archon system architecture — seven layers from input to distribution" />
 
-A useful audit artifact should answer:
+The execution pipeline runs stage-by-stage with explicit failure behavior: code parse (canonical source hash, scope metadata) → static analysis (solc as a truth gate, Slither + Mantle rules; unresolved imports degrade to reduced-mode AST rules with a visible banner) → Mantle context and protocol rules → gas measurement → bounded AI enrichment (batched, timed out, schema-validated, with deterministic fallback) → generated Foundry tests → report assembly and hashing.
 
-- Which source tree, commit, verified contract, or uploaded file was analyzed?
-- Which compiler assumptions, network assumptions, and protocol assumptions were in scope?
-- Which findings came from deterministic tools, which came from rule engines, and which were model-assisted explanations?
-- Can a finding be mapped back to an exact file, line range, category, severity, and recommended fix?
-- Can the report be hashed, exported, referenced, and independently checked later?
-- Can a user prove that a public report is the same report produced by the tool at a specific time?
+## 04 · The audit engine
 
-Traditional PDFs often fail these questions. They can be edited, reposted, summarized incorrectly, or detached from the source that produced them. Even when the underlying analysis is honest, the delivery format weakens trust. Developers need a report, but ecosystems need provenance.
+Deterministic detection produces findings with file/line anchors, categories, severities, and confidence. AI enrichment — through a [pluggable provider layer](/docs/platform-api/cloud-providers) — adds explanations, Mantle-specific context, exploit scenarios, recommended fixes, and minimal patch diffs; it is bounded (batched, 45-second per-call timeout), schema-validated, and falls back to deterministic templates, with the report saying so when that happens. Each report ships generated Foundry regression tests so findings become executable checks rather than prose.
 
-### L2 gas cost is opaque and increasingly DA-dominated
+## 05 · The Mantle gas engine
 
-Layer-2 execution changes the gas optimization problem. On Ethereum L1, developers often reason about gas as a single execution-cost number. On modern L2s, the cost users experience is shaped by two components: execution on the L2 and data availability or L1 settlement cost. The relative weight of those components changes with calldata shape, compression, batching, L1 fee conditions, and chain-specific fee accounting.
+Where a real transaction exists, the charged `l1Fee` is read directly from its receipt — a measured value by definition. For pre-deployment analysis, Archon maintains a calibrated model derived from recent live receipts' fee parameters, validated against the same ground truth, refreshed periodically, and always labeled as calibrated.
 
-Mantle is designed for high-throughput, low-cost execution, but developers still need chain-aware cost analysis. A change that looks small in EVM execution gas may matter if it reduces calldata or bytecode footprint. Conversely, a micro-optimization may be irrelevant if the saving is dwarfed by DA cost or if the function is rarely called. Generic gas advice is not enough. Builders need optimization reports that separate:
+**Why not the oracle?** Receipt ground truth was compared against `GasPriceOracle.getL1Fee` on live Mantle transactions:
 
-- L2 execution gas saved per call,
-- data or deployment footprint changes,
-- annualized savings assumptions,
-- measured versus estimated deltas,
-- source of pricing assumptions,
-- and whether a patch still compiles after the suggested change.
+| Tx | Bytes | Receipt `l1Fee` (charged) | Oracle `getL1Fee` (predicted) | Divergence |
+| --- | ---: | ---: | ---: | ---: |
+| `0x82d995…088ef` | 342 | 699,231,354,481,640 wei | 313,344,079,825 wei | **99.955%** |
+| `0xb9ce87…1a7c5` | 2,037 | 6,874,261,528,561,290 wei | 2,361,496,520,609 wei | **99.966%** |
 
-Without this separation, gas tooling becomes a credibility problem. It may claim savings that are real on one chain, approximate on another, or meaningless when applied to production traffic.
+*Table 1 — Oracle prediction vs. on-chain ground truth. The legacy predeploy under-reports Mantle's real charged DA fee by roughly 2,500×. Mantle receipts expose the richer post-migration fee fields (`l1Fee`, `l1GasUsed`, `l1GasPrice`, `l1BaseFeeScalar`, blob fee fields, `daFootprintGasScalar`, operator fees) that the legacy interface cannot reproduce. Full evidence: [ADR 0007](https://github.com/Franlinozz/Archon/blob/main/docs/decisions/0007-mantle-gas-oracle-verification.md).*
 
-### Developer workflows need proof, not just advice
+The optimizer applies a deterministic rule catalog (storage caching, calldata shape, unchecked arithmetic in safe contexts, visibility, event data, bytecode-size patterns), validates patches by compilation, measures where a Foundry harness applies, and separates three types of evidence: **measured**, **estimated**, and **unpriced**. Reports and the [public leaderboard](/gas-leaderboard) state their traffic assumptions explicitly.
 
-Security and cost reports become more valuable when they can be embedded into workflows. A founder wants a public proof for a demo or partner review. A protocol team wants a CI comment on every pull request. A developer relations team wants an ecosystem leaderboard of concrete gas reductions. A reviewer wants a durable link to a report that can be checked later.
+## 06 · The proof layer
 
-Archon's position is that audit and gas tooling should produce structured, composable artifacts:
+Every report yields a deterministic hash over canonicalized metadata, pinned to IPFS, and anchorable on Mantle through **ArchonProofRegistry** (`0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a`, verified source) under **ERC-8004 Agent #97** — in gasless (server-pays) or self-custody mode. `logAuditProof()` is permissionless and idempotent per report hash. [Public verification](/proofs) re-derives the hash and re-checks the chain without a wallet; a [challenge ledger](/docs/resources/security-safety-model) accepts scoped disputes against reports and optimizations.
 
-- human-readable reports for teams,
-- machine-readable JSON for integrations,
-- CI comments for pull requests,
-- public leaderboard rows for traction and comparison,
-- and on-chain proof references for reputation and verification.
+## 07 · Trust and verifiability model
 
-The PDF should not disappear. It should become one export from a stronger underlying evidence system.
+Exactly what is guaranteed: deterministic findings are reproducible from the same source; hashes are re-derivable; anchored records are independently checkable; measured numbers cite receipts or harness runs. What is *not* guaranteed: that a scan finds every vulnerability, that AI prose is infallible, or that a proof certifies safety — a proof certifies **provenance**. Reduced modes (failed enrichment, missing pinning, un-anchored proofs) are visible states, never silent downgrades.
 
-## Thesis: verifiable DevTools
+## 08 · Platform and integrations
 
-Archon's thesis is simple: DevTools for crypto should be verifiable by default.
+The app (Audit Studio, Gas Optimizer, Cost Guard, proofs, validation), public surfaces (landing, [docs](/docs), [public reports](/proofs), [leaderboard](/gas-leaderboard)), the REST API with [OpenAPI 3.1 reference](/api-reference), the [`archon-scan` CLI](/docs/platform-api/cli), the [CI GitHub Action](/docs/gas-optimizer/ci-github-action) with live PR evidence, webhooks, and report/test/patch exports. AI and storage run on the [cloud provider layer](/docs/platform-api/cloud-providers) (OpenAI live; ELFA and Tencent Cloud Hunyuan/COS adapters built-in, inert until credentialed — status at [/api/providers](/api/providers)).
 
-A verifiable DevTool does not ask users to trust a screenshot, marketing claim, or opaque report. It produces artifacts that can be inspected by humans, consumed by machines, and anchored to public identifiers. It is honest about limits. It separates deterministic analysis from model-assisted explanation. It treats chain-specific economics as part of correctness. It gives developers a practical workflow without pretending that automation replaces expert judgment.
+## 09 · Business model and GTM
 
-Archon applies this thesis to smart-contract auditing and Mantle gas optimization. The platform is built around four principles.
+Security and cost are the two line items every Mantle team already pays for; Archon quantifies both, with proof. Distribution follows the developer workflow: the first useful result requires no procurement, CI makes the tool part of the merge path, and public surfaces compound into reputation.
 
-First, every important artifact should have provenance. Audit reports and gas reports are derived from source inputs, assumptions, hashes, timestamps, and network metadata. The product records those details so an output can be traced back to its input.
+| Tier | Who it serves | Mechanics |
+| --- | --- | --- |
+| Free | Individual builders | Capped-depth scans, public proof verification, public leaderboard — which doubles as organic acquisition. |
+| Pro | Teams shipping on Mantle | Deep scans, full gas measurement runs, generated test suites, anchored proofs, workspace history; per-seat with metered heavy compute. |
+| CI / API | Protocols and platforms | The Action gates PRs on gas regressions; the API embeds scan-and-verify into external pipelines. CI is the retention engine. |
+| Ecosystem | Mantle programs and platforms | Dashboards, attestations, and program-level integrations. |
 
-Second, explanations should be useful but not magical. AI is valuable for summarizing findings, explaining risk, and generating test scaffolds, but the system should keep deterministic categories, line references, source snippets, and rule provenance visible. A model can improve developer understanding; it should not erase the audit trail.
+Current pricing posture: [all tiers free during the hackathon period](/pricing); indicative pricing published.
 
-Third, gas optimization must be chain-aware. Mantle optimization is not only about reducing opcodes. It is about understanding the cost split between L2 execution and DA/L1 components, then presenting the economic impact under explicit assumptions.
+## 10 · Roadmap
 
-Fourth, trust should be portable. A report should be linkable, exportable, and anchorable. ERC-8004-style identity and on-chain proof records give Archon a path toward reputation that is not trapped inside the application database.
+| Horizon | Direction |
+| --- | --- |
+| **Now (live)** | Audit and gas engines on Mantle Mainnet; proof anchoring in both modes; public verification, leaderboard, challenge ledger; docs, CLI, CI Action, generated tests. |
+| **Next** | Reliability hardening across upload/repo inputs; public API keys and webhooks; deeper protocol packs; continuous monitoring of deployed contracts with drift alerts; cloud provider adapters (including Tencent Cloud) activated on provisioned credits; pricing made public. |
+| **Later** | ERC-8004 Validation Registry integration when an official Mantle address ships; verified-build attestations; cross-agent attestations; staked challenges; agent-consumable trust APIs; team workspaces and ecosystem dashboards. |
 
-The goal is not to create a perfect oracle of security. The goal is to make automated security and cost analysis more transparent, more reproducible, and more useful in the places where developers actually work.
+The end state is an audit-and-optimization layer whose outputs are consumed not only by humans but by other agents — exactly what verifiable, machine-checkable reports make possible, and exactly what ERC-8004 identity was designed for.
 
-## System architecture
+## 11 · Security, limitations and disclaimers
 
-Archon is organized as a product system rather than a single analyzer. The web application, worker pipeline, database, queue, AI enrichment layer, Mantle RPC access, proof registry integration, GitHub Action, docs site, public leaderboard, and API reference all serve the same output model: produce a useful artifact and preserve enough context to verify it.
+Archon is a developer security tool, not a guarantee of safety. Automated scans can miss vulnerabilities, misunderstand business logic, or overstate impact. AI-generated explanations should be reviewed by humans. Gas recommendations should be tested against the target codebase and deployment process. Proof records are provenance records, not certifications of correctness. Fee models are bounded by changing Mantle gas conditions and are published with their assumptions.
 
-<img src="/docs/archon-architecture.svg" alt="Archon system architecture" />
+## 12 · References and appendix
 
-At a high level, the platform contains seven layers.
-
-1. **Input layer.** Users submit Solidity through paste, upload, GitHub import, sample contracts, or verified Mantle address lookup. Inputs are normalized, validated, size-limited, and hashed.
-2. **Queue and worker layer.** Audit and gas jobs are persisted and executed asynchronously so the UI and API can show progress, logs, and failures without blocking the request lifecycle.
-3. **Analysis layer.** The audit engine combines compilation, static analysis, Mantle-specific deterministic rules, gas-opportunity detection, and optional AI enrichment.
-4. **Gas measurement layer.** The gas optimizer compiles source, detects optimization candidates, estimates or measures L2 execution deltas, models DA/L1 effects from receipt-calibrated data, and records assumptions.
-5. **Artifact layer.** Reports, findings, optimizations, tests, proof metadata, source hashes, and logs are stored in the database and exposed through app pages and API endpoints.
-6. **Verification layer.** Report hashes and proof metadata can be prepared and anchored through Archon's on-chain proof flow. Public proof pages and metadata endpoints make verification possible outside the UI.
-7. **Distribution layer.** Fumadocs documentation, the public gas leaderboard, the Scalar API reference, and the GitHub Action turn Archon from a dashboard into a developer platform.
-
-This architecture is deliberately modular. Static analysis can improve without changing the proof model. Gas pricing can be refined without rewriting audit reports. The proof registry can evolve without forcing the product to abandon local report exports. The system is useful today while leaving room for stronger verification over time.
-
-## The Audit Engine
-
-Archon's Audit Engine is designed for fast, explainable security feedback on Mantle-facing Solidity contracts. It is not a black-box model that emits generic warnings. It is a pipeline of deterministic and assisted stages, each with a role in the final report.
-
-The pipeline begins with source normalization. Archon validates that the input contains Solidity, identifies a contract name, detects the pragma, writes a temporary compilation workspace, and records basic scope metadata. This stage matters because the credibility of the report depends on knowing what was actually analyzed.
-
-The next stage is compilation. Compilation is both a syntax gate and a source-of-truth check for bytecode-dependent analysis. If the source cannot compile under a compatible compiler, Archon should fail clearly rather than invent findings. A compile failure is not a product failure; it is a signal that the source, imports, compiler version, or environment needs attention. For exact pragmas such as `pragma solidity 0.8.24;`, the compiler must match the requested version exactly. For range pragmas such as `^0.8.24`, newer compatible compilers can be used.
-
-After compilation, Archon runs static analysis. Static analyzers are valuable because they encode known vulnerability patterns, compiler observations, and optimization hints. Their output is mapped into Archon's report model: severity, category, title, file, line range, snippet, confidence, source, and remediation guidance.
-
-Archon also runs Mantle-specific rule checks. These rules focus on patterns that are especially relevant to applications deployed or integrated on Mantle, including authorization assumptions, timestamp-sensitive settlement, oracle freshness, reentrancy around value transfers, slippage enforcement, and storage iteration that can become operationally expensive. These checks are deterministic and designed to be explainable rather than theatrical.
-
-AI enrichment is applied as a communication layer. The goal is to turn raw findings into developer-friendly summaries, exploit scenarios, and recommended fixes while preserving the underlying deterministic evidence. The model is not treated as an unquestioned authority. Findings remain tied to source snippets and rule/static-analysis provenance.
-
-The output is an audit report with a risk score, severity counts, finding list, executive summary, source scope, and exportable metadata. Reports can be linked, rendered in the app, exported through API endpoints, and used as the basis for proof metadata.
-
-A good automated audit report should help a developer decide what to fix next. A great one should also make it clear where the evidence came from, what the system did not prove, and how to reproduce the analysis path.
-
-## The Mantle Gas Optimization Engine
-
-Archon's Gas Optimization Engine is built around a specific belief: L2 gas optimization must explain both execution cost and data cost. Mantle developers need to know whether an optimization reduces L2 execution gas, DA/L1 cost, deployment footprint, or only theoretical complexity.
-
-The engine begins with the same input discipline as the audit pipeline. Source is validated, hashed, compiled, and assigned a report record. The optimizer then applies a catalog of Solidity gas rules. Examples include redundant initialization, storage-read caching, unchecked arithmetic in safe contexts, calldata usage, visibility choices, event data shape, and bytecode-size-sensitive patterns. Each opportunity is recorded with a rule id, title, category, file, location, before/after text, safety note, confidence, patch data, and pricing labels.
-
-Archon separates three types of gas evidence:
-
-- **Measured.** A patch or scenario was compiled and measured through a harness or gas-report path.
-- **Estimated.** The rule has a deterministic estimate, but no full measurement was produced for that exact contract shape.
-- **Unpriced.** The rule may improve code quality or theoretical gas behavior, but Archon does not claim a quantified saving.
-
-This distinction matters. A product that labels every suggestion as a precise saving will mislead users. Archon should be useful even when it says, “this is an estimate,” or “this is unpriced.”
-
-### DA-fee model
-
-Mantle transaction cost can be reasoned about as a combination of L2 execution and DA/L1 data cost:
-
-```text
-total_cost_per_call ≈ (l2_gas_used × l2_gas_price) + l1_or_da_fee
-```
-
-For optimization reporting, the saving is the difference between the baseline and optimized paths:
-
-```text
-saving_per_call ≈ (Δl2_gas × l2_gas_price) + Δl1_or_da_fee
-annual_saving ≈ saving_per_call × calls_per_year × MNT_USD
-```
-
-Archon treats this as an explicit assumption model, not a hidden constant. Reports expose call-volume assumptions, MNT/USD assumption, L2 gas price source, DA model mode, calldata byte profile, and whether the DA estimate is receipt-calibrated or degraded.
-
-The DA component is especially important for deployment and calldata-heavy flows. Bytecode size and calldata shape can change cost even when opcode-level execution appears similar. Zero bytes and non-zero bytes have different calldata gas profiles, and L2 systems may compress or account for data differently. Archon's current model uses deterministic calldata profiling plus receipt-calibrated validation data where available. It avoids presenting stale or chain-inaccurate formulas as verified truth.
-
-### Worked L1/L2 example
-
-Consider a frequently called function on Mantle. Suppose Archon identifies a safe optimization that reduces L2 execution by 1,200 gas per call and reduces calldata/DA-equivalent cost by 8,000 wei per call under the active model. Suppose the current L2 gas price is 30 gwei, the function is called 250,000 times per year, and the reporting assumption is 1 MNT = 1 USD.
-
-The L2 execution saving is:
-
-```text
-1,200 gas × 30 gwei = 36,000 gwei = 0.000036 MNT per call
-```
-
-The DA/L1 saving is:
-
-```text
-8,000 wei = 0.000000000000008 MNT per call
-```
-
-The combined per-call saving is approximately:
-
-```text
-0.000036000000008 MNT
-```
-
-Annualized across 250,000 calls:
-
-```text
-0.000036000000008 × 250,000 ≈ 9.000000002 MNT/year
-```
-
-At 1 USD per MNT, that is roughly 9.00 USD/year. If the function is called 25 million times per year, the same per-call improvement becomes roughly 900 USD/year. The optimization did not change; the business relevance changed because traffic changed. This is why Archon reports assumptions instead of pretending there is one universal savings number.
-
-A second example shows why DA awareness matters. A deployment optimization that reduces bytecode by 2,000 bytes may have little effect on a single runtime function but can materially reduce deployment data cost and make contracts easier to fit within operational constraints. Archon records deployment-footprint effects separately from per-call L2 execution savings so teams can reason about both.
-
-## ERC-8004 identity & on-chain proofs
-
-Archon uses an on-chain identity and proof model to make reports referenceable beyond the application UI. The long-term direction aligns with ERC-8004's agent identity and reputation framing: agents should be discoverable, attributable, and able to accumulate reputation through externally verifiable work.
-
-In Archon's current model, the platform has an agent identity reference and a proof registry path. A report can produce proof metadata that includes report scope, findings, risk score, hashes, timestamps, and network context. That metadata can be prepared for self-custody verification or logged through the configured proof flow. Public proof pages and API endpoints expose the result.
-
-The important design choice is that proofs do not claim more than they prove. A proof can establish that a specific report artifact or metadata package was produced and referenced at a point in time. It does not prove that every finding is complete, that no vulnerability exists, or that a human auditor has endorsed the code. The proof is provenance, not omniscience.
-
-This distinction is essential for honest security tooling. On-chain proof should strengthen the evidence trail, not become a marketing trick. The right claim is: “this report, with this hash and metadata, was produced by this system and can be checked.” The wrong claim is: “this contract is safe because a proof exists.”
-
-As the ecosystem matures, Archon can attach more signals to identity: CI run history, accepted fixes, leaderboard records, proof verification status, and reputation events. The result is an audit agent whose work becomes more accountable over time.
-
-## Public validation and challenge ledger
-
-Verification should not be a one-way announcement. A public report becomes more trustworthy when readers can attach disagreement, evidence, and alternative interpretation to a specific finding or optimization. Archon therefore includes a scoped challenge ledger.
-
-The current challenge flow is intentionally conservative. Anyone can submit a challenge against an audit report, finding, gas report, or optimization. Archon records the challenge in Supabase with target identifiers, title, rationale, optional evidence URL, status, timestamp, and a deterministic challenge hash. If the challenged artifact already has an ArchonProofRegistry transaction, report hash, or gas anchor, the challenge stores that reference as context.
-
-This design extends the trustless thesis without introducing a deadline-risky new contract. A challenge does not rewrite the original report. It does not claim that the challenger is correct. It creates a durable, public, hash-addressable record of dispute that can be reviewed alongside the report. That is the right level of verification for the current product: transparent, scoped, and honest about what has and has not been proven.
-
-A future version could anchor challenge hashes directly through an extension or registry event, but that should be designed deliberately and only after the existing proof flow remains stable. Under the current milestone, the correct tradeoff is DB-backed public validation with references to existing proof artifacts.
-
-## Trust & verifiability model
-
-Archon's trust model has three layers: deterministic evidence, assisted interpretation, and public anchoring.
-
-Deterministic evidence includes source hashes, compiler settings, static-analysis output, rule ids, line mappings, gas deltas, report hashes, and stored metadata. These are the parts of the system that should be reproducible or at least inspectable.
-
-Assisted interpretation includes AI-generated summaries, exploit narratives, recommended fixes, and test scaffolds. These are useful, but they must remain subordinate to evidence. Archon should make AI output easier to challenge, not harder. If a summary is wrong, the source snippet and finding category should still guide the developer back to the underlying issue.
-
-Public anchoring includes proof metadata, transaction hashes, identity references, public report links, leaderboard rows, and API-accessible artifacts. Anchoring extends the artifact beyond the private session. It allows partners, judges, developers, and ecosystems to evaluate work without relying on screenshots.
-
-The model is designed around transparent limits:
-
-- Static analysis is incomplete and may miss logic bugs.
-- AI explanations can be wrong and should be reviewed.
-- Gas estimates depend on assumptions and contract shape.
-- DA/L1 fee modeling changes as chains evolve.
-- Proofs establish provenance, not absolute safety.
-- CI comments are decision support, not final review authority.
-
-This honesty is a product feature. Security tools that overclaim create false confidence. Archon should earn trust by saying exactly what it did, what it found, what it measured, and what remains outside scope.
-
-## Business model & GTM
-
-Archon is positioned as verifiable security and cost infrastructure for Mantle builders, with a go-to-market path that starts with developers and expands into teams, protocols, and ecosystem programs.
-
-The freemium product gives individual builders a fast path to scan contracts, understand findings, optimize gas, and generate proof artifacts. This creates adoption because the first useful result does not require procurement or a sales call.
-
-The CI product turns Archon into workflow infrastructure. The `archon-gas-action` GitHub Action lets teams run gas optimization on pull requests, receive Mantle-aware gas-diff comments, and optionally fail builds when regressions exceed a configured threshold. This is the natural path from “I tried the tool” to “my team depends on the tool.”
-
-The leaderboard creates public proof of usefulness. A gas leaderboard built from completed reports lets Archon show real optimization outcomes, label samples clearly, and link back to report artifacts. This helps developer relations, hackathon judging, and ecosystem growth because traction is visible in product data rather than private dashboards.
-
-The API product gives power users and partners direct access to scans, reports, proofs, gas reports, and leaderboard data. The OpenAPI/Scalar reference makes integration easier and establishes Archon as a platform rather than only an app.
-
-On-chain reputation is the long-term wedge. As reports, proofs, CI runs, and accepted improvements accumulate, Archon can become a reputation-bearing agent in the Mantle ecosystem. Protocols may eventually evaluate not only a single report, but the history of an agent's verified outputs.
-
-Commercially, this supports several tiers:
-
-- free individual scans and public examples,
-- paid higher-volume scans and CI usage,
-- team plans for private reports and collaboration,
-- API access for partners and dashboards,
-- ecosystem programs for sponsored audits, gas optimization campaigns, and public reputation surfaces.
-
-The GTM motion is therefore product-led first, ecosystem-led second, and enterprise-capable later. Archon should win developer trust before selling compliance language.
-
-## Roadmap
-
-Archon's roadmap is organized around increasing verification strength, workflow reach, and analysis depth.
-
-Near term, the priority is reliability. The audit and gas pipelines should handle common Solidity pragmas, imports, uploaded files, GitHub sources, and address-based verified source without surprising users. Error states should be clear. Docs should match product behavior. Public pages should avoid fake claims.
-
-The next product layer is workflow adoption. The GitHub Action should become easy to install, configurable by path and threshold, and safe under GitHub token and rate-limit constraints. Reports should be easy to share. API examples should remain current.
-
-The next analysis layer is deeper measurement. Gas reports should improve harness generation, patch application, and per-rule measurement. Audit reports should improve source mapping, protocol integrations, generated tests, and vulnerability-specific explanations.
-
-The next verification layer is stronger proof UX. Proof pages should make the distinction between prepared metadata, logged proofs, verified self-custody transactions, and on-chain identity clearer. External verifiers should be able to consume metadata without using the app.
-
-The long-term roadmap is an agent reputation network: Archon reports, gas improvements, CI outcomes, proofs, and accepted fixes become a public history of useful security work. The product can then support team dashboards, marketplace-style reputation, ecosystem campaigns, and deeper integration with Mantle developer infrastructure.
-
-## Security, limitations & disclaimers
-
-Archon is a developer security tool, not a guarantee of safety. Automated scans can miss vulnerabilities, misunderstand business logic, or overstate impact. AI-generated explanations should be reviewed by humans. Gas recommendations should be tested against the target codebase and deployment process. Proof records should be interpreted as provenance records, not certification of correctness.
-
-Archon is read-only by default. It analyzes source, produces reports, suggests patches, and prepares proof metadata. Users remain responsible for applying fixes, reviewing changes, running test suites, and deciding whether code is production-ready.
-
-The platform should never encourage blind deployment. The correct use of Archon is to shorten feedback loops, improve evidence quality, make reports easier to verify, and help teams prioritize work. For high-value protocols, Archon should complement expert review, formal methods, fuzzing, invariant tests, economic analysis, operational security review, and incident response planning.
-
-Fee models are also bounded. Mantle gas conditions, DA pricing, compression behavior, and RPC data can change. Archon exposes assumptions because cost estimates should be treated as decision support, not immutable truth.
-
-Finally, public reputation systems must be designed carefully. A leaderboard or proof registry can create incentives to optimize for visible metrics. Archon's product direction should favor truthful labeling, real links, clear sample markers, and transparent limitations over inflated claims.
-
-## References
-
-- [ERC-8004: Trustless Agents](https://eips.ethereum.org/EIPS/eip-8004)
-- [Mantle documentation](https://docs.mantle.xyz)
-- [Solidity documentation](https://docs.soliditylang.org)
-- [Slither static analyzer](https://github.com/crytic/slither)
-- [Foundry](https://book.getfoundry.sh)
-- [Archon API reference](/api-reference)
-- [Archon gas leaderboard](/gas-leaderboard)
-- [Archon architecture](/docs/resources/architecture)
+- **ArchonProofRegistry:** [`0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a`](https://mantlescan.xyz/address/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a#code) (verified, Mantle Mainnet 5000)
+- **ERC-8004 Identity / Reputation:** [`0x8004A169…539a432`](https://mantlescan.xyz/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) / [`0x8004BAa1…dE9b63`](https://mantlescan.xyz/address/0x8004BAa17C55a88189AE136b182e5fdA19dE9b63) — Archon is [Agent #97](/.well-known/archon-agent.json)
+- **DA methodology:** [ADR 0007 — Mantle gas oracle verification](https://github.com/Franlinozz/Archon/blob/main/docs/decisions/0007-mantle-gas-oracle-verification.md)
+- **ERC-8004: Trustless Agents:** [eips.ethereum.org/EIPS/eip-8004](https://eips.ethereum.org/EIPS/eip-8004)
+- **Source:** [github.com/Franlinozz/Archon](https://github.com/Franlinozz/Archon) · **Citable edition:** [whitepaper PDF v2.0](/whitepaper.pdf)

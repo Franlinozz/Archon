@@ -1,367 +1,102 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 1720" width="1640" height="1720" font-family="'General Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif" role="img" aria-label="Archon system architecture">
-  <title>Archon — System Architecture</title>
-  <desc>Topology, data flow, and the seven-stage scan pipeline for Archon, the ERC-8004 trustless smart contract auditor on Mantle Mainnet.</desc>
-
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0A0E0C"/>
-      <stop offset="100%" stop-color="#070908"/>
-    </linearGradient>
-    <radialGradient id="bloom" cx="50%" cy="0%" r="62%">
-      <stop offset="0%" stop-color="#3FD98A" stop-opacity="0.09"/>
-      <stop offset="100%" stop-color="#3FD98A" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="surf" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#10150F"/>
-      <stop offset="100%" stop-color="#0C100E"/>
-    </linearGradient>
-    <linearGradient id="chain" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0E1A14"/>
-      <stop offset="100%" stop-color="#0A130E"/>
-    </linearGradient>
-    <linearGradient id="pipe" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#27B567"/>
-      <stop offset="100%" stop-color="#73E7AC"/>
-    </linearGradient>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="#3FD98A"/>
-    </marker>
-    <marker id="arrowMuted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="#3A453E"/>
-    </marker>
-  </defs>
-
-  <rect width="1640" height="1720" fill="url(#bg)"/>
-  <rect width="1640" height="440" fill="url(#bloom)"/>
-
-  <!-- ============ HEADER ============ -->
-  <g>
-    <rect x="60" y="46" width="36" height="36" rx="9" fill="none" stroke="#3FD98A" stroke-width="2"/>
-    <path d="M68 74 L78 52 L88 74 M72.5 66 L83.5 66" fill="none" stroke="#3FD98A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="112" y="63" fill="#F3F6F4" font-size="24" font-weight="700" letter-spacing="-0.5">ARCHON</text>
-    <text x="112" y="84" fill="#6B756F" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.6">SYSTEM ARCHITECTURE — v2.0</text>
-    <g transform="translate(1296,52)">
-      <rect x="0" y="0" width="284" height="32" rx="16" fill="#10150F" stroke="rgba(255,255,255,0.06)"/>
-      <circle cx="22" cy="16" r="4.5" fill="#3FD98A"/>
-      <circle cx="22" cy="16" r="4.5" fill="#3FD98A" opacity="0.4"><animate attributeName="r" values="4.5;9;4.5" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0;0.4" dur="2.4s" repeatCount="indefinite"/></circle>
-      <text x="40" y="20.5" fill="#AEB8B2" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="0.6">MANTLE MAINNET · CHAIN 5000 · LIVE</text>
-    </g>
-    <text x="60" y="124" fill="#F3F6F4" font-size="34" font-weight="700" letter-spacing="-1">The trustless auditor agent, end to end.</text>
-    <text x="60" y="154" fill="#AEB8B2" font-size="15">Read-only ingestion · seven-stage analysis pipeline · AI reasoning · verifiable ERC-8004 proof. One VM does ninety percent of the work.</text>
-    <line x1="60" y1="178" x2="1580" y2="178" stroke="rgba(255,255,255,0.06)"/>
-  </g>
-
-  <!-- ============ LAYER A: CLIENTS ============ -->
-  <g>
-    <text x="60" y="222" fill="#3FD98A" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.6">A · CLIENT SURFACE</text>
-    <g>
-      <rect x="60" y="238" width="350" height="92" rx="14" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="84" y="272" fill="#F3F6F4" font-size="16" font-weight="600">Public site &amp; Web app</text>
-      <text x="84" y="296" fill="#AEB8B2" font-size="12.5">Landing · Workspace · Audit Studio · Reports</text>
-      <text x="84" y="314" fill="#6B756F" font-size="12" font-family="'JetBrains Mono',monospace">Next.js 15 · App Router · dark "Obsidian" UI</text>
-    </g>
-    <g>
-      <rect x="440" y="238" width="350" height="92" rx="14" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="464" y="272" fill="#F3F6F4" font-size="16" font-weight="600">Archon Assistant</text>
-      <text x="464" y="296" fill="#AEB8B2" font-size="12.5">Context-aware chatbot · streamed replies</text>
-      <text x="464" y="314" fill="#6B756F" font-size="12" font-family="'JetBrains Mono',monospace">explains &amp; recommends · never acts</text>
-    </g>
-    <g>
-      <rect x="820" y="238" width="350" height="92" rx="14" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="844" y="272" fill="#F3F6F4" font-size="16" font-weight="600">User wallet</text>
-      <text x="844" y="296" fill="#AEB8B2" font-size="12.5">viem · wagmi · Mantle network guard</text>
-      <text x="844" y="314" fill="#6B756F" font-size="12" font-family="'JetBrains Mono',monospace">signs the one proof transaction</text>
-    </g>
-    <g>
-      <rect x="1200" y="238" width="380" height="92" rx="14" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="1224" y="272" fill="#F3F6F4" font-size="16" font-weight="600">Verifier / Judge</text>
-      <text x="1224" y="296" fill="#AEB8B2" font-size="12.5">Re-derives report hash · checks on-chain</text>
-      <text x="1224" y="314" fill="#6B756F" font-size="12" font-family="'JetBrains Mono',monospace">attest or challenge via ERC-8004</text>
-    </g>
-  </g>
-
-  <!-- connectors A -> VM -->
-  <path d="M235 330 L235 392" stroke="#3FD98A" stroke-width="1.6" marker-end="url(#arrow)"/>
-  <path d="M615 330 L615 392" stroke="#3FD98A" stroke-width="1.6" marker-end="url(#arrow)"/>
-  <path d="M995 330 L995 392" stroke="#3FD98A" stroke-width="1.6" marker-end="url(#arrow)"/>
-  <path d="M1390 330 L1390 392 L1390 1132" stroke="#3A453E" stroke-width="1.6" stroke-dasharray="4 5" marker-end="url(#arrowMuted)"/>
-
-  <!-- ============ LAYER B: THE VM ============ -->
-  <g>
-    <rect x="60" y="392" width="1240" height="690" rx="18" fill="#0C100E" stroke="#2C3630"/>
-    <text x="88" y="430" fill="#3FD98A" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.6">B · SINGLE GOOGLE CLOUD VM — flat cost, ~90% of all compute</text>
-    <text x="1010" y="430" fill="#6B756F" font-size="12" font-family="'JetBrains Mono',monospace">Caddy · TLS · reverse proxy</text>
-
-    <!-- web process -->
-    <g>
-      <rect x="88" y="452" width="560" height="156" rx="13" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <circle cx="112" cy="478" r="4" fill="#3FD98A"/>
-      <text x="128" y="482" fill="#F3F6F4" font-size="15" font-weight="600">pm2: archon-web</text>
-      <text x="500" y="482" fill="#6B756F" font-size="11.5" font-family="'JetBrains Mono',monospace">SSR + API routes</text>
-      <line x1="112" y1="496" x2="624" y2="496" stroke="rgba(255,255,255,0.06)"/>
-      <text x="112" y="522" fill="#AEB8B2" font-size="12.5">/api/scans · /api/reports · /api/proofs · /api/chat · /api/health</text>
-      <text x="112" y="546" fill="#AEB8B2" font-size="12.5">SSE stream endpoint — live scan updates to the browser</text>
-      <text x="112" y="570" fill="#6B756F" font-size="12">Zod-validated input · fast handlers · no long work here</text>
-      <rect x="112" y="582" width="160" height="16" rx="4" fill="#161C17"/>
-      <text x="120" y="594" fill="#6B756F" font-size="10.5" font-family="'JetBrains Mono',monospace">TypeScript strict</text>
-    </g>
-
-    <!-- worker process -->
-    <g>
-      <rect x="688" y="452" width="572" height="156" rx="13" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <circle cx="712" cy="478" r="4" fill="#3FD98A"/>
-      <text x="728" y="482" fill="#F3F6F4" font-size="15" font-weight="600">pm2: archon-worker</text>
-      <text x="1090" y="482" fill="#6B756F" font-size="11.5" font-family="'JetBrains Mono',monospace">BullMQ consumer</text>
-      <line x1="712" y1="496" x2="1236" y2="496" stroke="rgba(255,255,255,0.06)"/>
-      <text x="712" y="522" fill="#AEB8B2" font-size="12.5">Runs the seven-stage pipeline · concurrency 2 · watchdog timeouts</text>
-      <text x="712" y="546" fill="#AEB8B2" font-size="12.5">Local binaries: Slither · solc-select (0.8.20 / 0.8.24 / 0.8.26)</text>
-      <text x="712" y="570" fill="#6B756F" font-size="12">Publishes stage / finding / log events over Redis pub-sub</text>
-      <rect x="712" y="582" width="184" height="16" rx="4" fill="#161C17"/>
-      <text x="720" y="594" fill="#6B756F" font-size="10.5" font-family="'JetBrains Mono',monospace">failedReason on every throw</text>
-    </g>
-
-    <!-- redis -->
-    <g>
-      <rect x="88" y="632" width="350" height="78" rx="13" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="112" y="664" fill="#F3F6F4" font-size="15" font-weight="600">Redis (local)</text>
-      <text x="112" y="688" fill="#AEB8B2" font-size="12.5">BullMQ queue · pub-sub · AI response cache</text>
-    </g>
-
-    <!-- the pipeline band -->
-    <g>
-      <rect x="88" y="730" width="1172" height="328" rx="14" fill="#0A0E0C" stroke="#2C3630"/>
-      <text x="112" y="762" fill="#3FD98A" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.4">THE SEVEN-STAGE SCAN PIPELINE — LOCKED ORDER</text>
-      <text x="980" y="762" fill="#6B756F" font-size="11.5" font-family="'JetBrains Mono',monospace">read-only · zero transactions</text>
-      <rect x="112" y="780" width="1124" height="6" rx="3" fill="#161C17"/>
-      <rect x="112" y="780" width="1124" height="6" rx="3" fill="url(#pipe)"/>
-
-      <!-- 7 stage cards -->
-      <g font-family="'Inter',sans-serif">
-        <!-- s1 -->
-        <rect x="112" y="806" width="150" height="228" rx="11" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-        <circle cx="137" cy="832" r="13" fill="#1E2620"/><text x="137" y="837" fill="#3FD98A" font-size="13" font-weight="700" text-anchor="middle">1</text>
-        <text x="160" y="837" fill="#F3F6F4" font-size="12.5" font-weight="600">Code Parse</text>
-        <text x="130" y="872" fill="#AEB8B2" font-size="11">Normalize</text>
-        <text x="130" y="890" fill="#AEB8B2" font-size="11">source, detect</text>
-        <text x="130" y="908" fill="#AEB8B2" font-size="11">pragma, pick</text>
-        <text x="130" y="926" fill="#AEB8B2" font-size="11">solc, confirm</text>
-        <text x="130" y="944" fill="#AEB8B2" font-size="11">it compiles.</text>
-        <rect x="130" y="998" width="114" height="20" rx="5" fill="#161C17"/>
-        <text x="187" y="1012" fill="#6B756F" font-size="9.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">Static Analyzer</text>
-
-        <!-- s2 -->
-        <rect x="272" y="806" width="150" height="228" rx="11" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-        <circle cx="297" cy="832" r="13" fill="#1E2620"/><text x="297" y="837" fill="#3FD98A" font-size="13" font-weight="700" text-anchor="middle">2</text>
-        <text x="320" y="837" fill="#F3F6F4" font-size="12.5" font-weight="600">Static</text>
-        <text x="290" y="855" fill="#F3F6F4" font-size="12.5" font-weight="600">Analysis</text>
-        <text x="290" y="884" fill="#AEB8B2" font-size="11">Run Slither,</text>
-        <text x="290" y="902" fill="#AEB8B2" font-size="11">parse JSON</text>
-        <text x="290" y="920" fill="#AEB8B2" font-size="11">into findings</text>
-        <text x="290" y="938" fill="#AEB8B2" font-size="11">with file/line</text>
-        <text x="290" y="956" fill="#AEB8B2" font-size="11">ranges.</text>
-        <rect x="290" y="998" width="114" height="20" rx="5" fill="#161C17"/>
-        <text x="347" y="1012" fill="#6B756F" font-size="9.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">Static Analyzer</text>
-
-        <!-- s3 -->
-        <rect x="432" y="806" width="150" height="228" rx="11" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-        <circle cx="457" cy="832" r="13" fill="#1E2620"/><text x="457" y="837" fill="#3FD98A" font-size="13" font-weight="700" text-anchor="middle">3</text>
-        <text x="480" y="837" fill="#F3F6F4" font-size="12.5" font-weight="600">Mantle</text>
-        <text x="450" y="855" fill="#F3F6F4" font-size="12.5" font-weight="600">Context Fetch</text>
-        <text x="450" y="884" fill="#AEB8B2" font-size="11">Read-only RPC</text>
-        <text x="450" y="902" fill="#AEB8B2" font-size="11">+ explorer:</text>
-        <text x="450" y="920" fill="#AEB8B2" font-size="11">source, ABI,</text>
-        <text x="450" y="938" fill="#AEB8B2" font-size="11">events, deploy</text>
-        <text x="450" y="956" fill="#AEB8B2" font-size="11">metadata.</text>
-        <rect x="450" y="998" width="114" height="20" rx="5" fill="#161C17"/>
-        <text x="507" y="1012" fill="#6B756F" font-size="9.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">Context Layer</text>
-
-        <!-- s4 -->
-        <rect x="592" y="806" width="150" height="228" rx="11" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-        <circle cx="617" cy="832" r="13" fill="#1E2620"/><text x="617" y="837" fill="#3FD98A" font-size="13" font-weight="700" text-anchor="middle">4</text>
-        <text x="640" y="837" fill="#F3F6F4" font-size="12.5" font-weight="600">Protocol</text>
-        <text x="610" y="855" fill="#F3F6F4" font-size="12.5" font-weight="600">Rule Engine</text>
-        <text x="610" y="884" fill="#AEB8B2" font-size="11">Fingerprint vs</text>
-        <text x="610" y="902" fill="#AEB8B2" font-size="11">registry; run</text>
-        <text x="610" y="920" fill="#AEB8B2" font-size="11">Mantle risk</text>
-        <text x="610" y="938" fill="#AEB8B2" font-size="11">rules. Emit</text>
-        <text x="610" y="956" fill="#AEB8B2" font-size="11">findings.</text>
-        <rect x="610" y="998" width="114" height="20" rx="5" fill="#161C17"/>
-        <text x="667" y="1012" fill="#6B756F" font-size="9.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">Registry + Rules</text>
-
-        <!-- s5 -->
-        <rect x="752" y="806" width="150" height="228" rx="11" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-        <circle cx="777" cy="832" r="13" fill="#1E2620"/><text x="777" y="837" fill="#3FD98A" font-size="13" font-weight="700" text-anchor="middle">5</text>
-        <text x="800" y="837" fill="#F3F6F4" font-size="12.5" font-weight="600">AI</text>
-        <text x="770" y="855" fill="#F3F6F4" font-size="12.5" font-weight="600">Reasoning</text>
-        <text x="770" y="884" fill="#AEB8B2" font-size="11">gpt-4o-mini</text>
-        <text x="770" y="902" fill="#AEB8B2" font-size="11">enriches each</text>
-        <text x="770" y="920" fill="#AEB8B2" font-size="11">finding. Batch</text>
-        <text x="770" y="938" fill="#AEB8B2" font-size="11">+ cache. Never</text>
-        <text x="770" y="956" fill="#AEB8B2" font-size="11">invents facts.</text>
-        <rect x="770" y="998" width="114" height="20" rx="5" fill="#161C17"/>
-        <text x="827" y="1012" fill="#6B756F" font-size="9.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">AI Reasoning</text>
-
-        <!-- s6 -->
-        <rect x="912" y="806" width="150" height="228" rx="11" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-        <circle cx="937" cy="832" r="13" fill="#1E2620"/><text x="937" y="837" fill="#3FD98A" font-size="13" font-weight="700" text-anchor="middle">6</text>
-        <text x="960" y="837" fill="#F3F6F4" font-size="12.5" font-weight="600">Test</text>
-        <text x="930" y="855" fill="#F3F6F4" font-size="12.5" font-weight="600">Generation</text>
-        <text x="930" y="884" fill="#AEB8B2" font-size="11">Foundry tests</text>
-        <text x="930" y="902" fill="#AEB8B2" font-size="11">per finding;</text>
-        <text x="930" y="920" fill="#AEB8B2" font-size="11">Mantle-fork</text>
-        <text x="930" y="938" fill="#AEB8B2" font-size="11">setUp + cover-</text>
-        <text x="930" y="956" fill="#AEB8B2" font-size="11">age map.</text>
-        <rect x="930" y="998" width="114" height="20" rx="5" fill="#161C17"/>
-        <text x="987" y="1012" fill="#6B756F" font-size="9.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">Report Builder</text>
-
-        <!-- s7 -->
-        <rect x="1072" y="806" width="164" height="228" rx="11" fill="#0E1A14" stroke="#2C3630"/>
-        <circle cx="1097" cy="832" r="13" fill="#27B567"/><text x="1097" y="837" fill="#06140E" font-size="13" font-weight="700" text-anchor="middle">7</text>
-        <text x="1120" y="837" fill="#F3F6F4" font-size="12.5" font-weight="600">Report</text>
-        <text x="1090" y="855" fill="#F3F6F4" font-size="12.5" font-weight="600">Assembly</text>
-        <text x="1090" y="884" fill="#AEB8B2" font-size="11">Risk score,</text>
-        <text x="1090" y="902" fill="#AEB8B2" font-size="11">severity split,</text>
-        <text x="1090" y="920" fill="#AEB8B2" font-size="11">executive</text>
-        <text x="1090" y="938" fill="#AEB8B2" font-size="11">summary, the</text>
-        <text x="1090" y="956" fill="#AEB8B2" font-size="11">report row.</text>
-        <rect x="1090" y="998" width="128" height="20" rx="5" fill="#13251B"/>
-        <text x="1154" y="1012" fill="#73E7AC" font-size="9.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">handoff to proof</text>
-      </g>
-      <!-- stage flow arrows -->
-      <g stroke="#3A453E" stroke-width="1.4">
-        <path d="M262 920 L272 920" marker-end="url(#arrowMuted)"/>
-        <path d="M422 920 L432 920" marker-end="url(#arrowMuted)"/>
-        <path d="M582 920 L592 920" marker-end="url(#arrowMuted)"/>
-        <path d="M742 920 L752 920" marker-end="url(#arrowMuted)"/>
-        <path d="M902 920 L912 920" marker-end="url(#arrowMuted)"/>
-        <path d="M1062 920 L1072 920" marker-end="url(#arrowMuted)"/>
-      </g>
-    </g>
-
-    <!-- web<->worker queue arrow -->
-    <path d="M648 530 L688 530" stroke="#3FD98A" stroke-width="1.6" marker-end="url(#arrow)"/>
-    <text x="668" y="522" fill="#6B756F" font-size="10" font-family="'JetBrains Mono',monospace" text-anchor="middle">enqueue</text>
-    <path d="M263 632 L263 608" stroke="#3FD98A" stroke-width="1.6" marker-end="url(#arrow)"/>
-    <path d="M438 671 L688 560" stroke="#3A453E" stroke-width="1.4" stroke-dasharray="4 5"/>
-  </g>
-
-  <!-- ============ LAYER C: EXTERNAL ============ -->
-  <g>
-    <text x="1340" y="430" fill="#3FD98A" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.6">C · EXTERNAL</text>
-    <g>
-      <rect x="1340" y="452" width="240" height="92" rx="13" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="1362" y="486" fill="#F3F6F4" font-size="14.5" font-weight="600">Supabase</text>
-      <text x="1362" y="508" fill="#AEB8B2" font-size="11.5">Managed Postgres</text>
-      <text x="1362" y="526" fill="#6B756F" font-size="11" font-family="'JetBrains Mono',monospace">free tier · 1 pool</text>
-    </g>
-    <g>
-      <rect x="1340" y="560" width="240" height="92" rx="13" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="1362" y="594" fill="#F3F6F4" font-size="14.5" font-weight="600">OpenAI</text>
-      <text x="1362" y="616" fill="#AEB8B2" font-size="11.5">gpt-4o-mini only</text>
-      <text x="1362" y="634" fill="#6B756F" font-size="11" font-family="'JetBrains Mono',monospace">batched · cached</text>
-    </g>
-    <g>
-      <rect x="1340" y="668" width="240" height="92" rx="13" fill="url(#surf)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="1362" y="702" fill="#F3F6F4" font-size="14.5" font-weight="600">IPFS pinning</text>
-      <text x="1362" y="724" fill="#AEB8B2" font-size="11.5">Report metadata JSON</text>
-      <text x="1362" y="742" fill="#6B756F" font-size="11" font-family="'JetBrains Mono',monospace">metadata_uri</text>
-    </g>
-    <!-- external connectors -->
-    <path d="M1340 498 L1300 498" stroke="#3A453E" stroke-width="1.4" stroke-dasharray="4 5" marker-end="url(#arrowMuted)" marker-start="url(#arrowMuted)"/>
-    <path d="M1340 606 L1300 580" stroke="#3A453E" stroke-width="1.4" stroke-dasharray="4 5" marker-end="url(#arrowMuted)" marker-start="url(#arrowMuted)"/>
-    <path d="M1340 714 L1300 760" stroke="#3A453E" stroke-width="1.4" stroke-dasharray="4 5" marker-end="url(#arrowMuted)" marker-start="url(#arrowMuted)"/>
-  </g>
-
-  <!-- pipeline -> proof connector -->
-  <path d="M680 1058 L680 1108" stroke="#3FD98A" stroke-width="1.8" marker-end="url(#arrow)"/>
-  <text x="700" y="1090" fill="#6B756F" font-size="11" font-family="'JetBrains Mono',monospace">user reviews report — then explicitly approves</text>
-
-  <!-- ============ LAYER D: ON-CHAIN ============ -->
-  <g>
-    <rect x="60" y="1108" width="1520" height="324" rx="18" fill="url(#chain)" stroke="#2C3630"/>
-    <text x="88" y="1146" fill="#73E7AC" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.6">D · MANTLE MAINNET — the only place a transaction ever happens</text>
-    <text x="1180" y="1146" fill="#6B756F" font-size="11.5" font-family="'JetBrains Mono',monospace">one signature · user-approved · read-only everywhere else</text>
-
-    <!-- proof logger -->
-    <g>
-      <rect x="88" y="1168" width="316" height="226" rx="13" fill="#10150F" stroke="rgba(255,255,255,0.06)"/>
-      <rect x="88" y="1168" width="316" height="226" rx="13" fill="none" stroke="#27B567" stroke-opacity="0.25"/>
-      <text x="112" y="1202" fill="#F3F6F4" font-size="15" font-weight="600">Proof Logger</text>
-      <line x1="112" y1="1216" x2="380" y2="1216" stroke="rgba(255,255,255,0.06)"/>
-      <text x="112" y="1244" fill="#AEB8B2" font-size="12">1 · Canonicalize report</text>
-      <text x="112" y="1268" fill="#AEB8B2" font-size="12">2 · Deterministic report_hash</text>
-      <text x="112" y="1292" fill="#AEB8B2" font-size="12">3 · Pin metadata to IPFS</text>
-      <text x="112" y="1316" fill="#AEB8B2" font-size="12">4 · Build unsigned tx</text>
-      <text x="112" y="1340" fill="#AEB8B2" font-size="12">5 · User wallet signs &amp; sends</text>
-      <rect x="112" y="1356" width="268" height="22" rx="6" fill="#13251B"/>
-      <text x="246" y="1371" fill="#73E7AC" font-size="10.5" font-family="'JetBrains Mono',monospace" text-anchor="middle">Generate Proof modal — explicit confirm</text>
-    </g>
-
-    <!-- erc-8004 registries -->
-    <g>
-      <text x="448" y="1196" fill="#3FD98A" font-size="11.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.2">ERC-8004 REGISTRIES — Identity + Reputation live</text>
-      <g>
-        <rect x="448" y="1210" width="340" height="80" rx="12" fill="#10150F" stroke="rgba(255,255,255,0.06)"/>
-        <text x="470" y="1240" fill="#F3F6F4" font-size="13.5" font-weight="600">Identity Registry</text>
-        <text x="470" y="1262" fill="#AEB8B2" font-size="11.5">ERC-721 — Archon's agent identity NFT.</text>
-        <text x="470" y="1280" fill="#6B756F" font-size="11" font-family="'JetBrains Mono',monospace">"this token is the auditor"</text>
-      </g>
-      <g>
-        <rect x="448" y="1300" width="340" height="80" rx="12" fill="#10150F" stroke="rgba(255,255,255,0.06)"/>
-        <text x="470" y="1330" fill="#F3F6F4" font-size="13.5" font-weight="600">Reputation Registry</text>
-        <text x="470" y="1352" fill="#AEB8B2" font-size="11.5">Append-only — every audit posts an entry.</text>
-        <text x="470" y="1370" fill="#6B756F" font-size="11" font-family="'JetBrains Mono',monospace">portable, public track record</text>
-      </g>
-      <g>
-        <rect x="808" y="1210" width="340" height="80" rx="12" fill="#10150F" stroke="rgba(255,255,255,0.06)"/>
-        <text x="830" y="1240" fill="#F3F6F4" font-size="13.5" font-weight="600">Validation Registry</text>
-        <text x="830" y="1262" fill="#AEB8B2" font-size="11.5">Third parties attest to — or challenge —</text>
-        <text x="830" y="1280" fill="#AEB8B2" font-size="11.5">any finding. Audits are contestable.</text>
-      </g>
-      <g>
-        <rect x="808" y="1300" width="340" height="80" rx="12" fill="#10150F" stroke="rgba(255,255,255,0.06)"/>
-        <text x="830" y="1330" fill="#F3F6F4" font-size="13.5" font-weight="600">Proof record + IPFS URI</text>
-        <text x="830" y="1352" fill="#AEB8B2" font-size="11.5">report_hash · tx_hash · metadata_uri</text>
-        <text x="830" y="1370" fill="#6B756F" font-size="11" font-family="'JetBrains Mono',monospace">verifiable by anyone, forever</text>
-      </g>
-    </g>
-
-    <!-- verification panel -->
-    <g>
-      <rect x="1172" y="1210" width="384" height="170" rx="13" fill="#10150F" stroke="rgba(255,255,255,0.06)"/>
-      <text x="1196" y="1242" fill="#F3F6F4" font-size="14.5" font-weight="600">Independent verification</text>
-      <line x1="1196" y1="1256" x2="1532" y2="1256" stroke="rgba(255,255,255,0.06)"/>
-      <text x="1196" y="1282" fill="#AEB8B2" font-size="12">A judge re-derives report_hash from the</text>
-      <text x="1196" y="1302" fill="#AEB8B2" font-size="12">report and matches it against the on-chain</text>
-      <text x="1196" y="1322" fill="#AEB8B2" font-size="12">record + ERC-8004 entry.</text>
-      <rect x="1196" y="1338" width="336" height="26" rx="7" fill="#13251B"/>
-      <text x="1364" y="1355" fill="#73E7AC" font-size="11" font-family="'JetBrains Mono',monospace" text-anchor="middle">trust the math, not the claim</text>
-    </g>
-
-    <path d="M404 1281 L448 1250" stroke="#3FD98A" stroke-width="1.6" marker-end="url(#arrow)"/>
-    <path d="M1148 1295 L1172 1295" stroke="#3FD98A" stroke-width="1.6" marker-end="url(#arrow)"/>
-  </g>
-
-  <!-- ============ FOOTER LEGEND ============ -->
-  <g>
-    <line x1="60" y1="1474" x2="1580" y2="1474" stroke="rgba(255,255,255,0.06)"/>
-    <text x="60" y="1508" fill="#3FD98A" font-size="12.5" font-family="'JetBrains Mono',monospace" letter-spacing="1.6">LEGEND &amp; INVARIANTS</text>
-    <g font-size="12.5" fill="#AEB8B2" font-family="'Inter',sans-serif">
-      <line x1="60" y1="1536" x2="92" y2="1536" stroke="#3FD98A" stroke-width="1.8" marker-end="url(#arrow)"/>
-      <text x="104" y="1540">Live data flow</text>
-      <line x1="320" y1="1536" x2="352" y2="1536" stroke="#3A453E" stroke-width="1.6" stroke-dasharray="4 5" marker-end="url(#arrowMuted)"/>
-      <text x="364" y="1540">Read-only / verification path</text>
-      <rect x="640" y="1528" width="16" height="16" rx="4" fill="#0E1A14" stroke="#2C3630"/>
-      <text x="666" y="1540">On-chain — Mantle Mainnet</text>
-      <rect x="900" y="1528" width="16" height="16" rx="4" fill="#10150F" stroke="rgba(255,255,255,0.10)"/>
-      <text x="926" y="1540">Off-chain — single VM / external</text>
-    </g>
-    <g font-size="12.5" fill="#6B756F" font-family="'Inter',sans-serif">
-      <text x="60" y="1576">· The pipeline is read-only. The only transaction in the entire product is the user-approved proof log.</text>
-      <text x="60" y="1600">· One VM carries ~90% of compute — flat cost, no per-invocation billing, no on-demand build farms.</text>
-      <text x="60" y="1624">· Every audit becomes a verifiable ERC-8004 Reputation object; challenge UX remains disabled until official Validation is configured.</text>
-    </g>
-    <text x="60" y="1672" fill="#6B756F" font-size="11.5" font-family="'JetBrains Mono',monospace">ARCHON · ERC-8004 trustless auditor agent · Mantle Mainnet · Turing Test Hackathon 2026</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="756" viewBox="0 0 960 756" font-family="ui-sans-serif,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<rect width="960" height="756" fill="#F4F8F5" rx="16"/>
+<text x="24" y="30" font-size="13" font-weight="700" fill="#0E815A" letter-spacing="2.5">ARCHON · SYSTEM ARCHITECTURE</text>
+<text x="936" y="30" font-size="11" fill="#46544D" text-anchor="end">one pipeline · three artifacts · seven layers — whitepaper v2, fig. 2</text>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#16A06B"/></marker></defs>
+<rect x="24" y="50" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
+<rect x="24" y="50" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
+<rect x="24" y="64" width="4" height="46" rx="2" fill="#16A06B"/>
+<text x="42" y="85" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">INPUT</text>
+<text x="42" y="103" font-size="10.5" fill="#46544D">layer 1</text>
+<rect x="260" y="73" width="57" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="288.5" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">Paste</text>
+<rect x="327" y="73" width="63" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="358.5" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">Upload</text>
+<rect x="400" y="73" width="98" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="449" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">GitHub repo</text>
+<rect x="508" y="73" width="181" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="598.5" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">Verified Mantle address</text>
+<line x1="133" y1="127" x2="133" y2="146" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="150" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
+<rect x="24" y="150" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
+<rect x="24" y="164" width="4" height="46" rx="2" fill="#16A06B"/>
+<text x="42" y="185" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">QUEUE &amp; WORKERS</text>
+<text x="42" y="203" font-size="10.5" fill="#46544D">layer 2</text>
+<rect x="260" y="173" width="119" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="319.5" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">BullMQ + Redis</text>
+<rect x="389" y="173" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="462" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Content-hash cache</text>
+<rect x="545" y="173" width="112" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="601" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Hard timeouts</text>
+<rect x="667" y="173" width="139" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="736.5" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Live SSE progress</text>
+<line x1="133" y1="227" x2="133" y2="246" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="250" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
+<rect x="24" y="250" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
+<rect x="24" y="264" width="4" height="46" rx="2" fill="#16A06B"/>
+<text x="42" y="285" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">ANALYSIS</text>
+<text x="42" y="303" font-size="10.5" fill="#46544D">layer 3</text>
+<rect x="260" y="273" width="105" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="312.5" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">solc compile</text>
+<rect x="375" y="273" width="70" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="410" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">Slither</text>
+<rect x="455" y="273" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="528" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">Mantle rule engine</text>
+<rect x="611" y="273" width="167" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="694.5" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">AI enrichment (gated)</text>
+<line x1="133" y1="327" x2="133" y2="346" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="350" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
+<rect x="24" y="350" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
+<rect x="24" y="364" width="4" height="46" rx="2" fill="#16A06B"/>
+<text x="42" y="385" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">GAS MEASUREMENT</text>
+<text x="42" y="403" font-size="10.5" fill="#46544D">layer 4</text>
+<rect x="260" y="373" width="160" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="340" y="391" font-size="12" fill="#0B1A14" text-anchor="middle">Optimization catalog</text>
+<rect x="430" y="373" width="139" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="499.5" y="391" font-size="12" fill="#0B1A14" text-anchor="middle">Foundry harnesses</text>
+<rect x="579" y="373" width="208" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="683" y="391" font-size="12" fill="#0B1A14" text-anchor="middle">Receipt-calibrated DA model</text>
+<line x1="133" y1="427" x2="133" y2="446" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="450" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
+<rect x="24" y="450" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
+<rect x="24" y="464" width="4" height="46" rx="2" fill="#16A06B"/>
+<text x="42" y="485" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">ARTIFACTS</text>
+<text x="42" y="503" font-size="10.5" fill="#46544D">layer 5</text>
+<rect x="260" y="473" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="333" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">Report JSON + hash</text>
+<rect x="416" y="473" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="489" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">Findings &amp; patches</text>
+<rect x="572" y="473" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="635" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">Generated tests</text>
+<rect x="708" y="473" width="112" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="764" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">IPFS metadata</text>
+<line x1="133" y1="527" x2="133" y2="546" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="550" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
+<rect x="24" y="550" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
+<rect x="24" y="564" width="4" height="46" rx="2" fill="#16A06B"/>
+<text x="42" y="585" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">VERIFICATION</text>
+<text x="42" y="603" font-size="10.5" fill="#46544D">layer 6</text>
+<rect x="260" y="573" width="153" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="336.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">ArchonProofRegistry</text>
+<rect x="423" y="573" width="167" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="506.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">ERC-8004 identity #97</text>
+<rect x="600" y="573" width="195" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="697.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">Public verify + challenge</text>
+<line x1="133" y1="627" x2="133" y2="646" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="650" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
+<rect x="24" y="650" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
+<rect x="24" y="664" width="4" height="46" rx="2" fill="#16A06B"/>
+<text x="42" y="685" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">DISTRIBUTION</text>
+<text x="42" y="703" font-size="10.5" fill="#46544D">layer 7</text>
+<rect x="260" y="673" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="333" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">App + public pages</text>
+<rect x="416" y="673" width="50" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="441" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">Docs</text>
+<rect x="476" y="673" width="43" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="497.5" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">API</text>
+<rect x="529" y="673" width="132" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="595" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">CI GitHub Action</text>
+<rect x="671" y="673" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="734" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">Gas leaderboard</text>
+<text x="24" y="742" font-size="11" fill="#46544D">Read-only analysis end to end — the only on-chain write is user-approved proof logging to ArchonProofRegistry on Mantle Mainnet (5000).</text>
 </svg>

@@ -5,7 +5,7 @@ import { Pillars } from "@/components/marketing/Pillars";
 import { DaInsightBand } from "@/components/marketing/DaInsightBand";
 import { ProofReceipt } from "@/components/marketing/ProofReceipt";
 import { FinalCta } from "@/components/marketing/FinalCta";
-import { daShareLabel, getLandingStats, shortHash } from "@/lib/marketing/stats";
+import { daShareLabel, getLandingStats, ORACLE_DIVERGENCE, shortHash } from "@/lib/marketing/stats";
 
 // Landing structure (R2): hero → live proof strip → three pillars → DA insight
 // → proof receipt → final CTA. Every number on this page is queried from the
@@ -19,6 +19,19 @@ export const metadata: Metadata = {
 };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
+const fmtMnt = (wei: bigint) => {
+  const mnt = Number(wei) / 1e18;
+  return mnt >= 0.0001 ? mnt.toFixed(6) : mnt.toFixed(9);
+};
+// Immutable verified facts (ADR 0007) — the oracle-vs-receipt comparison bars.
+const divergenceRows = ORACLE_DIVERGENCE.rows.map((row) => ({
+  txShort: row.txShort,
+  bytes: row.bytes,
+  actualMnt: fmtMnt(row.actualWei),
+  oracleMnt: fmtMnt(row.oracleWei),
+  underReportPct: row.underReportPct,
+  oracleShare: Number(row.oracleWei) / Number(row.actualWei),
+}));
 
 export default async function MarketingHome() {
   const stats = await getLandingStats();
@@ -44,7 +57,7 @@ export default async function MarketingHome() {
         da={da ? { daLabel: da.da, l2Label: da.l2 } : null}
         latestHash={stats?.latestProof ? shortHash(stats.latestProof.reportHash, 12, 8) : null}
       />
-      {da && stats?.daSplit ? <DaInsightBand daLabel={da.da} l2Label={da.l2} reportCount={stats.daSplit.reportCount} /> : null}
+      <DaInsightBand rows={divergenceRows} />
       <ProofReceipt proof={stats?.latestProof ?? null} />
       <FinalCta />
     </main>

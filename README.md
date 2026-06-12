@@ -1,166 +1,138 @@
-# Archon
+<p align="center">
+  <img src="public/logo-light.png" alt="Archon" width="420" />
+</p>
 
-Archon is a Mantle-native, ERC-8004 trustless smart-contract auditor. It ingests verified or pasted Solidity, runs a seven-stage read-only analysis pipeline, generates audit reports and Foundry regression tests, then lets a user explicitly log a proof of the report to Mantle Mainnet through ERC-8004 Reputation.
+<h3 align="center">Audit it. Optimize it. Prove it.</h3>
+<p align="center"><strong>The verifiable DevTools layer for Mantle</strong> — AI-assisted smart-contract audits, receipt-calibrated gas optimization, and on-chain proof for every report.</p>
 
-Live app: https://archonaudit.xyz · Docs: https://archonaudit.xyz/docs
+<p align="center">
+  <a href="https://github.com/Franlinozz/Archon/actions/workflows/ci.yml"><img src="https://github.com/Franlinozz/Archon/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/Mantle_Mainnet-5000-16A06B" alt="Mantle Mainnet 5000" />
+  <a href="https://archonaudit.xyz/.well-known/archon-agent.json"><img src="https://img.shields.io/badge/ERC--8004-Agent_%2397-16A06B" alt="ERC-8004 Agent #97" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" /></a>
+  <a href="https://archonaudit.xyz/whitepaper.pdf"><img src="https://img.shields.io/badge/whitepaper-v2.0_PDF-0E815A" alt="Whitepaper v2.0" /></a>
+</p>
 
-Public verified report example: https://archonaudit.xyz/r/5ec46389-918a-4c90-858a-c14da0667a46
+---
 
-![Archon system architecture](docs/archon-architecture.svg)
+## What Archon does
 
-## Why Archon exists
+- **Audits** Solidity for Mantle: deterministic detection (solc + Slither + a Mantle-specific rule engine), bounded AI explanations, and generated Foundry regression tests — read-only, always.
+- **Optimizes gas with receipts, not folklore:** every report splits L2 execution from data availability, priced from Mantle receipt ground truth (`l1Fee`) instead of the legacy oracle.
+- **Proves it on-chain:** canonical report hashes anchor to ArchonProofRegistry under ERC-8004 Agent #97, and anyone can re-verify or challenge a report without a wallet.
 
-Smart-contract audits are usually static PDFs or private dashboards. Archon turns an audit into a verifiable object:
+## Live
 
-- a deterministic report hash,
-- IPFS metadata,
-- an ERC-8004 Reputation entry on Mantle Mainnet,
-- a public report viewer that anyone can re-check,
-- generated tests that developers can copy into a Foundry suite.
+| Surface | URL |
+| --- | --- |
+| App | <https://archonaudit.xyz> |
+| Docs | <https://archonaudit.xyz/docs> |
+| Whitepaper (PDF) | <https://archonaudit.xyz/whitepaper.pdf> |
+| Gas leaderboard | <https://archonaudit.xyz/gas-leaderboard> |
+| Example public report | <https://archonaudit.xyz/r/d37f46d6-aded-41fc-9215-900370300111> |
+| Example proof tx | [`0x141e3973…c88c10b` on MantleScan](https://mantlescan.xyz/tx/0x141e3973a3dc4a5f8b2dec3c6bf0ed6f1f8132ba1be4e9b8086e0fab9c88c10b) |
+| CI Action demo (real PRs) | [green run + gas comment](https://github.com/Franlinozz/archon-gas-action-demo/pull/1) · [red run on a regression](https://github.com/Franlinozz/archon-gas-action-demo/pull/2) |
 
-The core thesis is simple: trust the reproducible evidence, not only the auditor's claim.
+## Architecture
 
-## Product surface
+![Archon system architecture — seven layers from input to distribution](docs/assets/archon-architecture.svg)
 
-- **Landing page** — concise public positioning and demo path.
-- **Audit Studio** — paste Solidity or scan a verified Mantle address.
-- **Seven-stage scan pipeline** — code parse, static analysis, Mantle context, protocol rules, AI enrichment, test generation, report assembly.
-- **Report pages** — risk score, findings, line-level evidence, recommended fixes, generated tests.
-- **Findings Index** — cross-report triage queue for all findings.
-- **Public Report Viewer** — `/r/[reportId]`, no app shell or wallet required.
-- **Proofs dashboard** — proof status, hash match, Mantlescan and IPFS references.
-- **Contract Context Explorer** — read-only Mantle context view.
-- **Cost Guard** — advisory/sample-labeled cloud cost posture screen.
-- **Archon Assistant** — explains findings and recommendations; it never starts scans, connects wallets, or sends transactions.
-- **Validation Preview** — read-only future challenge-flow explainer while official ERC-8004 Validation config is unavailable.
+One pipeline, three artifacts (audit report, gas report, on-chain proof), seven independently improvable layers. Full detail in the [whitepaper](https://archonaudit.xyz/whitepaper.pdf) (§03) and [docs](https://archonaudit.xyz/docs).
 
-## CLI — `archon-scan`
+## Deployed contracts (Mantle Mainnet · 5000)
 
-Audits and gas reports from any terminal or CI, via the same public API as the app (zero dependencies, Node ≥ 18):
+| Contract | Address | Notes |
+| --- | --- | --- |
+| **ArchonProofRegistry** | [`0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a`](https://mantlescan.xyz/address/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a#code) | Archon's own proof anchor — **verified source**. `logAuditProof()` publishes the deterministic report hash + IPFS metadata URI + risk score; permissionless and idempotent per hash. Deploy tx [`0xb9ce87de…a1a7c5`](https://mantlescan.xyz/tx/0xb9ce87de86b212b91eb64012bbdab91014373da1f6d960470b340e1991a1a7c5), example proof tx [`0x82d99588…088ef`](https://mantlescan.xyz/tx/0x82d99588e5f1bff33d618743025d598445493032637de25844a67aa8e88088ef). Source + Foundry tests: `contracts/`. |
+| ERC-8004 Identity Registry | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://mantlescan.xyz/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) | Official registry; Archon is **Agent #97** ([manifest](https://archonaudit.xyz/.well-known/archon-agent.json)). |
+| ERC-8004 Reputation Registry | [`0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`](https://mantlescan.xyz/address/0x8004BAa17C55a88189AE136b182e5fdA19dE9b63) | Official registry; holds Archon's earlier reputation-anchored proof records. |
+
+## Why our DA numbers are receipt-calibrated
+
+On live Mantle transactions, the legacy `GasPriceOracle.getL1Fee` **under-reports the DA fee the chain actually charges by ~99.96%** — the receipt `l1Fee` was ≈2,200–2,900× the oracle's prediction (measured 99.955% / 99.966% divergence on two real txs).
+Any tool quoting the oracle is invisibly wrong about Mantle's DA economics.
+So Archon prices DA from receipt ground truth — a calibrated zero/nonzero-calldata-byte model validated against live transactions — and labels every figure as **measured, estimated, or unpriced**.
+Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-mantle-gas-oracle-verification.md) · whitepaper v2 §05, Table 1.
+
+## Feature matrix
+
+| Capability | What you get | Where |
+| --- | --- | --- |
+| **Audit** | Severity-ranked findings with file/line evidence, Mantle-specific risk, AI explanations, generated Foundry tests | [Audit Studio](https://archonaudit.xyz/app/audit/new) |
+| **Gas** | Optimization catalog, validated patches, receipt-calibrated L2/DA split, annualized savings under stated assumptions | [Gas Optimizer](https://archonaudit.xyz/app/gas) |
+| **Proof** | Canonical hash anchored to ArchonProofRegistry; public, wallet-free verification | [/proofs](https://archonaudit.xyz/proofs) |
+| **CI** | `archon-scan` CLI with `--fail-on` gates + GitHub Action posting real gas-diff PR comments | [CLI docs](https://archonaudit.xyz/docs/platform-api/cli) · [Action docs](https://archonaudit.xyz/docs/gas-optimizer/ci-github-action) |
+| **Leaderboard** | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
+| **Challenge** | Public challenge records against reports and optimizations | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
+
+## Quickstart
+
+**Use the app:** open <https://archonaudit.xyz>, click **Start Audit**, paste Solidity or import from GitHub/address.
+
+**CLI** (zero dependencies, Node ≥ 18):
 
 ```bash
 npx --yes github:Franlinozz/archon-cli scan contracts/Vault.sol --gas --fail-on high
 ```
 
-Streams stage progress, prints the findings table and the receipt-calibrated L2/DA gas split, and exits `2` when the `--fail-on` severity gate is breached — CI-composable beyond the GitHub Action. Source lives in [`packages/cli`](packages/cli) (mirrored to [Franlinozz/archon-cli](https://github.com/Franlinozz/archon-cli) for npx); full docs at [/docs/platform-api/cli](https://archonaudit.xyz/docs/platform-api/cli).
+**GitHub Action** (PR gas-diff comments with L2 + DA columns):
 
-## Architecture
+```yaml
+permissions: { contents: read, pull-requests: write }
+steps:
+  - uses: actions/checkout@v4
+  - uses: Franlinozz/Archon@main
+    with:
+      source-file: contracts/YourContract.sol
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+```
 
-Archon is intentionally simple and cost-controlled:
+**API:** OpenAPI 3.1 at [/api/openapi](https://archonaudit.xyz/api/openapi), interactive reference at [/api-reference](https://archonaudit.xyz/api-reference).
 
-- **Next.js 15 App Router** for UI, API routes, SSR, and public report pages.
-- **PM2 + Caddy on one VM** for the web process and scan worker.
-- **BullMQ + local Redis** for scan jobs, live scan events, and cache.
-- **Supabase Postgres** for scans, findings, reports, proofs, and AI cache rows.
-- **Slither + solc/solcjs** for deterministic static analysis.
-- **OpenAI gpt-4o-mini** for optional enrichment when `OPENAI_API_KEY` is present; deterministic fallback keeps the app usable without it.
-- **Pinata/IPFS** for proof metadata.
-- **Mantle Mainnet + ERC-8004** for Identity and Reputation proof records.
+## Tech stack
+
+Next.js 15 · TypeScript · Tailwind · BullMQ + Redis · Supabase Postgres · solc/Slither · Foundry · viem/wagmi · pluggable AI providers (OpenAI live; ELFA & Tencent Cloud Hunyuan adapters built-in, [status](https://archonaudit.xyz/api/providers)) · Pinata/IPFS (+ Tencent COS backup adapter) · PM2 + Caddy on one VM.
 
 The scan pipeline is read-only. The only intended transaction path is the explicit user-approved proof log, guarded by simulation and cost checks.
 
-## Archon-deployed contract (Mantle Mainnet, chain `5000`)
+## Hackathon
 
-Archon ships its **own** on-chain proof contract — the primary, award-eligible anchor. Its
-`logAuditProof()` publishes the AI inference result on-chain (deterministic report hash +
-IPFS metadata URI + AI-derived risk score). It is permissionless and idempotent per report
-hash, so both the gasless (server) and self-custody (user) proof paths work without the
-ERC-8004 self-feedback restriction.
+Built for the **Tencent Cloud × Mantle** hackathon (Cookathon). Archon ships its **own** on-chain proof contract as the primary, award-eligible deployment: **ArchonProofRegistry** (verified on MantleScan, table above) — `logAuditProof()` publishes the AI inference result on-chain (deterministic report hash + IPFS metadata URI + AI-derived risk score), permissionless and idempotent per report hash, so both gasless and self-custody proof paths work without the ERC-8004 self-feedback restriction. AI enrichment and artifact storage run on a [pluggable provider layer](https://archonaudit.xyz/docs/platform-api/cloud-providers) with first-class Tencent Cloud (Hunyuan, COS) adapters.
 
-- ArchonProofRegistry: `0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a` — **Verified** on MantleScan
-- Deploy tx: `0xb9ce87de86b212b91eb64012bbdab91014373da1f6d960470b340e1991a1a7c5`
-- Example AI-proof tx (`logAuditProof`): `0x82d99588e5f1bff33d618743025d598445493032637de25844a67aa8e88088ef`
-- Verified source: https://mantlescan.xyz/address/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a#code
-- Source + tests: `contracts/src/ArchonProofRegistry.sol`, `contracts/test/` (`forge test`, solc 0.8.24)
+## Screenshots
 
-## ERC-8004 / Mantle configuration
+| | |
+| --- | --- |
+| ![Landing](docs/assets/screenshot-landing.png) | ![Gas leaderboard](docs/assets/screenshot-gas-leaderboard.png) |
 
-Archon uses official ERC-8004 contract ABIs and the official Mantle Mainnet Identity and Reputation registries. Validation Registry support is intentionally disabled until an official Mantle Mainnet Validation Registry address is published.
-
-Current production identity and registries (Mantle Mainnet, chain `5000`):
-
-- Identity Registry: `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`
-- Reputation Registry: `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`
-- Archon Agent ID: `97`
-- Agent identity reference: `eip155:5000:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432:97`
-- Agent file: https://archonaudit.xyz/.well-known/archon-agent.json
-- Example proof tx: `0xfe5a2b6bc9e311227ea54eaad2fc2ce46a32bdea2ff7808528108d61569099cb`
-
-## Safety invariants
-
-- Blockchain writes only happen on Mantle Mainnet.
-- Proof logging is explicit and user-approved.
-- Static call/simulation happens before on-chain proof writes.
-- Any unexpectedly high gas estimate should stop and ask for human confirmation.
-- Validation challenge writes remain disabled without official registry config.
-- Secrets stay in environment variables and are not committed.
-- AI output is advisory and validated before storage/display where structured data is expected.
-- Reports are risk intelligence, not guarantees or certifications.
+![Public report viewer](docs/assets/screenshot-public-report.png)
 
 ## Local development
 
 ```bash
 pnpm install
-cp .env.example .env.local
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
-pnpm dev
+cp .env.example .env.local   # set DATABASE_URL, REDIS_URL, Mantle RPC
+pnpm dev                     # web app
+pnpm worker                  # scan worker
 ```
 
-Required local services for the full app:
+Optional: `OPENAI_API_KEY` (or `AI_PROVIDER` + the matching key) for live AI enrichment — deterministic fallback keeps the app usable without it; `IPFS_PIN_TOKEN` for proof metadata pinning.
 
-- Postgres-compatible `DATABASE_URL`
-- Redis `REDIS_URL`
-- Mantle RPC URL
-
-Optional services:
-
-- `OPENAI_API_KEY` for live AI enrichment/chat responses
-- `IPFS_PIN_TOKEN` + `IPFS_PIN_PROVIDER=pinata` for proof metadata pinning
-- proof wallet private keys only for controlled scripts / server-side proof operations
-
-## Verification commands
-
-```bash
-pnpm typecheck
-pnpm lint
-pnpm scope-grep
-pnpm secret-scan
-pnpm test
-pnpm build
-```
-
-`pnpm test` currently verifies deterministic proof hashing and Mantle rule fixtures.
-
-## Demo script
-
-1. Open https://archonaudit.xyz and click **Start Audit**.
-2. Scan a Solidity sample or review the existing VaultV2 report.
-3. Walk through the seven-stage scan pipeline and finding evidence.
-4. Open generated tests and show a Foundry regression test.
-5. Open Proofs and show hash match, IPFS metadata, and Mantlescan tx.
-6. Share the public report URL and explain that anyone can verify it without connecting a wallet.
-7. Close on the ERC-8004 thesis: Archon turns audit work into a portable on-chain reputation trail.
+**Verification gates:** `pnpm typecheck · lint · test · secret-scan · scope-grep · build` — CI runs the same set.
 
 ## Repository map
 
 ```text
-app/                    Next.js app routes and API routes
-app/app/                authenticated/workspace-style product pages
-app/r/[reportId]/       public read-only report viewer
-components/archon/      shared UI components and state surfaces
-contracts/              sample Solidity inputs and rule fixtures
-docs/                   architecture, ADRs, submission evidence
-lib/ai/                 AI enrichment and fallback behavior
-lib/chain/              Mantle, wagmi, ERC-8004 helpers
-lib/proof/              canonical hash, metadata, IPFS, Reputation helpers
-lib/scan/               seven-stage scanner and deterministic rules
-lib/tests/              generated Foundry test builder
+app/                    Next.js app + API routes (app/r/[reportId] = public report viewer)
+components/             UI components (archon/, marketing/, nav/, docs/, theme/)
+contracts/              ArchonProofRegistry (Foundry) + sample inputs and fixtures
+docs/                   architecture assets, ADRs, DOC-SYNC ritual, whitepaper, submission notes
+lib/                    scan pipeline, gas engine, proof layer, AI providers, chain helpers
+packages/cli/           archon-scan CLI (mirrored to Franlinozz/archon-cli for npx)
 worker/                 BullMQ scan worker entrypoint
+action.yml              the Archon Gas Action (composite)
 ```
 
-## License
+## Contributing & license
 
-MIT — see [LICENSE](LICENSE).
+Issues and PRs are welcome — run the verification gates before submitting. Licensed [MIT](LICENSE).

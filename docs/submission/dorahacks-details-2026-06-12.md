@@ -6,9 +6,9 @@ Paste-ready blocks for the submission page. Keep the existing **deployment-award
 
 ## Gas Optimizer — the insight no oracle will tell you
 
-Mantle's legacy `GasPriceOracle.getL1Fee` overstates real data-availability cost by **~99.96%**: on live Mantle Mainnet transactions, the oracle quoted DA fees ~2,200–2,900× the `l1Fee` actually charged on the receipt (measured 99.9551% and 99.9656% divergence; methodology and tx hashes in [ADR 0007](https://github.com/Franlinozz/Archon/blob/main/docs/decisions/0007-mantle-gas-oracle-verification.md)).
+Mantle's legacy `GasPriceOracle.getL1Fee` **under-reports real data-availability cost by ~99.96%**: on live Mantle Mainnet transactions, the `l1Fee` actually charged on the receipt was ≈2,200–2,900× what the oracle predicted (measured 99.955% and 99.966% divergence; methodology and tx hashes in [ADR 0007](https://github.com/Franlinozz/Archon/blob/main/docs/decisions/0007-mantle-gas-oracle-verification.md) and whitepaper v2 Table 1). Any tool still quoting the oracle is invisibly wrong about Mantle's DA economics.
 
-Archon therefore prices DA from **receipt ground truth**, not the oracle: a calibrated zero/nonzero-calldata-byte model validated against real transactions. Every gas report splits **L2 execution vs DA per call**, so builders optimize the slice that actually costs money — on Mantle, that's execution; DA is nearly free. The public [gas leaderboard](https://archonaudit.xyz/gas-leaderboard) ranks completed reports with stated traffic assumptions (sample rows explicitly labeled).
+Archon therefore prices DA from **receipt ground truth**, not the oracle: a calibrated zero/nonzero-calldata-byte model validated against real transactions, with every figure labeled **measured, estimated, or unpriced**. Every gas report splits identified savings into **L2 execution vs DA**. The public [gas leaderboard](https://archonaudit.xyz/gas-leaderboard) ranks completed reports with stated traffic assumptions (sample rows explicitly labeled).
 
 ## Developer surface: CLI + CI Action + API
 
