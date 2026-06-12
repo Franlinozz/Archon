@@ -1,0 +1,84 @@
+---
+title: CLI (archon-scan)
+description: Run Archon audits and gas reports from your terminal or any CI — zero dependencies, fail-on gates, JSON output.
+---
+
+# CLI — `archon-scan`
+
+`archon-scan` is a zero-dependency Node CLI (Node ≥ 18) that drives Archon's public API: it submits a scan, streams stage progress to your terminal, prints the findings table — and with `--gas`, the receipt-calibrated L2-versus-DA split — then exits nonzero when your severity gate is breached. It composes into any CI system, not just the GitHub Action. It is read-only: it never deploys, signs, or moves anything.
+
+## Run it
+
+```bash
+# via npx, no install (mirror of packages/cli in the Archon monorepo)
+npx --yes github:Franlinozz/archon-cli scan contracts/Vault.sol --fail-on high
+
+# or from a checkout of the Archon repo
+node packages/cli/bin/archon-scan.mjs scan contracts/Vault.sol --fail-on high
+```
+
+## Usage
+
+```text
+archon-scan scan <file.sol | directory | 0xAddress> [options]
+
+  --gas                 Also run a gas report (receipt-calibrated L2/DA split)
+  --json                Machine-readable JSON to stdout (progress -> stderr)
+  --fail-on <sev>       Exit 2 if any finding is at/above: critical|high|medium|low
+  --depth <depth>       quick|deep|gas-cost|full-report   (default: quick)
+  --protocols <list>    Coverage targets, comma-separated (default: mETH)
+  --label <name>        Contract label shown in the workspace
+  --api <url>           API base (default: $ARCHON_API or https://archonaudit.xyz)
+  --timeout <seconds>   Max wait for completion (default: 900)
+```
+
+Exit codes: `0` ok · `1` operational error · `2` `--fail-on` threshold breached.
+
+Directories are scanned as a bundle: every `.sol` file (up to 80) is uploaded so imports resolve; the file declaring the most contracts becomes the entry point.
+
+## What a run looks like
+
+Real output from a production run against a deliberately vulnerable staking contract:
+
+```text
+00:05:59 Archon scanning RewardsDistributor.sol (depth: quick, api: https://archonaudit.xyz)
+00:06:00 ▸ scan 52cf53d9-… queued
+00:06:03 ▸ Static Analysis (13%)
+00:06:11 ▸ Gas Optimization (50%)
+00:06:17 ▸ AI Reasoning (63%)
+00:08:06 ▸ Done (100%)
+
+Findings (20 total)  2 high · 1 medium · 5 low · 12 info
+  HIGH     Msg Value Loop RewardsDistributor.sol:37
+  HIGH     Reentrancy Eth RewardsDistributor.sol:47
+  …
+
+Risk score 90/100
+Report https://archonaudit.xyz/r/d37f46d6-aded-41fc-9215-900370300111
+
+Gas (per call, receipt-calibrated)
+  L2 execution  0.001128102 MNT
+  DA            0.000000000 MNT — priced from Mantle receipt ground truth (l1Fee)
+
+✖ 2 finding(s) at or above "high" — failing (exit 2)
+```
+
+## In CI
+
+Any CI that can run Node can gate merges on Archon:
+
+```yaml
+- uses: actions/setup-node@v4
+  with: { node-version: 22 }
+- name: Archon security gate
+  run: npx --yes github:Franlinozz/archon-cli scan contracts/ --fail-on high
+```
+
+For pull-request gas-diff comments with L2/DA columns, use the [GitHub Action](/docs/gas-optimizer/ci-github-action) — the CLI and Action share the same public API, so results match the [Audit Studio](/app/audit/new) and the [gas leaderboard](/gas-leaderboard).
+
+`--json` prints the complete scan, findings, report, and gas payload for scripting:
+
+```bash
+archon-scan scan ./src --gas --json > archon.json
+jq '.report.riskScore' archon.json
+```

@@ -9,6 +9,13 @@ description: Run Archon's Mantle gas optimizer from GitHub Actions and post PR g
 
 The action does **not** invent gas diffs. The PR comment links to the generated Archon gas report and includes the stored L2 execution / L1 data-availability split from that report.
 
+## See it live
+
+[Franlinozz/archon-gas-action-demo](https://github.com/Franlinozz/archon-gas-action-demo) runs this action (plus the [`archon-scan` CLI](/docs/platform-api/cli) as a security gate) on real pull requests against Archon's production API:
+
+- ✅ [PR #1](https://github.com/Franlinozz/archon-gas-action-demo/pull/1) — a safe storage-caching optimization: the action posts the gas-diff comment with L2/DA columns and both checks pass.
+- ❌ [PR #2](https://github.com/Franlinozz/archon-gas-action-demo/pull/2) — a reentrancy regression: the `archon-scan --fail-on high` gate exits `2` and the check goes red, while the gas comment still posts.
+
 ## Minimal workflow
 
 ```yaml

@@ -19,6 +19,7 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
       { label: "Cost Guard", href: "/app/cost-guard" },
       { label: "Gas Leaderboard", href: "/gas-leaderboard" },
       { label: "Public Reports", href: "/proofs" },
+      { label: "Pricing", href: "/pricing" },
     ],
   },
   {

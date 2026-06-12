@@ -34,6 +34,16 @@ The core thesis is simple: trust the reproducible evidence, not only the auditor
 - **Archon Assistant** — explains findings and recommendations; it never starts scans, connects wallets, or sends transactions.
 - **Validation Preview** — read-only future challenge-flow explainer while official ERC-8004 Validation config is unavailable.
 
+## CLI — `archon-scan`
+
+Audits and gas reports from any terminal or CI, via the same public API as the app (zero dependencies, Node ≥ 18):
+
+```bash
+npx --yes github:Franlinozz/archon-cli scan contracts/Vault.sol --gas --fail-on high
+```
+
+Streams stage progress, prints the findings table and the receipt-calibrated L2/DA gas split, and exits `2` when the `--fail-on` severity gate is breached — CI-composable beyond the GitHub Action. Source lives in [`packages/cli`](packages/cli) (mirrored to [Franlinozz/archon-cli](https://github.com/Franlinozz/archon-cli) for npx); full docs at [/docs/platform-api/cli](https://archonaudit.xyz/docs/platform-api/cli).
+
 ## Architecture
 
 Archon is intentionally simple and cost-controlled:

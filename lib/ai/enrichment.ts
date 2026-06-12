@@ -1,27 +1,12 @@
 import { createHash } from "node:crypto";
-import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { appendScanLog, publishScanEvent } from "@/lib/scan/events";
+import { enrichmentSchema, selectProvider, type AIProvider, type Enrichment, FINDING_ENRICHMENT_PROMPT_VERSION } from "@/lib/ai/provider";
 
-export const FINDING_ENRICHMENT_PROMPT_VERSION = "finding-enrichment-v1-2026-05-22";
-const MODEL = "gpt-4o-mini";
+export { FINDING_ENRICHMENT_PROMPT_VERSION };
 const BATCH_SIZE = Number(process.env.ARCHON_AI_ENRICHMENT_BATCH_SIZE ?? 5);
 const CALL_TIMEOUT_MS = Number(process.env.ARCHON_AI_ENRICHMENT_TIMEOUT_MS ?? 45_000);
 const MAX_BATCHES_DEFAULT = Number(process.env.ARCHON_AI_ENRICHMENT_MAX_BATCHES ?? 8);
-
-const enrichmentSchema = z.object({
-  summary: z.coerce.string().min(20).max(900),
-  why_mantle: z.coerce.string().min(20).max(900),
-  exploit_scenario: z.coerce.string().min(20).max(900),
-  recommended_fix: z.coerce.string().min(20).max(1200),
-  patch_diff: z.coerce.string().min(10).max(5000),
-  confidence: z.coerce.number().min(0).max(1).catch(0.74),
-  gas_impact: z.coerce.string().nullable().optional().catch(null),
-});
-
-const batchResponseSchema = z.object({
-  findings: z.array(z.object({ id: z.string().uuid(), enrichment: enrichmentSchema })),
-});
 
 type FindingRow = {
   id: string;
@@ -36,7 +21,6 @@ type FindingRow = {
   recommended_fix: string | null;
 };
 
-type Enrichment = z.infer<typeof enrichmentSchema>;
 type ScanAiBudget = { lineCount: number; maxBatches: number };
 
 function hash(value: string) {
@@ -57,10 +41,6 @@ function fingerprint(finding: FindingRow) {
 
 function cacheKey(finding: FindingRow) {
   return hash(`${FINDING_ENRICHMENT_PROMPT_VERSION}:${fingerprint(finding)}`);
-}
-
-function stripJsonFences(content: string) {
-  return content.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
 }
 
 function patchFor(finding: FindingRow) {
@@ -110,66 +90,13 @@ async function storeCache(key: string, enrichment: Enrichment) {
   );
 }
 
-function promptFor(findings: FindingRow[]) {
-  return [
-    "You enrich deterministic smart-contract audit findings for Archon, a Mantle Mainnet read-only auditor.",
-    "Respond with only a JSON object, no prose, no markdown fences.",
-    "Do not invent vulnerabilities, files, line numbers, functions, protocols, or facts not present in the provided deterministic finding.",
-    "Explain and recommend; do not claim the contract is safe, unsafe, guaranteed exploitable, certified, or fully audited.",
-    "Patch diffs must be minimal unified diffs and must only touch the shown file/snippet. If unsure, provide a conservative validation/checks-effects-interactions diff.",
-    "Return shape: { findings: [{ id, enrichment: { summary, why_mantle, exploit_scenario, recommended_fix, patch_diff, confidence, gas_impact } }] }.",
-    "confidence must be a number from 0 to 1.",
-    "Findings:",
-    JSON.stringify(findings.map((finding) => ({
-      id: finding.id,
-      severity: finding.severity,
-      category: finding.category,
-      title: finding.title,
-      file: finding.file,
-      line_start: finding.line_start,
-      line_end: finding.line_end,
-      code_snippet: finding.code_snippet,
-    }))),
-  ].join("\n");
-}
-
-async function callOpenAI(findings: FindingRow[]) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: "You are a careful smart-contract audit report writer. Output only valid JSON." },
-          { role: "user", content: promptFor(findings) },
-        ],
-      }),
-    });
-    if (!response.ok) throw new Error(`OpenAI HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`);
-    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error("OpenAI response did not include content");
-    return batchResponseSchema.parse(JSON.parse(stripJsonFences(content)));
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 async function emitAiProgress(scanId: string, batchIndex: number, totalBatches: number) {
   const progress = Math.min(74, 63 + Math.ceil(((batchIndex + 1) / Math.max(1, totalBatches)) * 10));
   await db.query("update scans set progress=$2, current_stage='AI Reasoning' where id=$1 and status='running'", [scanId, progress]);
   await publishScanEvent({ type: "stage", scanId, stage: "AI Reasoning", progress, status: "running", at: new Date().toISOString() });
 }
 
-async function enrichMisses(scanId: string, misses: Array<{ finding: FindingRow; key: string }>, budget: ScanAiBudget) {
+async function enrichMisses(scanId: string, provider: AIProvider | null, misses: Array<{ finding: FindingRow; key: string }>, budget: ScanAiBudget) {
   const maxFindings = Math.max(0, budget.maxBatches * BATCH_SIZE);
   const eligible = misses.slice(0, maxFindings);
   const skipped = misses.slice(maxFindings);
@@ -184,13 +111,17 @@ async function enrichMisses(scanId: string, misses: Array<{ finding: FindingRow;
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
     const batch = batches[batchIndex]!;
     let byId = new Map<string, Enrichment>();
-    try {
-      const parsed = await callOpenAI(batch.map((item) => item.finding));
-      byId = new Map(parsed.findings.map((item) => [item.id, item.enrichment]));
-      await appendScanLog(scanId, "INFO", `AI enrichment batch ${batchIndex + 1}/${batches.length}: gpt-4o-mini enriched ${parsed.findings.length}/${batch.length} finding(s).`);
-    } catch {
+    if (provider) {
+      try {
+        const parsed = await provider.enrichFindings(batch.map((item) => item.finding), { timeoutMs: CALL_TIMEOUT_MS });
+        byId = new Map(parsed.findings.map((item) => [item.id, item.enrichment]));
+        await appendScanLog(scanId, "INFO", `AI enrichment batch ${batchIndex + 1}/${batches.length}: ${provider.label} (${provider.model}) enriched ${parsed.findings.length}/${batch.length} finding(s).`);
+      } catch {
+        fallbackCount += batch.length;
+        await appendScanLog(scanId, "WARN", `AI enrichment batch ${batchIndex + 1}/${batches.length} via ${provider.label} timed out or failed; deterministic explanations used for ${batch.length} finding(s).`);
+      }
+    } else {
       fallbackCount += batch.length;
-      await appendScanLog(scanId, "WARN", `AI enrichment batch ${batchIndex + 1}/${batches.length} timed out or failed; deterministic explanations used for ${batch.length} finding(s).`);
     }
 
     for (const item of batch) {
@@ -244,6 +175,14 @@ export async function enrichFindingsForScan(scanId: string) {
     }
   }
   if (hits) await appendScanLog(scanId, "INFO", `ai_cache hit for ${hits}/${result.rows.length} finding enrichment(s)`);
-  const batchResult = misses.length ? await enrichMisses(scanId, misses, { lineCount, maxBatches }) : { batches: 0, fallbackCount: 0, skipped: 0 };
-  return { total: result.rows.length, hits, misses: misses.length, ...batchResult, timeoutMs: CALL_TIMEOUT_MS };
+  const selection = selectProvider();
+  if (misses.length) {
+    await appendScanLog(
+      scanId,
+      selection.provider ? "INFO" : "WARN",
+      selection.provider ? `AI enrichment provider: ${selection.provider.label} (${selection.provider.model}) — ${selection.reason}.` : `AI enrichment provider: none — ${selection.reason}.`,
+    );
+  }
+  const batchResult = misses.length ? await enrichMisses(scanId, selection.provider, misses, { lineCount, maxBatches }) : { batches: 0, fallbackCount: 0, skipped: 0 };
+  return { total: result.rows.length, hits, misses: misses.length, provider: selection.provider?.id ?? null, ...batchResult, timeoutMs: CALL_TIMEOUT_MS };
 }

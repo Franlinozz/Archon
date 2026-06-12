@@ -39,7 +39,14 @@ type SourceImportPayload = {
 };
 
 function inferContractLabel(source: string, sourceLabel: string) {
-  const contracts = [...source.matchAll(/\b(?:contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/g)].map((match) => match[1]!);
+  // Strip comments first and prefer contract > library > interface, so a stray
+  // comment word or a leading interface never becomes the suggested label.
+  const cleanSource = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const kindRank = (kind: string) => (kind === "contract" ? 0 : kind === "library" ? 1 : 2);
+  const contracts = [...cleanSource.matchAll(/\b(contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/g)]
+    .map((match, index) => ({ kind: match[1]!, name: match[2]!, index }))
+    .sort((a, b) => kindRank(a.kind) - kindRank(b.kind) || a.index - b.index)
+    .map((def) => def.name);
   const fileStem = sourceLabel.split("/").pop()?.replace(/\.sol$/i, "").replace(/[-_]+/g, " ").trim();
   const primary = contracts.find((name) => !/^(VaultV2|Contract|Test|Mock)$/i.test(name)) ?? contracts[0] ?? fileStem ?? "Mantle Contract";
   const suffix = contracts.length > 1 ? ` Suite (${contracts.length} contracts)` : "";

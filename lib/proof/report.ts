@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/client";
 import { deterministicReportHash } from "./canonical";
 import { pinProofMetadata } from "./ipfs";
+import { backupArtifactToCos, cosConfigured } from "@/lib/storage/cos";
 import { erc8004Addresses, hasVerifiedErc8004Config } from "@/lib/chain/mantle";
 
 type ReportRow = {
@@ -61,6 +62,9 @@ export async function prepareProof(reportId: string) {
   const reportHash = deterministicReportHash(metadata);
   const configured = hasVerifiedErc8004Config();
   const pin = await pinProofMetadata(metadata);
+  // Optional Tencent COS backup of the proof artifact — best-effort, non-fatal,
+  // inert until COS credentials exist (R3.1 cloud-provider layer).
+  const cosBackup = cosConfigured() ? await backupArtifactToCos(`proofs/${reportId}.json`, metadata) : null;
   const fallbackBaseUrl = process.env.ARCHON_PUBLIC_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://archonaudit.xyz";
   const metadataUri = pin.pinned ? pin.uri : `${fallbackBaseUrl.replace(/\/$/, "")}/api/reports/${reportId}/proof/metadata`;
   return {
@@ -68,6 +72,7 @@ export async function prepareProof(reportId: string) {
     metadata,
     metadataUri,
     ipfs: pin,
+    cosBackup,
     network: "mantle-mainnet",
     chainId: 5000,
     configured,

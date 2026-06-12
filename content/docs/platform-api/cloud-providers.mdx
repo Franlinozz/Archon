@@ -1,0 +1,43 @@
+---
+title: Cloud providers
+description: Archon's pluggable AI and storage provider layer — OpenAI, ELFA, Tencent Cloud Hunyuan, and Tencent COS.
+---
+
+# Cloud providers
+
+Archon's AI reasoning stage and artifact storage run on a **pluggable provider layer**. Each provider is a real, fully built adapter behind one interface; which one serves a given workload is decided by environment configuration at runtime, and the live status is always inspectable. Archon never reports an unconfigured provider as live.
+
+Check the current status at any time:
+
+```bash
+curl https://archonaudit.xyz/api/providers
+```
+
+## AI enrichment providers
+
+The AI Reasoning stage enriches deterministic findings through a single interface (`enrichFindings(batch) → schema-validated JSON`). Three adapters sit behind it:
+
+| Provider | Selected by | Credentials | Notes |
+| --- | --- | --- | --- |
+| OpenAI | `AI_PROVIDER=openai` (or fallback) | `OPENAI_API_KEY` | `gpt-4o-mini` by default; override with `OPENAI_MODEL`. |
+| ELFA | `AI_PROVIDER=elfa` (or fallback) | `ELFA_API_KEY`, `ELFA_BASE_URL` | OpenAI-compatible chat completions; set `ELFA_MODEL` to the target model. |
+| Tencent Cloud Hunyuan | `AI_PROVIDER=hunyuan` | `TENCENT_HUNYUAN_KEY` | Uses Tencent's OpenAI-compatible endpoint (`https://api.hunyuan.cloud.tencent.com/v1`, overridable via `TENCENT_HUNYUAN_BASE_URL`); `hunyuan-turbo` by default. |
+
+**Selection logic.** `AI_PROVIDER` wins when that adapter's credentials are present. Otherwise Archon falls back in order **ELFA → OpenAI → deterministic templates**. Every scan log records which provider served each enrichment batch, and batches that fail or time out fall back to deterministic explanations for exactly those findings — the report says so when that happens.
+
+**Honesty rule.** An adapter without credentials is *inert*: it exists in the codebase, it is listed by `/api/providers` with the env vars it is waiting on, and it is never represented as serving traffic. The Tencent Hunyuan adapter ships fully built and activates the moment hackathon computing credits provide a key — no code change required.
+
+## Artifact storage
+
+| Store | Role | Credentials |
+| --- | --- | --- |
+| IPFS pinning | Primary for proof metadata | `IPFS_PIN_TOKEN` (+ `IPFS_PIN_PROVIDER`) |
+| Tencent Cloud COS | Optional backup for report/proof artifacts | `TENCENT_COS_SECRET_ID`, `TENCENT_COS_SECRET_KEY`, `TENCENT_COS_BUCKET`, `TENCENT_COS_REGION` |
+
+When COS credentials are present, proof preparation additionally writes the canonical proof artifact to `proofs/<reportId>.json` in the configured bucket as a best-effort backup. A failed or unconfigured backup never blocks the primary path — it is logged and reported as exactly what it is.
+
+## Operational notes
+
+- Provider calls are bounded: batched findings, a 45-second per-call timeout, and schema validation on every response. Malformed output falls back to deterministic templates rather than corrupting a report.
+- No provider decides *what* a finding is. Detection stays deterministic (static analysis + Mantle rules); providers only write explanations, remediation text, and patch suggestions, which remain clearly attributed.
+- `/api/providers` exposes configuration **status only** — names of missing env vars, never values.
