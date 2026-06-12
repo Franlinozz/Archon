@@ -8,6 +8,8 @@ import { closeDb } from "../lib/db/client";
 import { redisConnection } from "../lib/queue/redis";
 import { runScan } from "../lib/scan/runner";
 import { runApplyPatch, runGasReport } from "../lib/gas/service";
+import { runSentinelCycle } from "../lib/sentinel/service";
+import { ensureSentinelRepeatable, type SentinelJobPayload } from "../lib/queue/sentinel";
 import type { GasJobPayload } from "../lib/queue/gas";
 import type { ScanJobPayload } from "../lib/queue/scans";
 
@@ -55,6 +57,14 @@ const gasWorker = new Worker<GasJobPayload>(
   },
 );
 
+// Sentinel: one repeatable cycle (drift detection over watched addresses).
+const sentinelWorker = new Worker<SentinelJobPayload>(
+  "archon-sentinel",
+  async () => { await runSentinelCycle(); },
+  { ...redisConnection, concurrency: 1, lockDuration: 300_000, stalledInterval: 30_000, maxStalledCount: 1 },
+);
+ensureSentinelRepeatable().then(() => console.log("sentinel repeatable scheduled")).catch((error) => console.error("sentinel scheduler error:", error instanceof Error ? error.message : error));
+
 worker.on("completed", (job) => console.log(`scan job ${job.id} completed`));
 worker.on("failed", (job, error) => console.error(`scan job ${job?.id ?? "unknown"} failed`, error));
 gasWorker.on("completed", (job) => console.log(`gas job ${job.id} completed`));
@@ -65,6 +75,8 @@ gasWorker.on("failed", (job, error) => console.error(`gas job ${job?.id ?? "unkn
 // underneath via retryStrategy; here we just log and keep the worker alive.
 worker.on("error", (error) => console.error("worker error (recovering):", error instanceof Error ? error.message : error));
 gasWorker.on("error", (error) => console.error("gas worker error (recovering):", error instanceof Error ? error.message : error));
+sentinelWorker.on("error", (error) => console.error("sentinel worker error (recovering):", error instanceof Error ? error.message : error));
+sentinelWorker.on("failed", (job, error) => console.error(`sentinel job ${job?.id ?? "unknown"} failed`, error));
 
 // Last-resort guards so a stray async error never silently kills the worker. Connection
 // blips recover on their own; we log and stay up rather than exiting non-zero.
@@ -74,6 +86,7 @@ process.on("uncaughtException", (error) => console.error("worker uncaughtExcepti
 async function shutdown() {
   await worker.close();
   await gasWorker.close();
+  await sentinelWorker.close();
   await closeDb();
   process.exit(0);
 }

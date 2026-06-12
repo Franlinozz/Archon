@@ -64,6 +64,7 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **CI** | `archon-scan` CLI with `--fail-on` gates + GitHub Action posting real gas-diff PR comments | [CLI docs](https://archonaudit.xyz/docs/platform-api/cli) · [Action docs](https://archonaudit.xyz/docs/gas-optimizer/ci-github-action) |
 | **Leaderboard** | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
 | **Challenge** | Public challenge records against reports and optimizations | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
+| **Sentinel** | Continuous audit of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
 
 ## Quickstart
 

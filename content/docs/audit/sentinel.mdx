@@ -1,0 +1,42 @@
+---
+title: Sentinel (continuous audit)
+description: Watch deployed Mantle contracts for drift, re-scan changed code automatically, and keep audit freshness honest.
+---
+
+# Sentinel — continuous audit
+
+A point-in-time audit goes stale the moment the contract changes. **Sentinel** turns Archon into an always-on safety layer: add deployed Mantle addresses to a watchlist and a scheduled worker checks them every cycle (10 minutes by default) for:
+
+- **Bytecode drift** — the runtime code hash changed (redeploy/`selfdestruct`).
+- **Proxy implementation drift** — the EIP-1967 implementation slot changed.
+- **Proxy admin drift** — the EIP-1967 admin slot changed.
+- **Owner drift** — `owner()` returns a different address.
+- **New verified source** — an unverified contract becomes verified on the explorer (upgrades the watch from reduced to full mode).
+
+Any committed drift automatically triggers a normal Archon **re-scan** of the (verified) deployed source; when it completes, Sentinel **diffs the findings** against your previous report (new vs resolved, risk before → after) and alerts you. Each re-scan is a standard report — eligible for on-chain proof logging like any other — so a watched contract accumulates an anchored timeline: *audited → drifted → re-audited*.
+
+## Audit freshness
+
+Every watch carries an honest staleness indicator, computed from real state:
+
+| Level | Meaning |
+| --- | --- |
+| `fresh` | Recent report, no drift since. |
+| `aging` | Last report is more than 30 days old. |
+| `attention` | Unresolved critical/high findings in the latest report. |
+| `stale` | Drift happened after the last report — the audit no longer describes the deployed code. |
+| `unaudited` | No Archon report yet for this address. |
+
+## Alerts
+
+- **In-app:** Sentinel events appear in the workspace notification bell.
+- **Webhook:** set a webhook URL on the Sentinel page; alerts POST JSON with both `content` (Discord) and `text` (Slack) keys. No email infrastructure, by design.
+
+## Modes and discipline
+
+- **Full mode** requires verified source (re-scans possible). **Reduced mode** (unverified bytecode) watches the code hash and proxy slots only, and is labeled as such.
+- Drift is **debounced over two consecutive cycles**, so RPC flaps never page you; a zero EIP-1967 slot means "not a proxy", never an alert.
+- Each cycle runs under a hard **RPC budget** with backpressure (skip + log, never pile up) and batched JSON-RPC reads; per-cycle call counts are logged.
+- Sentinel is **read-only end to end** — it never sends a transaction.
+
+Open it at [/app/sentinel](/app/sentinel) (sign-in required; watching is limited to 25 active addresses per workspace).

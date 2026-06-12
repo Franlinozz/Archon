@@ -5,6 +5,13 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V4.0 — Archon Sentinel: continuous audit for deployed contracts
+
+- New `/app/sentinel` watchlist: deployed Mantle addresses are checked every cycle for bytecode drift, EIP-1967 implementation/admin drift, owner changes, and newly verified source (reduced mode for unverified bytecode, clearly labeled).
+- Committed drift (debounced across two cycles) automatically re-scans the deployed source and diffs findings against the previous report — new vs resolved, risk before → after; re-scans are normal reports, eligible for on-chain proof anchoring.
+- Honest audit-freshness scores per watch (`fresh / aging / attention / stale / unaudited`), in-app bell alerts, and Discord/Slack-compatible webhook alerts.
+- Cycle discipline: batched RPC reads, hard per-cycle RPC budget with backpressure, per-cycle call counts logged.
+
 ## V3.1 — Whitepaper v2, front-door overhaul, and DA-claim corrections
 
 - Published whitepaper v2.0: citable PDF served at `/whitepaper.pdf`; this docs page is the aligned HTML edition with the same sections, claims, and labels (including Table 1, the oracle-vs-receipt divergence evidence).

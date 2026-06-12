@@ -176,3 +176,44 @@ create table if not exists report_challenges (
 );
 create index if not exists report_challenges_report_idx on report_challenges(report_id, created_at desc);
 create index if not exists report_challenges_gas_report_idx on report_challenges(gas_report_id, created_at desc);
+
+-- Sentinel (F1): continuous audit of deployed Mantle contracts.
+create table if not exists sentinel_watches (
+  id uuid primary key default gen_random_uuid(),
+  owner text not null,
+  address text not null,
+  label text,
+  mode text default 'full',
+  source_verified boolean default false,
+  bytecode_hash text,
+  impl_slot text,
+  admin_slot text,
+  owner_addr text,
+  candidate_state jsonb,
+  pending_scan_id uuid,
+  last_report_id uuid references reports(id),
+  last_checked_at timestamptz,
+  last_drift_at timestamptz,
+  consecutive_failures int default 0,
+  status text default 'active',
+  created_at timestamptz default now(),
+  unique(owner, address)
+);
+create index if not exists sentinel_watches_active_idx on sentinel_watches(status, last_checked_at asc nulls first);
+
+create table if not exists sentinel_events (
+  id uuid primary key default gen_random_uuid(),
+  watch_id uuid references sentinel_watches(id) on delete cascade,
+  type text not null,
+  detail jsonb,
+  scan_id uuid,
+  report_id uuid,
+  created_at timestamptz default now()
+);
+create index if not exists sentinel_events_watch_idx on sentinel_events(watch_id, created_at desc);
+
+create table if not exists sentinel_settings (
+  owner text primary key,
+  webhook_url text,
+  updated_at timestamptz default now()
+);

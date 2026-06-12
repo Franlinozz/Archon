@@ -27,6 +27,7 @@ export const docsNav: DocsNavGroup[] = [
       { title: "Mantle-specific risks", href: "/docs/audit/mantle-specific-risks" },
       { title: "Protocol coverage", href: "/docs/audit/protocol-coverage" },
       { title: "Generated tests", href: "/docs/audit/generated-tests" },
+      { title: "Sentinel (continuous audit)", href: "/docs/audit/sentinel" },
     ],
   },
   {

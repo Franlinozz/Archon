@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Gauge,
   LayoutDashboard,
+  Radar,
   type LucideIcon,
   Settings,
   ShieldAlert,
@@ -42,6 +43,7 @@ const navGroups: NavGroup[] = [
     { label: "Generated Tests", href: "/app/tests", icon: FlaskConical },
     { label: "Gas Optimizer", href: "/app/gas", icon: Gauge, match: "/app/gas" },
     { label: "Cost Guard", href: "/app/cost-guard", icon: Gauge },
+    { label: "Sentinel", href: "/app/sentinel", icon: Radar },
   ] },
   { title: "Attestation", items: [
     { label: "On-chain Proof", href: "/app/proofs", icon: BadgeCheck },

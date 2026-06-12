@@ -9,6 +9,10 @@ The PDF is the citable edition and is versioned — never silently edited. Claim
 - Evidence taxonomy formalized: measured / estimated (calibrated, labeled) / unpriced.
 - Supersedes the v1 generated PDF (`/docs/archon-whitepaper.pdf`, kept online for link compatibility).
 
+### Post-v2.0 deliveries (no claim changes; roadmap items shipped)
+
+- 2026-06-12 — Sentinel (roadmap "Next" item: continuous monitoring of deployed contracts with drift alerts) shipped; documented at `/docs/audit/sentinel`.
+
 ## v1 — 2026-06-08 (generated `archon-whitepaper.pdf`)
 
 - Initial public edition, generated from the docs page via pdfkit.

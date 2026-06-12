@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, CheckCircle2, FileText, ShieldCheck } from "lucide-react";
+import { Bell, CheckCircle2, FileText, Radar, ShieldCheck } from "lucide-react";
 
-type Event = { kind: "proof" | "report" | "scan"; ref: string; label: string; detail: string; at: string };
+type Event = { kind: "proof" | "report" | "scan" | "sentinel"; ref: string; label: string; detail: string; at: string };
 
 function ago(iso: string) {
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -14,8 +14,8 @@ function ago(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-const iconFor = { proof: ShieldCheck, report: FileText, scan: CheckCircle2 } as const;
-const hrefFor = (e: Event) => (e.kind === "scan" ? `/app/scans/${e.ref}` : e.kind === "proof" ? "/app/proofs" : `/app/reports/${e.ref}`);
+const iconFor = { proof: ShieldCheck, report: FileText, scan: CheckCircle2, sentinel: Radar } as const;
+const hrefFor = (e: Event) => (e.kind === "scan" ? `/app/scans/${e.ref}` : e.kind === "proof" ? "/app/proofs" : e.kind === "sentinel" ? "/app/sentinel" : `/app/reports/${e.ref}`);
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
