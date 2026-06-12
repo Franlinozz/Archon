@@ -1,0 +1,36 @@
+---
+title: Editor integration (VS Code)
+description: Archon findings as native diagnostics, safe gas quick fixes, and gas lenses — inside the editor.
+---
+
+# Editor integration — VS Code
+
+The Archon extension brings findings to where code is written. It is a **thin client of the public API** — no local analysis, no re-implementation: the same scan that powers the Audit Studio renders as native VS Code surfaces.
+
+## What you get
+
+- **Diagnostics**: run *“Archon: Scan current file”* (or enable `archon.scanOnSave`, debounced) and findings appear as severity-mapped squiggles with title + summary; the diagnostic's code links to the full public report.
+- **Quick fixes**: optimizations from the gas catalog's **safe** class expose *“Apply Archon patch”* Code Actions. The patch is an exact-match text replacement applied **locally to your buffer** — you review and save; nothing is auto-committed, pushed, or sent anywhere.
+- **Gas lens**: a file-level CodeLens totals the estimated L2 gas savings, and each opportunity gets a lens at its line (`~200 gas/call: Cache repeated storage read · estimate`). All values are labeled estimates; DA is priced server-side from receipt ground truth.
+- **Offline behavior**: API problems show a quiet status-bar state and a log line — never popups.
+
+## Install
+
+Until the Marketplace listing lands, install the packaged build directly:
+
+```bash
+# download from the GitHub release, then:
+code --install-extension archon-mantle-0.1.0.vsix
+```
+
+Releases: [github.com/Franlinozz/Archon/releases](https://github.com/Franlinozz/Archon/releases/tag/vscode-v0.1.0) · Source: [`packages/vscode`](https://github.com/Franlinozz/Archon/tree/main/packages/vscode)
+
+## Settings
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `archon.apiBase` | `https://archonaudit.xyz` | API endpoint (point at a self-hosted Archon if you run one). |
+| `archon.scanOnSave` | `false` | Scan `.sol` files on save (debounced 1.5s). |
+| `archon.gasLens` | `true` | Show gas CodeLenses. |
+
+Anonymous use runs at free-tier caps; scans behave exactly like pasting into the [Audit Studio](/app/audit/new) — read-only, never touching keys or sending transactions.

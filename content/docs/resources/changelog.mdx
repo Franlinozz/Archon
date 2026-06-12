@@ -5,6 +5,11 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V4.3 — VS Code extension
+
+- `packages/vscode`: Archon findings as native diagnostics (severity-mapped, line-anchored) with report links; catalog-safe gas patches as local-only Code Actions; file-level + per-opportunity gas CodeLenses (estimates labeled). Thin client of the public API; offline degrades to a status-bar state, never popups.
+- Packaged `.vsix` (≈6 KB) published as a GitHub release; Marketplace/Open VSX publication pending publisher accounts.
+
 ## V4.2 — GitHub App server side (PR checks + autofix)
 
 - Webhook receiver, signature verification, and a queued PR pipeline: scoped scan of changed Solidity, one updating check-run and one updating comment (force-push safe), findings with line links, gas result with labeled savings split, full-report link.

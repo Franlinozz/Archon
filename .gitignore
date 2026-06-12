@@ -33,3 +33,4 @@ coverage
 
 *.tsbuildinfo
 .source
+packages/vscode/*.vsix

@@ -1,0 +1,29 @@
+{
+  "name": "archon-mantle",
+  "displayName": "Archon — Mantle audits & gas",
+  "description": "Archon findings as native diagnostics, safe gas quick fixes, and per-opportunity gas lenses — a thin client of the Archon public API for Mantle builders.",
+  "version": "0.1.0",
+  "publisher": "archon",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Franlinozz/Archon", "directory": "packages/vscode" },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Linters", "Programming Languages"],
+  "keywords": ["solidity", "mantle", "security", "audit", "gas"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:solidity", "workspaceContains:**/*.sol"],
+  "contributes": {
+    "commands": [
+      { "command": "archon.scanFile", "title": "Archon: Scan current file" },
+      { "command": "archon.clear", "title": "Archon: Clear diagnostics" }
+    ],
+    "configuration": {
+      "title": "Archon",
+      "properties": {
+        "archon.apiBase": { "type": "string", "default": "https://archonaudit.xyz", "description": "Archon API base URL." },
+        "archon.scanOnSave": { "type": "boolean", "default": false, "description": "Run an Archon scan when a .sol file is saved (debounced; anonymous free-tier caps apply)." },
+        "archon.gasLens": { "type": "boolean", "default": true, "description": "Show CodeLens for gas optimization opportunities." }
+      }
+    },
+    "languages": [{ "id": "solidity", "extensions": [".sol"] }]
+  }
+}
