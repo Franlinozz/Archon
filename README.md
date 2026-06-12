@@ -66,6 +66,7 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **Challenge** | Public challenge records against reports and optimizations | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
 | **Sentinel** | Continuous audit of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
 | **Verified builds** | Deterministic attestation that deployed bytecode matches claimed source (immutables masked, metadata-aware), with public verification pages and anchorable hashes | [Verified builds docs](https://archonaudit.xyz/docs/on-chain-proofs/verified-builds) |
+| **GitHub App** | PR check + single updating comment (findings, gas diff), policy via `archon.config.json`, `/archon fix` opens compile-validated autofix PRs on Archon's own branches (server side shipped; install link lands with App registration — live status at [/api/providers](https://archonaudit.xyz/api/providers)) | [GitHub App docs](https://archonaudit.xyz/docs/platform-api/github-app) |
 
 ## Quickstart
 

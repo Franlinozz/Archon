@@ -240,3 +240,29 @@ create table if not exists attestations (
   finished_at timestamptz
 );
 create index if not exists attestations_address_idx on attestations(address, created_at desc);
+
+-- GitHub App (F3): installations and per-PR state for updating check/comment.
+create table if not exists github_installations (
+  installation_id bigint primary key,
+  account_login text,
+  suspended boolean default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists github_pr_state (
+  id uuid primary key default gen_random_uuid(),
+  installation_id bigint,
+  owner text not null,
+  repo text not null,
+  pr_number int not null,
+  head_sha text,
+  head_ref text,
+  comment_id bigint,
+  check_run_id bigint,
+  scan_id uuid,
+  report_id uuid,
+  gas_report_id uuid,
+  source_path text,
+  updated_at timestamptz default now(),
+  unique(owner, repo, pr_number)
+);

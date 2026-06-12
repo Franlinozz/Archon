@@ -1,0 +1,48 @@
+---
+title: GitHub App
+description: Archon for Mantle — PR checks with findings + gas diff, policy as code, and safe autofix PRs.
+---
+
+# GitHub App — Archon for Mantle
+
+The Archon GitHub App turns reports into merged fixes. On every pull request that touches Solidity it runs a **scoped scan** (changed `.sol` files, filtered by your config) and maintains **one updating check-run and one updating comment** — never a new comment per push:
+
+- new findings with severity and line links,
+- the gas result with the L2/DA savings split (estimates labeled, DA priced from receipt ground truth),
+- a link to the full Archon report.
+
+## Policy as code — `archon.config.json`
+
+One file at the repo root governs both the App and the [GitHub Action](/docs/gas-optimizer/ci-github-action):
+
+```json
+{
+  "failOn": "high",
+  "maxRegressionL2Gas": 0,
+  "paths": ["contracts/"],
+  "gas": true,
+  "rules": { "deny": ["redundant-zero-init"] }
+}
+```
+
+`failOn` fails the check when any finding is at/above the gate; `maxRegressionL2Gas` fails on gas regressions beyond the budget; `paths` scopes scanning; `rules.allow`/`deny` filter which catalog rules appear and qualify for autofix. Invalid config never crashes a run — it's surfaced as a warning and defaults apply.
+
+## Autofix — `/archon fix <id>`
+
+Findings whose patches qualify are offered in the comment. Autofix is deliberately conservative:
+
+- **Catalog-safe rules only** (the gas catalog's `safe` class — mechanical transforms like storage-read caching). Review-class rules are never auto-applied.
+- The patch is **compile-validated** through Archon's apply pipeline before anything touches GitHub.
+- Archon pushes **its own branch** (`archon/fix-<id>`) and opens **its own PR** against your PR's branch — it never pushes to your branches. The PR body carries the rule id, the labeled gas evidence class, and a link to the evidence.
+
+Trigger it by commenting `/archon fix <optimization-id>` on the PR (ids are listed in Archon's comment).
+
+## Reliability notes
+
+- Webhook deliveries are signature-verified (`X-Hub-Signature-256`) and queued; PR runs dedupe by head SHA, so force-pushes update in place instead of re-posting.
+- GitHub secondary rate limits are respected (queue-level limiter + `Retry-After` handling).
+- The App's private key lives server-side in environment configuration only.
+
+## Status
+
+The server side ships in this repository (webhook receiver at `/api/github/webhook`, queue, check/comment/autofix pipeline). Public installation opens once the App registration completes — current status is always visible at [/api/providers](/api/providers) (`integrations.githubApp`). Until then, the [GitHub Action](/docs/gas-optimizer/ci-github-action) and [CLI](/docs/platform-api/cli) provide CI coverage today.

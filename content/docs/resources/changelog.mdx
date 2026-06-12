@@ -5,6 +5,13 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V4.2 — GitHub App server side (PR checks + autofix)
+
+- Webhook receiver, signature verification, and a queued PR pipeline: scoped scan of changed Solidity, one updating check-run and one updating comment (force-push safe), findings with line links, gas result with labeled savings split, full-report link.
+- Policy as code via `archon.config.json` (`failOn`, `maxRegressionL2Gas`, `paths`, `rules.allow/deny`) — shared semantics with the GitHub Action.
+- `/archon fix <id>` autofix for catalog-safe gas rules only: compile-validated patch, pushed to Archon's own `archon/fix-…` branch as its own PR — never to user branches.
+- Honest status: inert until the App registration completes; `integrations.githubApp` at `/api/providers`.
+
 ## V4.1 — Verified build attestations
 
 - New `/app/attest`: deterministic compile-and-compare between deployed Mantle runtime bytecode and claimed Solidity source — immutable references masked via the compiler's own `immutableReferences`, CBOR metadata trailer handled as a distinct `partial-metadata` result, config/compile failures reported as errors, never as mismatches.

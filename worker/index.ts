@@ -12,6 +12,7 @@ import { runSentinelCycle } from "../lib/sentinel/service";
 import { ensureSentinelRepeatable, type SentinelJobPayload } from "../lib/queue/sentinel";
 import { runAttestation } from "../lib/attest/service";
 import type { AttestJobPayload } from "../lib/queue/attest";
+import { handleGithubJob, type GithubJob } from "../lib/github/service";
 import type { GasJobPayload } from "../lib/queue/gas";
 import type { ScanJobPayload } from "../lib/queue/scans";
 
@@ -59,6 +60,16 @@ const gasWorker = new Worker<GasJobPayload>(
   },
 );
 
+// GitHub App jobs: PR checks + autofix, rate-limited per queue (GitHub
+// secondary limits are also respected inside the REST helper).
+const githubWorker = new Worker<GithubJob>(
+  "archon-github",
+  async (job) => { await handleGithubJob(job.data); },
+  { ...redisConnection, concurrency: 1, lockDuration: 600_000, stalledInterval: 30_000, maxStalledCount: 1, limiter: { max: 20, duration: 60_000 } },
+);
+githubWorker.on("error", (error) => console.error("github worker error (recovering):", error instanceof Error ? error.message : error));
+githubWorker.on("failed", (job, error) => console.error(`github job ${job?.id ?? "unknown"} failed`, error));
+
 // Verified build attestations: deterministic compile-and-compare jobs.
 const attestWorker = new Worker<AttestJobPayload>(
   "archon-attest",
@@ -99,6 +110,7 @@ async function shutdown() {
   await gasWorker.close();
   await sentinelWorker.close();
   await attestWorker.close();
+  await githubWorker.close();
   await closeDb();
   process.exit(0);
 }

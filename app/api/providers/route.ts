@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { providerStatus } from "@/lib/ai/provider";
 import { cosStatus } from "@/lib/storage/cos";
+import { githubAppStatus } from "@/lib/github/app";
 
 export const dynamic = "force-dynamic";
 
@@ -17,5 +18,6 @@ export async function GET() {
       primary: { id: "ipfs", label: "IPFS pinning", configured: Boolean(process.env.IPFS_PIN_TOKEN), provider: process.env.IPFS_PIN_PROVIDER ?? "web3storage" },
       backup: cosStatus(),
     },
+    integrations: { githubApp: githubAppStatus() },
   });
 }

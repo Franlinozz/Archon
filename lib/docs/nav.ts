@@ -57,6 +57,7 @@ export const docsNav: DocsNavGroup[] = [
     items: [
       { title: "API reference", href: "/docs/platform-api/api-reference" },
       { title: "CLI (archon-scan)", href: "/docs/platform-api/cli" },
+      { title: "GitHub App", href: "/docs/platform-api/github-app" },
       { title: "Cloud providers", href: "/docs/platform-api/cloud-providers" },
       { title: "Authentication", href: "/docs/platform-api/authentication" },
       { title: "Rate limits", href: "/docs/platform-api/rate-limits" },
