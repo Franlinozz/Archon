@@ -1,0 +1,69 @@
+---
+title: For agents (Verdict API + MCP)
+description: Give any AI agent a Mantle security sense — a signed contract-trust verdict and an MCP server exposing Archon's tools.
+---
+
+# For agents
+
+Archon's endgame is agents consuming verifiable security work — exactly what ERC-8004 identity is for. Two surfaces make it real: a machine-grade **verdict API** and an **MCP server**.
+
+## Verdict API
+
+`GET /api/v1/verdict/:chainId/:address` → a compact, **EIP-191-signed** JSON answer to "can my agent trust this contract?"
+
+```bash
+curl https://archonaudit.xyz/api/v1/verdict/5000/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a
+```
+
+```jsonc
+{
+  "schema": "archon.verdict.v1",
+  "address": "0x…", "chainId": 5000, "network": "mantle-mainnet",
+  "riskScore": 42, "openCritical": 0, "openHigh": 1,
+  "lastAuditAt": "2026-06-13T…", "auditFreshness": "fresh",
+  "attestation": "exact",        // exact | partial-metadata | none
+  "proofTx": "0x…",              // on-chain proof, if anchored
+  "reportUrl": "https://archonaudit.xyz/r/…",
+  "agentId": 97,
+  "signer": "0xBd88…5E70",
+  "signature": "0x…",
+  "canonical": "{…}"             // the exact signed string
+}
+```
+
+### Verify the signature offline
+
+The signature is `personal_sign` (EIP-191) over `canonical` — the deterministic, key-sorted JSON of the verdict (excluding `signature`/`canonical`). It recovers to `signer`, the owner key of Archon's **ERC-8004 Agent #97**:
+
+```ts
+import { verifyMessage } from "viem";
+const ok = await verifyMessage({ address: verdict.signer, message: verdict.canonical, signature: verdict.signature });
+// ok === true  →  this verdict genuinely came from Archon, unmodified
+```
+
+Cached per address per day; rate-limited per IP on the free tier.
+
+## MCP server
+
+The Archon MCP server exposes four read-only tools to any MCP client (Claude Desktop/Code, IDE agents, wallet agents):
+
+| Tool | Returns |
+| --- | --- |
+| `archon_scan_source(source)` | severity-ranked findings + report URL |
+| `archon_verdict(address)` | the signed verdict above |
+| `archon_gas_report(source, callsPerYear?)` | receipt-calibrated L2/DA gas report |
+| `archon_verify_proof(reportHash)` | the anchored proof record, if any |
+
+```json
+{
+  "mcpServers": {
+    "archon": { "command": "npx", "args": ["--yes", "github:Franlinozz/archon-mcp"] }
+  }
+}
+```
+
+`--http <port>` serves a Streamable HTTP/SSE transport for remote agents (set proxy keepalive/timeouts generously). Source: [`packages/mcp`](https://github.com/Franlinozz/Archon/tree/main/packages/mcp).
+
+## Boundary
+
+Verdicts and tool output are **risk intelligence with provenance, not safety guarantees** — the same boundary as everywhere in Archon. Everything is read-only; nothing signs transactions or moves funds.

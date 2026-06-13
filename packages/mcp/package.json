@@ -1,0 +1,16 @@
+{
+  "name": "archon-mcp",
+  "version": "0.1.0",
+  "description": "Archon MCP server — give any AI agent a Mantle security sense: scan Solidity, get a signed contract verdict, run a gas report, verify a proof.",
+  "type": "module",
+  "bin": { "archon-mcp": "./bin/archon-mcp.mjs" },
+  "files": ["bin", "src", "README.md"],
+  "engines": { "node": ">=18.17" },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Franlinozz/Archon", "directory": "packages/mcp" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "keywords": ["mcp", "model-context-protocol", "mantle", "solidity", "security", "audit"]
+}

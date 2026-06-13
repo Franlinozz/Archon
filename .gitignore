@@ -34,3 +34,4 @@ coverage
 *.tsbuildinfo
 .source
 packages/vscode/*.vsix
+packages/mcp/node_modules

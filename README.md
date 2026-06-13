@@ -69,7 +69,17 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **Sentinel** | Continuous audit of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
 | **Verified builds** | Deterministic attestation that deployed bytecode matches claimed source (immutables masked, metadata-aware), with public verification pages and anchorable hashes | [Verified builds docs](https://archonaudit.xyz/docs/on-chain-proofs/verified-builds) |
 | **VS Code** | Diagnostics in the editor, safe gas quick fixes as local Code Actions, per-opportunity gas lenses — thin client of the public API ([Open VSX](https://open-vsx.org/extension/archon/archon-mantle) · [.vsix release](https://github.com/Franlinozz/Archon/releases/tag/vscode-v0.1.0); MS Marketplace next) | [Editor docs](https://archonaudit.xyz/docs/platform-api/editor-integration) |
+| **Agents (MCP)** | Signed contract-trust verdict API (recovers to Agent #97) + MCP server with four tools — Archon as an AI agent's security sense | [For agents](https://archonaudit.xyz/docs/platform-api/for-agents) |
 | **GitHub App** | PR check + single updating comment (findings, gas diff), policy via `archon.config.json`, `/archon fix` opens compile-validated autofix PRs on Archon's own branches (server side shipped; install link lands with App registration — live status at [/api/providers](https://archonaudit.xyz/api/providers)) | [GitHub App docs](https://archonaudit.xyz/docs/platform-api/github-app) |
+
+## Built for the agentic economy
+
+Archon is the first MCP-native auditor with an on-chain identity. Any AI agent can ask Archon "can I trust this contract?" and get a **signed verdict** that recovers to Archon's ERC-8004 **Agent #97** — provenance any consumer verifies offline.
+
+- **Verdict API:** `GET /api/v1/verdict/5000/<address>` → EIP-191-signed `{riskScore, auditFreshness, attestation, openCritical, proofTx, agentId: 97, signature}`.
+- **MCP server:** `npx github:Franlinozz/archon-mcp` exposes `archon_scan_source`, `archon_verdict`, `archon_gas_report`, `archon_verify_proof` to Claude Desktop/Code and any MCP client.
+
+Docs: [For agents](https://archonaudit.xyz/docs/platform-api/for-agents).
 
 ## Quickstart
 

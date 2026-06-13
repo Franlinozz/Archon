@@ -96,11 +96,11 @@
 <text x="333" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">App + public pages</text>
 <rect x="416" y="673" width="50" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
 <text x="441" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">Docs</text>
-<rect x="476" y="673" width="43" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="497.5" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">API</text>
-<rect x="529" y="673" width="174" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="616" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">CI Action + GitHub App</text>
-<rect x="713" y="673" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="776" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">Gas leaderboard</text>
+<rect x="476" y="673" width="84" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="518" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">API + MCP</text>
+<rect x="570" y="673" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="633" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">CI + GitHub App</text>
+<rect x="706" y="673" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="769" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">Gas leaderboard</text>
 <text x="24" y="742" font-size="11" fill="#46544D">Read-only analysis end to end — the only on-chain write is user-approved proof logging to ArchonProofRegistry on Mantle Mainnet (5000).</text>
 </svg>
