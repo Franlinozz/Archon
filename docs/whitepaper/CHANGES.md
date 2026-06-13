@@ -13,6 +13,7 @@ The PDF is the citable edition and is versioned — never silently edited. Claim
 
 - 2026-06-12 — Sentinel (roadmap "Next" item: continuous monitoring of deployed contracts with drift alerts) shipped; documented at `/docs/audit/sentinel`.
 - 2026-06-12 — Verified build attestations (roadmap "Later" item: source-to-bytecode matching, extends §06) shipped; documented at `/docs/on-chain-proofs/verified-builds`.
+- 2026-06-13 — Mantle Gas Observatory (extends §05: the receipt-calibration story becomes a live public dashboard + oracle-vs-receipt tracker) shipped at `/observatory`.
 
 ## v1 — 2026-06-08 (generated `archon-whitepaper.pdf`)
 

@@ -29,6 +29,7 @@
 | Docs | <https://archonaudit.xyz/docs> |
 | Whitepaper (PDF) | <https://archonaudit.xyz/whitepaper.pdf> |
 | Gas leaderboard | <https://archonaudit.xyz/gas-leaderboard> |
+| Gas Observatory | <https://archonaudit.xyz/observatory> |
 | Example public report | <https://archonaudit.xyz/r/d37f46d6-aded-41fc-9215-900370300111> |
 | Example proof tx | [`0x141e3973…c88c10b` on MantleScan](https://mantlescan.xyz/tx/0x141e3973a3dc4a5f8b2dec3c6bf0ed6f1f8132ba1be4e9b8086e0fab9c88c10b) |
 | CI Action demo (real PRs) | [green run + gas comment](https://github.com/Franlinozz/archon-gas-action-demo/pull/1) · [red run on a regression](https://github.com/Franlinozz/archon-gas-action-demo/pull/2) |
@@ -63,6 +64,7 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **Proof** | Canonical hash anchored to ArchonProofRegistry; public, wallet-free verification | [/proofs](https://archonaudit.xyz/proofs) |
 | **CI** | `archon-scan` CLI with `--fail-on` gates + GitHub Action posting real gas-diff PR comments | [CLI docs](https://archonaudit.xyz/docs/platform-api/cli) · [Action docs](https://archonaudit.xyz/docs/gas-optimizer/ci-github-action) |
 | **Leaderboard** | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
+| **Observatory** | Public source-of-truth on Mantle DA economics: receipt-calibrated DA cost/byte, L2 base fee, trends, and the live oracle-vs-receipt divergence (embeddable chart) | [/observatory](https://archonaudit.xyz/observatory) |
 | **Challenge** | Public challenge records against reports and optimizations | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
 | **Sentinel** | Continuous audit of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
 | **Verified builds** | Deterministic attestation that deployed bytecode matches claimed source (immutables masked, metadata-aware), with public verification pages and anchorable hashes | [Verified builds docs](https://archonaudit.xyz/docs/on-chain-proofs/verified-builds) |

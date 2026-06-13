@@ -5,6 +5,13 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V5.0 — Mantle Gas Observatory
+
+- Public `/observatory` (no auth): receipt-calibrated DA cost per calldata byte, L2 base fee, 24h/7d/30d trends, and "what a typical transfer/swap/deploy costs on Mantle today" cards — every number traced to real receipts with sample sizes shown.
+- Oracle-vs-receipt tracker: a standing chart of the legacy `getL1Fee` prediction vs the charged receipt `l1Fee` (the living version of ADR 0007), iframe-embeddable at `/embed/observatory/oracle`, snapshot JSON at `/api/observatory`.
+- Calibration loop: one repeatable sampler worker feeds both the Observatory and the DA model (two-variable least-squares fit, version-stamped, validation error published); hard per-day RPC budget with backpressure.
+- Methodology page documents sampling, the oracle-call caveat, calibration, and labeling.
+
 ## V4.3 — VS Code extension
 
 - `packages/vscode`: Archon findings as native diagnostics (severity-mapped, line-anchored) with report links; catalog-safe gas patches as local-only Code Actions; file-level + per-opportunity gas CodeLenses (estimates labeled). Thin client of the public API; offline degrades to a status-bar state, never popups.

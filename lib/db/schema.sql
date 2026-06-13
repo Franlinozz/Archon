@@ -266,3 +266,37 @@ create table if not exists github_pr_state (
   updated_at timestamptz default now(),
   unique(owner, repo, pr_number)
 );
+
+-- Gas Observatory (F5): persistent receipt sample store. One sampler worker
+-- feeds both the public Observatory and the gas engine's DA calibration.
+create table if not exists gas_samples (
+  id uuid primary key default gen_random_uuid(),
+  tx_hash text unique,
+  block_number bigint,
+  zero_bytes int,
+  nonzero_bytes int,
+  total_bytes int,
+  l1_fee_wei numeric,
+  oracle_l1_fee_wei numeric,
+  l2_base_fee_wei numeric,
+  l2_gas_used numeric,
+  sampled_at timestamptz default now()
+);
+create index if not exists gas_samples_sampled_idx on gas_samples(sampled_at desc);
+create index if not exists gas_samples_block_idx on gas_samples(block_number desc);
+
+create table if not exists observatory_model (
+  id int primary key default 1,
+  zero_byte_fee_wei numeric,
+  nonzero_byte_fee_wei numeric,
+  sample_count int,
+  mean_error_pct numeric,
+  max_error_pct numeric,
+  model_version text,
+  calibrated_at timestamptz default now()
+);
+
+create table if not exists observatory_budget (
+  day date primary key,
+  rpc_calls int default 0
+);

@@ -30,8 +30,8 @@
 <text x="601" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Hard timeouts</text>
 <rect x="667" y="173" width="139" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
 <text x="736.5" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Live SSE progress</text>
-<rect x="816" y="173" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="889" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Sentinel scheduler</text>
+<rect x="816" y="173" width="174" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
+<text x="903" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Sentinel + Observatory</text>
 <line x1="133" y1="227" x2="133" y2="246" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
 <rect x="24" y="250" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
 <rect x="24" y="250" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>

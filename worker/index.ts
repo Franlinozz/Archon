@@ -10,6 +10,8 @@ import { runScan } from "../lib/scan/runner";
 import { runApplyPatch, runGasReport } from "../lib/gas/service";
 import { runSentinelCycle } from "../lib/sentinel/service";
 import { ensureSentinelRepeatable, type SentinelJobPayload } from "../lib/queue/sentinel";
+import { runObservatoryCycle } from "../lib/observatory/sampler";
+import { ensureObservatoryRepeatable, type ObservatoryJobPayload } from "../lib/queue/observatory";
 import { runAttestation } from "../lib/attest/service";
 import type { AttestJobPayload } from "../lib/queue/attest";
 import { handleGithubJob, type GithubJob } from "../lib/github/service";
@@ -87,6 +89,16 @@ const sentinelWorker = new Worker<SentinelJobPayload>(
 );
 ensureSentinelRepeatable().then(() => console.log("sentinel repeatable scheduled")).catch((error) => console.error("sentinel scheduler error:", error instanceof Error ? error.message : error));
 
+// Gas Observatory: repeatable receipt sampler (also recalibrates the DA model).
+const observatoryWorker = new Worker<ObservatoryJobPayload>(
+  "archon-observatory",
+  async () => { await runObservatoryCycle(); },
+  { ...redisConnection, concurrency: 1, lockDuration: 300_000, stalledInterval: 30_000, maxStalledCount: 1 },
+);
+observatoryWorker.on("error", (error) => console.error("observatory worker error (recovering):", error instanceof Error ? error.message : error));
+observatoryWorker.on("failed", (job, error) => console.error(`observatory job ${job?.id ?? "unknown"} failed`, error));
+ensureObservatoryRepeatable().then(() => console.log("observatory repeatable scheduled")).catch((error) => console.error("observatory scheduler error:", error instanceof Error ? error.message : error));
+
 worker.on("completed", (job) => console.log(`scan job ${job.id} completed`));
 worker.on("failed", (job, error) => console.error(`scan job ${job?.id ?? "unknown"} failed`, error));
 gasWorker.on("completed", (job) => console.log(`gas job ${job.id} completed`));
@@ -109,6 +121,7 @@ async function shutdown() {
   await worker.close();
   await gasWorker.close();
   await sentinelWorker.close();
+  await observatoryWorker.close();
   await attestWorker.close();
   await githubWorker.close();
   await closeDb();
