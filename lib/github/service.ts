@@ -4,6 +4,7 @@ import { runScan } from "@/lib/scan/runner";
 import { createGasReport, runApplyPatch, runGasReport } from "@/lib/gas/service";
 import { breachesFailOn, parseArchonConfig, pathAllowed, ruleAllowed, type ArchonConfig } from "@/lib/ci/config";
 import { gh, installationToken, repoFile } from "@/lib/github/app";
+import { isAutoApplicable } from "@/lib/gas/patch";
 
 // GitHub App PR handler (F3): scoped scan of changed Solidity, ONE updating
 // check-run + ONE updating comment (found by marker / stored ids — never
@@ -77,12 +78,12 @@ async function handlePr(job: Extract<GithubJob, { kind: "pr" }>) {
     const findings = report ? (await db.query<FindingRow>(`select id, severity, title, file, line_start from findings where report_id=$1 order by sort_index nulls last, id`, [report.id])).rows : [];
 
     // Gas engine (optional via config), entry file only.
-    let gas: { id: string; totals: { l2GasSavedPerCall?: number; split?: { l2WeiPerCall?: string; l1DaWeiPerCall?: string } } | null; optimizations: Array<{ id: string; rule_id: string; title: string; safety: string; est_l2_delta: number | null; patch: unknown }> } | null = null;
+    let gas: { id: string; totals: { l2GasSavedPerCall?: number; split?: { l2WeiPerCall?: string; l1DaWeiPerCall?: string } } | null; optimizations: Array<{ id: string; rule_id: string; title: string; safety: string; est_l2_delta: number | null; patch: { oldText?: string; newText?: string } | null }> } | null = null;
     if (config.gas !== false) {
       const created = await createGasReport({ sourceKind: "paste", sourceCode: entry.source, contractLabel: `${job.repo}#${job.prNumber}` });
       await runGasReport(created.id);
       const g = (await db.query<{ id: string; totals: { l2GasSavedPerCall?: number } | null }>(`select id, totals from gas_reports where id=$1`, [created.id])).rows[0];
-      const opts = (await db.query<{ id: string; rule_id: string; title: string; safety: string; est_l2_delta: number | null; patch: unknown }>(
+      const opts = (await db.query<{ id: string; rule_id: string; title: string; safety: string; est_l2_delta: number | null; patch: { oldText?: string; newText?: string } | null }>(
         `select id, rule_id, title, safety, est_l2_delta, patch from gas_optimizations where gas_report_id=$1 order by rank_score desc nulls last limit 12`, [created.id],
       )).rows;
       gas = g ? { ...g, optimizations: opts.filter((o) => ruleAllowed(o.rule_id, config)) } : null;
@@ -115,14 +116,14 @@ async function handlePr(job: Extract<GithubJob, { kind: "pr" }>) {
   }
 }
 
-function composeComment(args: { job: Extract<GithubJob, { kind: "pr" }>; report: { id: string; risk_score: number } | undefined; findings: FindingRow[]; gas: { id: string; totals: { l2GasSavedPerCall?: number; split?: { l2WeiPerCall?: string; l1DaWeiPerCall?: string } } | null; optimizations: Array<{ id: string; rule_id: string; title: string; safety: string; est_l2_delta: number | null; patch: unknown }> } | null; config: ArchonConfig; configError: string | null; entryPath: string }) {
+function composeComment(args: { job: Extract<GithubJob, { kind: "pr" }>; report: { id: string; risk_score: number } | undefined; findings: FindingRow[]; gas: { id: string; totals: { l2GasSavedPerCall?: number; split?: { l2WeiPerCall?: string; l1DaWeiPerCall?: string } } | null; optimizations: Array<{ id: string; rule_id: string; title: string; safety: string; est_l2_delta: number | null; patch: { oldText?: string; newText?: string } | null }> } | null; config: ArchonConfig; configError: string | null; entryPath: string }) {
   const { job, report, findings, gas, config, configError } = args;
   const blob = (file: string, line: number | null) => `https://github.com/${job.owner}/${job.repo}/blob/${job.headSha}/${file}${line ? `#L${line}` : ""}`;
   const top = [...findings].sort((a, b) => (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9)).slice(0, 10);
   const findingRows = top.length
     ? top.map((f) => `| ${f.severity} | ${f.title.replace(/\|/g, "\\|")} | [${f.file}:${f.line_start ?? "—"}](${blob(args.entryPath === f.file ? f.file : args.entryPath, f.line_start)}) |`).join("\n")
     : "| — | No findings | — |";
-  const autofixable = (gas?.optimizations ?? []).filter((o) => o.safety === "safe" && o.patch);
+  const autofixable = (gas?.optimizations ?? []).filter((o) => isAutoApplicable(o));
   const split = gas?.totals?.split;
   return `${MARKER}
 ## Archon — Mantle audit & gas
@@ -172,7 +173,7 @@ async function handleAutofix(job: Extract<GithubJob, { kind: "autofix" }>) {
     `select id, rule_id, title, safety, patch from gas_optimizations where id=$1 and gas_report_id=$2`, [job.optimizationId, state.gas_report_id],
   )).rows[0];
   if (!opt?.patch) { await reply(`${MARKER}-autofix\n@${job.requestedBy} that optimization id doesn't belong to this PR's gas report.`); return; }
-  if (opt.safety !== "safe") { await reply(`${MARKER}-autofix\n@${job.requestedBy} \`${opt.rule_id}\` is a review-class rule; Archon only autofixes catalog-safe rules.`); return; }
+  if (!isAutoApplicable(opt)) { await reply(`${MARKER}-autofix\n@${job.requestedBy} \`${opt.rule_id}\` is not auto-applicable (review-class, or its patch only annotates code); Archon only autofixes catalog-safe rules whose patch materially changes code.`); return; }
 
   // Compile-validate the patch through the existing apply pipeline.
   await runApplyPatch(state.gas_report_id, opt.id);

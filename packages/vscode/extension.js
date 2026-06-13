@@ -7,6 +7,11 @@
 // API exactly like pasting into the Audit Studio.
 const vscode = require("vscode");
 
+// Mirror of lib/gas/patch.ts: never offer an annotation-only patch as a quick
+// fix (applying it would change nothing but a comment).
+const stripComments = (c) => c.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "").replace(/\s+/g, " ").trim();
+const isAutoApplicable = (opt) => opt.safety === "safe" && opt.patch && opt.patch.oldText && opt.patch.newText && stripComments(opt.patch.oldText) !== stripComments(opt.patch.newText);
+
 const SEV = { critical: 0, high: 0, medium: 1, low: 2, info: 3 }; // map to vscode.DiagnosticSeverity
 let diagnostics, status, output;
 const fileState = new Map(); // uri -> { findings, optimizations, gasReportId, reportId, version }
@@ -93,7 +98,7 @@ class ArchonCodeActions {
     const text = doc.getText();
     const actions = [];
     for (const opt of state.optimizations) {
-      if (opt.safety !== "safe") continue;
+      if (!isAutoApplicable(opt)) continue;
       const idx = text.indexOf(opt.patch.oldText);
       if (idx < 0 || text.indexOf(opt.patch.oldText, idx + 1) >= 0) continue; // must match exactly once
       const startPos = doc.positionAt(idx);

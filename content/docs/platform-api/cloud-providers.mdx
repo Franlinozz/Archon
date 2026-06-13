@@ -20,7 +20,7 @@ The AI Reasoning stage enriches deterministic findings through a single interfac
 | Provider | Selected by | Credentials | Notes |
 | --- | --- | --- | --- |
 | OpenAI | `AI_PROVIDER=openai` (or fallback) | `OPENAI_API_KEY` | `gpt-4o-mini` by default; override with `OPENAI_MODEL`. |
-| ELFA | `AI_PROVIDER=elfa` (or fallback) | `ELFA_API_KEY`, `ELFA_BASE_URL` | OpenAI-compatible chat completions; set `ELFA_MODEL` to the target model. |
+| ELFA | `AI_PROVIDER=elfa` (or fallback) | `ELFA_API_KEY`, `ELFA_BASE_URL` | Generic OpenAI-compatible chat-completions adapter (point it at any such endpoint). Note: the ELFA product itself is a crypto/market **data** API, not an LLM provider, so this adapter is for any compatible inference endpoint you supply. |
 | Tencent Cloud Hunyuan | `AI_PROVIDER=hunyuan` | `TENCENT_HUNYUAN_KEY` | Uses Tencent's OpenAI-compatible endpoint (`https://api.hunyuan.cloud.tencent.com/v1`, overridable via `TENCENT_HUNYUAN_BASE_URL`); `hunyuan-turbo` by default. |
 
 **Selection logic.** `AI_PROVIDER` wins when that adapter's credentials are present. Otherwise Archon falls back in order **ELFA → OpenAI → deterministic templates**. Every scan log records which provider served each enrichment batch, and batches that fail or time out fall back to deterministic explanations for exactly those findings — the report says so when that happens.

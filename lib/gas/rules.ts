@@ -279,7 +279,12 @@ const loopHygieneRule: Rule = {
       estL2Delta: 100,
       estL1Delta: null,
       confidence: 0.82,
-      safety: "safe",
+      // review-class: the real optimization hoists a `uint256 len = arr.length;`
+      // declaration ABOVE the loop, which a single-line oldText→newText patch
+      // cannot express — so the patch only annotates and must never be offered
+      // as a one-click autofix/quick-fix (it would change nothing). See the
+      // annotation-only guard in lib/gas/patch.ts.
+      safety: "review",
       rationale: "Caching storage array length avoids repeated SLOADs; using ++i/unchecked can reduce loop overhead.",
     }));
   },
