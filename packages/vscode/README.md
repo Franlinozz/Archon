@@ -9,3 +9,7 @@ Archon findings as native diagnostics, catalog-safe gas quick fixes, and per-opp
 - **Offline**: API problems show a quiet status-bar state — never popups.
 
 Read-only by design. Docs: <https://archonaudit.xyz/docs/platform-api/editor-integration>
+
+## Data handling & privacy
+
+This extension is a **thin client**: when you run a scan it sends the current Solidity source to the Archon API (`archon.apiBase`, default `https://archonaudit.xyz`) over HTTPS and renders the response. It does **not** run shell commands, execute downloaded code, read environment variables, or access keys/wallets. The only network destination is the configured Archon API base. Source is processed exactly as if pasted into the Archon web app. Point `archon.apiBase` at a self-hosted Archon if you prefer to keep source on your own infrastructure.

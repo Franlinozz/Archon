@@ -1,0 +1,27 @@
+# Only ship what the extension needs. Everything else is excluded so the VSIX
+# can never carry server code, secrets, fixtures, or build artifacts.
+.vscode/**
+.gitignore
+.vscodeignore
+**/.env
+**/.env.*
+**/node_modules/**
+**/*.vsix
+**/*.map
+**/tsconfig*.json
+# nothing from the monorepo outside this folder is bundled (vsce only packs cwd),
+# but be explicit about categories that must never appear:
+**/contracts/**
+**/artifacts/**
+**/cache/**
+**/broadcast/**
+**/out/**
+**/test/**
+**/tests/**
+**/__fixtures__/**
+**/*.sol
+**/*.pem
+**/*.key
+**/*.cert
+**/*.log
+**/coverage/**
