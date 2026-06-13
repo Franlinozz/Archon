@@ -2,7 +2,7 @@
   "name": "archon-mantle",
   "displayName": "Archon — Mantle audits & gas",
   "description": "Archon findings as native diagnostics, safe gas quick fixes, and per-opportunity gas lenses — a thin client of the Archon public API for Mantle builders.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "archon",
   "license": "MIT",
   "icon": "icon.png",
