@@ -60,6 +60,7 @@ export const docsNav: DocsNavGroup[] = [
       { title: "GitHub App", href: "/docs/platform-api/github-app" },
       { title: "Editor integration (VS Code)", href: "/docs/platform-api/editor-integration" },
       { title: "For agents (Verdict + MCP)", href: "/docs/platform-api/for-agents" },
+      { title: "Public pages & badges", href: "/docs/platform-api/public-pages-badges" },
       { title: "Cloud providers", href: "/docs/platform-api/cloud-providers" },
       { title: "Authentication", href: "/docs/platform-api/authentication" },
       { title: "Rate limits", href: "/docs/platform-api/rate-limits" },

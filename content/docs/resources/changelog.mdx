@@ -5,6 +5,12 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V5.2 — Address intelligence pages, badges & embeds
+
+- Public `/address/<address>`: a permanent, indexed security profile for any Mantle contract — audit timeline with anchored proofs, build-attestation status, Sentinel freshness, gas profile, and challenges; clean "run the first scan" state for unknown addresses. No per-view RPC; OG cards + sitemap.
+- `GET /badge/<address>.svg`: shields-style README badges (audit / attestation / gas variants), edge-cached, linking to the address page. Copy-paste markdown in the docs.
+- Embeddable security card (`/embed/address/<address>`) for project sites.
+
 ## V5.1 — Agent Trust API + MCP server
 
 - `GET /api/v1/verdict/:chainId/:address`: a compact, EIP-191-signed contract-trust verdict (risk score, audit freshness, build attestation, open critical/high, proof tx, agentId 97). The signature recovers to Archon's ERC-8004 Agent #97 owner key, so any consumer verifies provenance offline. Cached per address/day, per-IP rate limited.

@@ -1,0 +1,43 @@
+---
+title: Public pages & badges
+description: Every Mantle contract gets a permanent Archon security URL, a README badge, and an embeddable card.
+---
+
+# Public pages & badges
+
+Archon exposes its evidence as permanent, indexable public URLs — the distribution surface.
+
+## Address pages
+
+`https://archonaudit.xyz/address/<address>` is the public security profile of any Mantle contract: audit timeline (with anchored proofs), build-attestation status, Sentinel freshness, gas profile, and challenges. Server-rendered and indexed (each page is in the [sitemap](/sitemap.xml) with OG cards). Unknown addresses get a clean "run the first scan" state. No per-view RPC — pages are static-cached and refresh as new evidence lands.
+
+## README badges
+
+`GET /badge/<address>.svg` returns a shields-style SVG. Variants via `?variant=`:
+
+| Variant | Shows |
+| --- | --- |
+| `audit` (default) | `Archon · risk 12 · proof ✓` |
+| `attestation` | `Archon build · attested ✓` |
+| `gas` | `Archon gas · receipt-calibrated` |
+
+Copy-paste into a README:
+
+```markdown
+[![Archon](https://archonaudit.xyz/badge/0xYourContract.svg)](https://archonaudit.xyz/address/0xYourContract)
+```
+
+The badge links to the contract's address page. Color tracks risk (green ≤ 33, amber ≤ 66, red ≥ 67); unknown contracts render a neutral "no audit". Cached at the edge (~5 min), so a fresh scan reflects quickly without per-view DB load.
+
+## Embeddable card
+
+A compact security card for a project site — one iframe:
+
+```html
+<iframe src="https://archonaudit.xyz/embed/address/0xYourContract"
+        width="320" height="92" style="border:0" title="Archon security card"></iframe>
+```
+
+It shows the risk score, proof/attestation status, and a verify link back to the address page.
+
+All of the above is **risk intelligence with provenance, not a safety guarantee** — and it's public data, so scrape-friendly within rate limits.

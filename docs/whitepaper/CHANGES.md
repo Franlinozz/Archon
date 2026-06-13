@@ -15,6 +15,8 @@ The PDF is the citable edition and is versioned — never silently edited. Claim
 - 2026-06-12 — Verified build attestations (roadmap "Later" item: source-to-bytecode matching, extends §06) shipped; documented at `/docs/on-chain-proofs/verified-builds`.
 - 2026-06-13 — Mantle Gas Observatory (extends §05: the receipt-calibration story becomes a live public dashboard + oracle-vs-receipt tracker) shipped at `/observatory`.
 - 2026-06-13 — Agent Trust API + MCP server (extends §08/§10: agents consume verifiable security work via a signed verdict + MCP tools) shipped at `/docs/platform-api/for-agents`.
+- 2026-06-13 — Address intelligence pages + badges (extends §08: every Mantle contract gets a permanent public security URL + README badge) shipped at `/address/<address>`.
+- 2026-06-13 — Staked challenges DESIGN (ADR 0014, extends §06/§07 + roadmap "Later"; design-only, nothing deployed).
 
 ## v1 — 2026-06-08 (generated `archon-whitepaper.pdf`)
 
