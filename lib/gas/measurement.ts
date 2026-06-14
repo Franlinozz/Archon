@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { db } from "@/lib/db/client";
+import { foundryConfigToml, foundryRemappingGroups } from "@/lib/source/solidity";
 import type { GasOptimizationRuleResult } from "@/lib/gas/rules";
 
 const execFileAsync = promisify(execFile);
@@ -108,26 +109,54 @@ contract ${contractName}ArchonGasMeasurementTest is Test {
 `;
 }
 
+/** Is this a dependency-resolution failure (vs a real compile/test error)? */
+function isImportError(text: string) {
+  return /not found|could not find|failed to resolve|source .* not found|file .* not found|unable to resolve import/i.test(text);
+}
+
+/** Collapse a forge failure to one structured line — never a raw traceback in the live log. */
+function collapseForgeError(text: string): string {
+  const miss = text.match(/(?:Source|File|import)[^\n]*?["'`]?([@\w./-]+\.sol)["'`]?[^\n]*?not found/i);
+  if (miss) return `unresolved import: ${miss[1]}`;
+  const compile = text.match(/Error \(\d+\):[^\n]+/)?.[0] ?? text.match(/error\[[^\]]+\]:[^\n]+/i)?.[0];
+  if (compile) return compile.trim().slice(0, 200);
+  const first = text.split("\n").map((l) => l.trim()).find((l) => /error|fail/i.test(l));
+  return (first ?? "forge measurement failed").slice(0, 200);
+}
+
 async function runForgeProject(source: string, sourceFile: string, contractName: string) {
   const project = await mkdtemp(path.join(tmpdir(), "archon-gas-measure-"));
   const srcDir = path.join(project, "src");
   const testDir = path.join(project, "test");
   await mkdir(srcDir, { recursive: true });
   await mkdir(testDir, { recursive: true });
-  await writeFile(path.join(project, "foundry.toml"), "[profile.default]\nsrc = 'src'\ntest = 'test'\nout = 'out'\nlibs = ['lib']\noptimizer = true\noptimizer_runs = 200\n");
+  // Generated foundry.toml + remappings.txt from the SHARED resolver, so the
+  // gas harness resolves vendored OZ/solmate/solady/forge-std exactly like the
+  // Slither path (V5.2). Two remapping groups = preferred OZ major then fallback.
+  await writeFile(path.join(project, "foundry.toml"), foundryConfigToml());
   await writeFile(path.join(srcDir, `${contractName}.sol`), source);
   await writeFile(path.join(testDir, `${contractName}.t.sol`), buildHarness(contractName));
-
-  // Preserve the original source alongside the generated project for debugging, without mutating it.
   await copyFile(sourceFile, path.join(project, "Original.sol")).catch(() => undefined);
 
+  const groups = foundryRemappingGroups(source);
   const args = ["test", "--gas-report", "--root", project];
-  const { stdout, stderr } = await execFileAsync(FORGE_BIN, args, {
-    timeout: MEASUREMENT_TIMEOUT_MS,
-    maxBuffer: 8 * 1024 * 1024,
-    env: process.env,
-  });
-  return { command: `${FORGE_BIN} ${args.join(" ")}`, gasReport: `${stdout}\n${stderr}`.trim() };
+  let lastErr = "";
+  for (let attempt = 0; attempt < groups.length; attempt++) {
+    await writeFile(path.join(project, "remappings.txt"), groups[attempt]!);
+    try {
+      const { stdout, stderr } = await execFileAsync(FORGE_BIN, args, { timeout: MEASUREMENT_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024, env: process.env });
+      return { command: `${FORGE_BIN} ${args.join(" ")}`, gasReport: `${stdout}\n${stderr}`.trim() };
+    } catch (error) {
+      const out = `${(error as { stdout?: string }).stdout ?? ""}\n${(error as { stderr?: string }).stderr ?? ""}\n${(error as Error).message ?? ""}`;
+      lastErr = out;
+      // Only the OZ-major mismatch is worth a second attempt; a genuine compile
+      // error or timeout won't be fixed by swapping majors.
+      if (attempt < groups.length - 1 && isImportError(out)) continue;
+      const err = new Error(collapseForgeError(out));
+      throw err;
+    }
+  }
+  throw new Error(collapseForgeError(lastErr));
 }
 
 function estimatedPatch(rule: GasOptimizationRuleResult): GasPatchMeasurement {
@@ -200,9 +229,10 @@ export async function measureGasOptimizations(input: MeasureInput): Promise<GasM
     await writeCache(key, profile);
     return profile;
   } catch (error) {
+    // error is already collapsed to a structured one-liner by runForgeProject.
     const message = error instanceof Error ? error.message : String(error);
-    base.forge = { attempted: true, ok: false, command: `${FORGE_BIN} test --gas-report`, gasReport: null, error: message.slice(0, 2000) };
-    await input.onProgress?.(`Foundry measurement degraded: ${base.forge.error}`);
+    base.forge = { attempted: true, ok: false, command: `${FORGE_BIN} test --gas-report`, gasReport: null, error: message.slice(0, 300) };
+    await input.onProgress?.(`Gas deltas are estimates; Foundry measurement degraded: ${base.forge.error}`);
     await writeCache(key, base);
     return base;
   }

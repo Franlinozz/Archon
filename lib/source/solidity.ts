@@ -108,6 +108,7 @@ export function dependencyRemapGroupsForSource(source: string, extraImports: str
     { from: "solmate/", to: "solmate/src/" },
     { from: "solady/", to: "solady/src/" },
     { from: "forge-std/", to: "forge-std/src/" },
+    { from: "ds-test/", to: "ds-test/src/" }, // forge-std/Test.sol imports ds-test
   ];
   return [first, second].map((major) => [
     { from: "@openzeppelin/contracts/", to: `openzeppelin/${major}/contracts/` },
@@ -122,6 +123,34 @@ export function solcRemapArgs(remappings: SolidityRemapping[]) {
 
 export function solcIncludePaths(workdir: string) {
   return [workdir, ARCHON_DEPS_ROOT, path.join(process.cwd(), "node_modules"), path.join(process.cwd(), "lib/source/vendor")];
+}
+
+/**
+ * Foundry remappings.txt content (absolute vendored-dep paths) for a source —
+ * the single source of truth shared by the Slither/solc path and the Foundry
+ * gas-measurement path (V5.2). Each group is one OZ-major attempt: try the
+ * preferred major (by pragma/import style), fall back to the other once if the
+ * forge harness fails to resolve imports. forge-std/solmate/solady are always
+ * included because the generated gas harness imports forge-std/Test.sol.
+ */
+export function foundryRemappingGroups(source: string, extraImports: string[] = []): string[] {
+  return dependencyRemapGroupsForSource(source, extraImports).map((group) =>
+    group.map((m) => `${m.from}=${ARCHON_DEPS_ROOT}/${m.to}`).join("\n") + "\n",
+  );
+}
+
+/** Generated foundry.toml that points at the vendored deps + remappings.txt. */
+export function foundryConfigToml(): string {
+  return [
+    "[profile.default]",
+    "src = 'src'",
+    "test = 'test'",
+    "out = 'out'",
+    "libs = ['lib']",
+    "optimizer = true",
+    "optimizer_runs = 200",
+    "",
+  ].join("\n");
 }
 
 export function importCandidates(importPath: string, fromFile: string, remappings: SolidityRemapping[] = []) {

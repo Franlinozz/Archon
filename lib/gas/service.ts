@@ -16,6 +16,7 @@ import type { GasOptimizerProfile } from "@/lib/gas/optimizer";
 import { proofRegistryAddress } from "@/lib/proof/archonRegistry";
 import { deterministicReportHash } from "@/lib/proof/canonical";
 import { compileSoliditySource } from "@/lib/solidity/compiler";
+import { foundryConfigToml, foundryRemappingGroups } from "@/lib/source/solidity";
 import { deriveContractName } from "@/lib/source/names";
 
 const execFileAsync = promisify(execFile);
@@ -246,7 +247,10 @@ export async function runApplyPatch(gasReportId: string, optimizationId: string)
     const testDir = path.join(workdir, "test");
     await mkdir(srcDir, { recursive: true });
     await mkdir(testDir, { recursive: true });
-    await writeFile(path.join(workdir, "foundry.toml"), "[profile.default]\nsrc = 'src'\ntest = 'test'\nout = 'out'\noptimizer = true\noptimizer_runs = 200\n");
+    // Generated foundry.toml + remappings.txt from the shared resolver so the
+    // apply harness resolves vendored OZ/solmate/solady/forge-std (V5.2).
+    await writeFile(path.join(workdir, "foundry.toml"), foundryConfigToml());
+    await writeFile(path.join(workdir, "remappings.txt"), foundryRemappingGroups(patchedSource)[0]!);
     const sourceFile = path.join(srcDir, `${name}.sol`);
     await writeFile(sourceFile, patchedSource);
     await writeFile(path.join(testDir, `${name}.t.sol`), applyHarness(name));

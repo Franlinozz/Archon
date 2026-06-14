@@ -45,5 +45,23 @@ function install([pkg, version, destRel, subdir]) {
   }
 }
 
+// ds-test is forge-std's transitive dependency (forge-std/Test.sol imports
+// ds-test/test.sol) but ships as a git submodule, not on npm — clone it so the
+// generated Foundry gas harness compiles (V5.2).
+function installDsTest() {
+  const target = path.join(root, "ds-test", "src");
+  if (existsSync(path.join(target, "test.sol"))) { console.log(`archon deps ok: ${target}`); return; }
+  const tmp = mkdtempSync(path.join(tmpdir(), "archon-dstest-"));
+  try {
+    execFileSync("git", ["clone", "--depth", "1", "https://github.com/dapphub/ds-test", tmp], { stdio: "ignore" });
+    mkdirSync(path.join(root, "ds-test"), { recursive: true });
+    cpSync(path.join(tmp, "src"), target, { recursive: true });
+    console.log(`archon deps installed: ds-test -> ${target}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 mkdirSync(root, { recursive: true });
 for (const spec of packages) install(spec);
+installDsTest();
