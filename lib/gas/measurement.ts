@@ -102,7 +102,7 @@ contract ${contractName}ArchonGasMeasurementTest is Test {
         target = new ${contractName}();
     }
 
-    function test_archon_measurement_harness_smoke() public view {
+    function test_archon_measurement_harness_smoke() public {
         assertTrue(address(target) != address(0));
     }
 }
