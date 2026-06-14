@@ -19,15 +19,22 @@ export function OracleChartPanel({ series, anchors }: { series: Row[]; anchors: 
       ? series.map((s) => ({ label: s.bucket.slice(5), actual: s.actualGwei ?? 0, oracle: s.oracleGwei ?? 0 }))
       : anchors.map((a) => ({ label: a.txShort, actual: a.actualMnt * 1e9, oracle: a.oracleMnt * 1e9 }));
   const max = Math.max(...rows.map((r) => r.actual), 1e-9);
-  const logMax = Math.log10(max + 1);
+  // Log domain spans the real data range (sub-1-gwei oracle → hundreds for receipt),
+  // with a margin below the smallest value so the amber bar keeps proportionate height
+  // instead of collapsing to the floor.
+  const positives = rows.flatMap((r) => [r.actual, r.oracle]).filter((v) => v > 0);
+  const lo = positives.length ? Math.min(...positives) : 1;
+  const hi = Math.max(...positives, lo * 10);
+  const logLo = Math.log10(lo) - 0.4;
+  const logHi = Math.log10(hi);
 
   const W = 760, H = 320, padL = 40, padB = 46, padT = 30, padR = 16;
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const bw = innerW / rows.length;
   const barH = (v: number) => {
     if (v <= 0) return 0;
-    const frac = scale === "log" ? Math.log10(v + 1) / logMax : v / max;
-    return Math.max(frac * innerH, scale === "log" ? 3 : 1.5);
+    const frac = scale === "log" ? (Math.log10(v) - logLo) / (logHi - logLo) : v / max;
+    return Math.max(Math.min(frac, 1) * innerH, 2);
   };
   const fmt = (v: number) => (v === 0 ? "0" : v < 0.001 ? v.toExponential(1) : v.toLocaleString("en-US", { maximumFractionDigits: 3 }));
   const tipX = (cx: number) => Math.min(Math.max(cx - 82, padL), W - padR - 168);
