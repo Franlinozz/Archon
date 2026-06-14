@@ -1,6 +1,6 @@
 ---
 title: Cloud providers
-description: Archon's pluggable AI and storage provider layer — OpenAI, ELFA, Tencent Cloud Hunyuan, and Tencent COS.
+description: Archon's pluggable AI and storage provider layer — OpenAI, Tencent Cloud Hunyuan, and Tencent COS.
 ---
 
 # Cloud providers
@@ -15,15 +15,16 @@ curl https://archonaudit.xyz/api/providers
 
 ## AI enrichment providers
 
-The AI Reasoning stage enriches deterministic findings through a single interface (`enrichFindings(batch) → schema-validated JSON`). Three adapters sit behind it:
+The AI Reasoning stage enriches deterministic findings through a single interface (`enrichFindings(batch) → schema-validated JSON`). Two adapters sit behind it:
 
 | Provider | Selected by | Credentials | Notes |
 | --- | --- | --- | --- |
 | OpenAI | `AI_PROVIDER=openai` (or fallback) | `OPENAI_API_KEY` | `gpt-4o-mini` by default; override with `OPENAI_MODEL`. |
-| ELFA | `AI_PROVIDER=elfa` (or fallback) | `ELFA_API_KEY`, `ELFA_BASE_URL` | Generic OpenAI-compatible chat-completions adapter (point it at any such endpoint). Note: the ELFA product itself is a crypto/market **data** API, not an LLM provider, so this adapter is for any compatible inference endpoint you supply. |
 | Tencent Cloud Hunyuan | `AI_PROVIDER=hunyuan` | `TENCENT_HUNYUAN_KEY` | Uses Tencent's OpenAI-compatible endpoint (`https://api.hunyuan.cloud.tencent.com/v1`, overridable via `TENCENT_HUNYUAN_BASE_URL`); `hunyuan-turbo` by default. |
 
-**Selection logic.** `AI_PROVIDER` wins when that adapter's credentials are present. Otherwise Archon falls back in order **ELFA → OpenAI → deterministic templates**. Every scan log records which provider served each enrichment batch, and batches that fail or time out fall back to deterministic explanations for exactly those findings — the report says so when that happens.
+**Selection logic.** `AI_PROVIDER` wins when that adapter's credentials are present. Otherwise Archon falls back in order **OpenAI → deterministic templates**. Every scan log records which provider served each enrichment batch, and batches that fail or time out fall back to deterministic explanations for exactly those findings, with the cause logged per batch.
+
+> **ELFA is not an LLM provider.** An earlier build shipped a generic chat-completions adapter labeled "ELFA". ELFA is a crypto/market **data** API, not an inference endpoint, so that adapter was removed from the AI chain — it could only ever 404. If ELFA is integrated in future it will be an *external data enrichment* feature behind its own env flag, never an AI provider.
 
 **Honesty rule.** An adapter without credentials is *inert*: it exists in the codebase, it is listed by `/api/providers` with the env vars it is waiting on, and it is never represented as serving traffic. The Tencent Hunyuan adapter ships fully built and activates the moment hackathon computing credits provide a key — no code change required.
 
@@ -38,6 +39,6 @@ When COS credentials are present, proof preparation additionally writes the cano
 
 ## Operational notes
 
-- Provider calls are bounded: batched findings, a 45-second per-call timeout, and schema validation on every response. Malformed output falls back to deterministic templates rather than corrupting a report.
+- Provider calls are bounded: batched findings, a 75-second per-call timeout with a single transient (429/5xx) retry, and per-finding schema validation on every response. Malformed output falls back to deterministic templates for exactly the affected findings rather than corrupting a report.
 - No provider decides *what* a finding is. Detection stays deterministic (static analysis + Mantle rules); providers only write explanations, remediation text, and patch suggestions, which remain clearly attributed.
 - `/api/providers` exposes configuration **status only** — names of missing env vars, never values.

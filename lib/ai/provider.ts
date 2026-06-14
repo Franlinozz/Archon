@@ -1,9 +1,10 @@
 import { z } from "zod";
 
-// Pluggable AI enrichment providers (R3.1). One interface, three adapters —
-// OpenAI, ELFA, and Tencent Cloud Hunyuan (OpenAI-compatible chat completions)
-// — selected by env. Adapters whose credentials are absent are INERT and are
+// Pluggable AI enrichment providers (R3.1). One interface, two adapters —
+// OpenAI and Tencent Cloud Hunyuan (OpenAI-compatible chat completions) —
+// selected by env. Adapters whose credentials are absent are INERT and are
 // reported as such; nothing here ever pretends an unconfigured provider is live.
+// (ELFA was removed — it is a market-data API, not an LLM; see note below.)
 
 export const FINDING_ENRICHMENT_PROMPT_VERSION = "finding-enrichment-v1-2026-05-22";
 
@@ -35,7 +36,7 @@ export type EnrichableFinding = {
   code_snippet: string | null;
 };
 
-export type AiProviderId = "openai" | "elfa" | "hunyuan";
+export type AiProviderId = "openai" | "hunyuan";
 
 export type EnrichmentErrorKind =
   | "timeout"
@@ -254,18 +255,11 @@ const openai = new ChatCompletionsProvider({
   requires: ["OPENAI_API_KEY"],
 });
 
-// ELFA inference: key alone is not enough to call anything real, so the adapter
-// also requires an explicit base URL — guessing an endpoint would burn scan
-// latency on guaranteed failures.
-const elfa = new ChatCompletionsProvider({
-  id: "elfa",
-  label: "ELFA",
-  baseUrl: () => process.env.ELFA_BASE_URL,
-  apiKey: () => process.env.ELFA_API_KEY,
-  model: () => process.env.ELFA_MODEL ?? "default",
-  jsonMode: false,
-  requires: ["ELFA_API_KEY", "ELFA_BASE_URL"],
-});
+// NOTE: ELFA was removed from the AI provider chain (2026-06-14). ELFA is a
+// crypto/market DATA API, not an LLM — pointing the chat-completions adapter at
+// it 404s every batch and could silently win the fallback. If ELFA is ever wired
+// back, it must be an "external data enrichment" feature gated behind its own
+// env, never an LLM/AI provider in this chain. See lib/data/* if added.
 
 // Tencent Cloud Hunyuan exposes an OpenAI-compatible endpoint; the adapter is
 // fully built and activates the moment TENCENT_HUNYUAN_KEY is present.
@@ -280,14 +274,14 @@ const hunyuan = new ChatCompletionsProvider({
 });
 
 export function providers(): AIProvider[] {
-  return [openai, elfa, hunyuan];
+  return [openai, hunyuan];
 }
 
 export type ProviderSelection = { provider: AIProvider | null; source: "env" | "fallback" | "none"; reason: string };
 
 /**
  * AI_PROVIDER wins when that adapter is fully configured; otherwise fall back
- * elfa → openai → none (deterministic templates). The caller logs the choice.
+ * openai → none (deterministic templates). The caller logs the choice.
  */
 export function selectProvider(): ProviderSelection {
   const requested = process.env.AI_PROVIDER as AiProviderId | undefined;
@@ -295,7 +289,7 @@ export function selectProvider(): ProviderSelection {
     const match = providers().find((p) => p.id === requested);
     if (match?.configured()) return { provider: match, source: "env", reason: `AI_PROVIDER=${requested}` };
   }
-  for (const candidate of [elfa, openai]) {
+  for (const candidate of [openai]) {
     if (candidate.configured()) {
       return { provider: candidate, source: "fallback", reason: requested ? `AI_PROVIDER=${requested} not configured; fell back to ${candidate.id}` : `default chain selected ${candidate.id}` };
     }

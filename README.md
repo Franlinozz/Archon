@@ -110,7 +110,7 @@ steps:
 
 ## Tech stack
 
-Next.js 15 · TypeScript · Tailwind · BullMQ + Redis · Supabase Postgres · solc/Slither · Foundry · viem/wagmi · pluggable AI providers (OpenAI live; ELFA & Tencent Cloud Hunyuan adapters built-in, [status](https://archonaudit.xyz/api/providers)) · Pinata/IPFS (+ Tencent COS backup adapter) · PM2 + Caddy on one VM.
+Next.js 15 · TypeScript · Tailwind · BullMQ + Redis · Supabase Postgres · solc/Slither · Foundry · viem/wagmi · pluggable AI providers (OpenAI live; Tencent Cloud Hunyuan adapter built-in and inert until credentialed, [status](https://archonaudit.xyz/api/providers)) · Pinata/IPFS (+ Tencent COS backup adapter) · PM2 + Caddy on one VM.
 
 The scan pipeline is read-only. The only intended transaction path is the explicit user-approved proof log, guarded by simulation and cost checks.
 

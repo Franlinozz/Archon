@@ -12,6 +12,7 @@ description: Product documentation changelog.
 - Surfaced the public pages: the **Gas Observatory** joins the top navigation; every contract links to its `/address/<address>` profile from the leaderboard, Contract Context, and the Sentinel watchlist; pasting an address into the ⌘K command palette jumps straight to its profile.
 - Trimmed the workspace sidebar (Overview is the command center) — the Creator Workspace route is retained but unlinked.
 - Landing: a restrained capabilities band surfaces the platform (Sentinel, Gas Observatory, CI / GitHub App, agent trust API + MCP) and a calm developers-and-resources strip adds the whitepaper, API reference, docs, and Observatory above the final call to action.
+- Removed **ELFA** from the AI provider chain — ELFA is a crypto/market **data** API, not an LLM, so the chat-completions adapter could only ever 404 and risked silently winning the fallback. The chain is now OpenAI → deterministic templates, with the Tencent Hunyuan adapter ready and inert.
 
 ## V5.2 — Address intelligence pages, badges & embeds
 
