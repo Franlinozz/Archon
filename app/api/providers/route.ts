@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { providerStatus } from "@/lib/ai/provider";
 import { cosStatus } from "@/lib/storage/cos";
 import { githubAppStatus } from "@/lib/github/app";
+import { nansenStatus } from "@/lib/data/nansen";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +20,8 @@ export async function GET() {
       backup: cosStatus(),
     },
     integrations: { githubApp: githubAppStatus() },
+    // External DATA providers are kept structurally separate from `ai` so a data
+    // API can never be mistaken for an LLM enrichment provider (the ELFA lesson).
+    externalData: [nansenStatus()],
   });
 }
