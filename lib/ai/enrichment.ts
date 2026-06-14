@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db/client";
 import { appendScanLog, publishScanEvent } from "@/lib/scan/events";
-import { enrichmentSchema, selectProvider, type AIProvider, type Enrichment, FINDING_ENRICHMENT_PROMPT_VERSION } from "@/lib/ai/provider";
+import { enrichmentSchema, enrichmentErrorKind, selectProvider, type AIProvider, type Enrichment, type EnrichmentErrorKind, FINDING_ENRICHMENT_PROMPT_VERSION } from "@/lib/ai/provider";
 
 export { FINDING_ENRICHMENT_PROMPT_VERSION };
 const BATCH_SIZE = Number(process.env.ARCHON_AI_ENRICHMENT_BATCH_SIZE ?? 5);
-const CALL_TIMEOUT_MS = Number(process.env.ARCHON_AI_ENRICHMENT_TIMEOUT_MS ?? 45_000);
+// V5.3: 45s → 75s per call (with one transient retry in the provider). The
+// stage is still hard-bounded: total ≤ batches × (attempts × timeout + backoff).
+const CALL_TIMEOUT_MS = Number(process.env.ARCHON_AI_ENRICHMENT_TIMEOUT_MS ?? 75_000);
 const MAX_BATCHES_DEFAULT = Number(process.env.ARCHON_AI_ENRICHMENT_MAX_BATCHES ?? 8);
 
 type FindingRow = {
@@ -103,6 +105,11 @@ async function enrichMisses(scanId: string, provider: AIProvider | null, misses:
   const batches: Array<Array<{ finding: FindingRow; key: string }>> = [];
   for (let i = 0; i < eligible.length; i += BATCH_SIZE) batches.push(eligible.slice(i, i + BATCH_SIZE));
   let fallbackCount = 0;
+  // V5.3: record *why* each fallback happened so the real cause is diagnosable
+  // from the scan log (timeout | rate_limit | server_error | auth | json_parse |
+  // schema | empty | network | no_provider | bounded) instead of "timed out or failed".
+  const reasons: Partial<Record<EnrichmentErrorKind | "no_provider" | "bounded", number>> = {};
+  const bump = (kind: keyof typeof reasons, n: number) => { reasons[kind] = (reasons[kind] ?? 0) + n; };
 
   if (skipped.length) {
     await appendScanLog(scanId, "WARN", `AI enrichment bounded for large contract (${budget.lineCount} lines): deterministic explanations used for ${skipped.length} finding(s) beyond ${budget.maxBatches} timed batch(es).`);
@@ -111,23 +118,35 @@ async function enrichMisses(scanId: string, provider: AIProvider | null, misses:
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
     const batch = batches[batchIndex]!;
     let byId = new Map<string, Enrichment>();
+    let batchFailed = false;
     if (provider) {
       try {
         const parsed = await provider.enrichFindings(batch.map((item) => item.finding), { timeoutMs: CALL_TIMEOUT_MS });
         byId = new Map(parsed.findings.map((item) => [item.id, item.enrichment]));
-        await appendScanLog(scanId, "INFO", `AI enrichment batch ${batchIndex + 1}/${batches.length}: ${provider.label} (${provider.model}) enriched ${parsed.findings.length}/${batch.length} finding(s).`);
-      } catch {
+        const partial = batch.length - byId.size;
+        if (partial > 0) bump("schema", partial);
+        await appendScanLog(
+          scanId,
+          partial > 0 ? "WARN" : "INFO",
+          `AI enrichment batch ${batchIndex + 1}/${batches.length}: ${provider.label} (${provider.model}) enriched ${byId.size}/${batch.length} finding(s)${partial > 0 ? ` — ${partial} returned unusable enrichment → deterministic` : ""}.`,
+        );
+      } catch (err) {
+        batchFailed = true;
+        const kind = enrichmentErrorKind(err);
+        bump(kind, batch.length);
         fallbackCount += batch.length;
-        await appendScanLog(scanId, "WARN", `AI enrichment batch ${batchIndex + 1}/${batches.length} via ${provider.label} timed out or failed; deterministic explanations used for ${batch.length} finding(s).`);
+        await appendScanLog(scanId, "WARN", `AI enrichment batch ${batchIndex + 1}/${batches.length} via ${provider.label} fell back (${kind}): deterministic explanations used for ${batch.length} finding(s).`);
       }
     } else {
+      batchFailed = true;
+      bump("no_provider", batch.length);
       fallbackCount += batch.length;
     }
 
     for (const item of batch) {
       const fallback = fallbackEnrichment(item.finding);
       const enrichment = byId.get(item.finding.id);
-      if (!enrichment && byId.size) fallbackCount += 1;
+      if (!enrichment && !batchFailed) fallbackCount += 1; // partial omission (batch itself succeeded)
       const safe = enrichmentSchema.catch(fallback).parse(enrichment ?? fallback);
       await storeCache(item.key, safe);
       await updateFinding(item.finding.id, safe);
@@ -141,8 +160,12 @@ async function enrichMisses(scanId: string, provider: AIProvider | null, misses:
     await updateFinding(item.finding.id, safe);
     fallbackCount += 1;
   }
-  if (fallbackCount) await appendScanLog(scanId, "WARN", `AI enrichment partial — deterministic explanations used for ${fallbackCount} finding(s).`);
-  return { batches: batches.length, fallbackCount, skipped: skipped.length };
+  if (skipped.length) bump("bounded", skipped.length);
+  if (fallbackCount) {
+    const dist = Object.entries(reasons).filter(([, n]) => (n ?? 0) > 0).map(([k, n]) => `${k}×${n}`).join(", ");
+    await appendScanLog(scanId, "WARN", `AI enrichment partial — deterministic explanations used for ${fallbackCount} finding(s)${dist ? ` (causes: ${dist})` : ""}.`);
+  }
+  return { batches: batches.length, fallbackCount, skipped: skipped.length, reasons };
 }
 
 async function updateFinding(id: string, enrichment: Enrichment) {

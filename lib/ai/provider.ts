@@ -37,6 +37,58 @@ export type EnrichableFinding = {
 
 export type AiProviderId = "openai" | "elfa" | "hunyuan";
 
+export type EnrichmentErrorKind =
+  | "timeout"
+  | "rate_limit"
+  | "server_error"
+  | "auth"
+  | "http"
+  | "json_parse"
+  | "schema"
+  | "empty"
+  | "network"
+  | "unknown";
+
+/**
+ * Classified enrichment failure (V5.3) so the caller can log *why* a batch fell
+ * back to deterministic templates instead of an opaque "timed out or failed".
+ * A near-empty/low-tier key presents as `rate_limit` or `auth`; a slow endpoint
+ * as `timeout`; a chatty model as `json_parse`/`schema`.
+ */
+export class EnrichmentError extends Error {
+  constructor(readonly kind: EnrichmentErrorKind, message: string) {
+    super(message);
+    this.name = "EnrichmentError";
+  }
+}
+
+export function enrichmentErrorKind(err: unknown): EnrichmentErrorKind {
+  if (err instanceof EnrichmentError) return err.kind;
+  if (err instanceof Error) {
+    if (err.name === "AbortError") return "timeout";
+    if (err instanceof SyntaxError) return "json_parse";
+  }
+  return "unknown";
+}
+
+// V5.3: per-request budget raised 45s → 75s; the stage stays hard-bounded
+// because each call has its own AbortController and retries are capped (see
+// enrichFindings) — total ≤ batches × (attempts × timeout + backoff).
+export const DEFAULT_ENRICHMENT_TIMEOUT_MS = 75_000;
+const MAX_ATTEMPTS = 2; // one retry, transient (429/5xx) only
+const RETRY_BACKOFF_MS = 1_200;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function classifyStatus(status: number): EnrichmentErrorKind {
+  if (status === 429) return "rate_limit";
+  if (status >= 500) return "server_error";
+  if (status === 401 || status === 403) return "auth";
+  return "http";
+}
+
 export interface AIProvider {
   readonly id: AiProviderId;
   readonly label: string;
@@ -50,6 +102,18 @@ export interface AIProvider {
 
 function stripJsonFences(content: string) {
   return content.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+}
+
+// V5.3: send only a tight code window per finding, never a whole file. Smaller
+// prompts are faster, cheaper, and far less likely to time out. The detector
+// already localizes the issue, so the model never needs the full source.
+function tightSnippet(snippet: string | null, maxLines = 18, maxChars = 700): string | null {
+  if (!snippet) return snippet;
+  let text = snippet.replace(/\r/g, "");
+  const lines = text.split("\n");
+  if (lines.length > maxLines) text = `${lines.slice(0, maxLines).join("\n")}\n… (snippet truncated)`;
+  if (text.length > maxChars) text = `${text.slice(0, maxChars)}…`;
+  return text;
 }
 
 function promptFor(findings: EnrichableFinding[]) {
@@ -70,7 +134,7 @@ function promptFor(findings: EnrichableFinding[]) {
       file: finding.file,
       line_start: finding.line_start,
       line_end: finding.line_end,
-      code_snippet: finding.code_snippet,
+      code_snippet: tightSnippet(finding.code_snippet),
     }))),
   ].join("\n");
 }
@@ -103,33 +167,81 @@ class ChatCompletionsProvider implements AIProvider {
   async enrichFindings(findings: EnrichableFinding[], opts?: { timeoutMs?: number }): Promise<BatchResponse> {
     const apiKey = this.cfg.apiKey();
     const baseUrl = this.cfg.baseUrl();
-    if (!apiKey || !baseUrl) throw new Error(`${this.cfg.label} is not configured (${this.missing().join(", ") || "missing endpoint"})`);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), opts?.timeoutMs ?? 45_000);
-    try {
-      const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-        body: JSON.stringify({
-          model: this.cfg.model(),
-          temperature: 0.2,
-          ...(this.cfg.jsonMode ? { response_format: { type: "json_object" } } : {}),
-          messages: [
-            { role: "system", content: "You are a careful smart-contract audit report writer. Output only valid JSON." },
-            { role: "user", content: promptFor(findings) },
-          ],
-        }),
-      });
-      if (!response.ok) throw new Error(`${this.cfg.label} HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`);
+    if (!apiKey || !baseUrl) throw new EnrichmentError("empty", `${this.cfg.label} is not configured (${this.missing().join(", ") || "missing endpoint"})`);
+    const timeoutMs = opts?.timeoutMs ?? DEFAULT_ENRICHMENT_TIMEOUT_MS;
+    const body = JSON.stringify({
+      model: this.cfg.model(),
+      temperature: 0.2,
+      ...(this.cfg.jsonMode ? { response_format: { type: "json_object" } } : {}),
+      messages: [
+        { role: "system", content: "You are a careful smart-contract audit report writer. Output only valid JSON." },
+        { role: "user", content: promptFor(findings) },
+      ],
+    });
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      // Each attempt is independently time-bounded, so the stage can never hang
+      // regardless of retries (preserves the R1.2 no-hang guarantee).
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let response: Response;
+      try {
+        response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+          body,
+        });
+      } catch (err) {
+        clearTimeout(timer);
+        if (err instanceof Error && err.name === "AbortError") throw new EnrichmentError("timeout", `${this.cfg.label} timed out after ${timeoutMs}ms`);
+        throw new EnrichmentError("network", `${this.cfg.label} request failed: ${(err as Error).message?.slice(0, 200) ?? "unknown"}`);
+      }
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        const kind = classifyStatus(response.status);
+        const transient = kind === "rate_limit" || kind === "server_error";
+        if (transient && attempt < MAX_ATTEMPTS) {
+          const retryAfter = Number(response.headers.get("retry-after"));
+          await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, timeoutMs) : RETRY_BACKOFF_MS * attempt);
+          continue;
+        }
+        throw new EnrichmentError(kind, `${this.cfg.label} HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
+      }
+
       const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
       const content = payload.choices?.[0]?.message?.content;
-      if (!content) throw new Error(`${this.cfg.label} response did not include content`);
-      return batchResponseSchema.parse(JSON.parse(stripJsonFences(content)));
-    } finally {
-      clearTimeout(timeout);
+      if (!content) throw new EnrichmentError("empty", `${this.cfg.label} response did not include content`);
+      let raw: unknown;
+      try {
+        raw = JSON.parse(stripJsonFences(content));
+      } catch {
+        throw new EnrichmentError("json_parse", `${this.cfg.label} returned content that was not valid JSON`);
+      }
+      return tolerantBatch(raw);
     }
+    throw new EnrichmentError("unknown", `${this.cfg.label} exhausted ${MAX_ATTEMPTS} attempts`);
   }
+}
+
+/**
+ * Parse a batch response per-finding: a single malformed enrichment is omitted
+ * (the caller applies a deterministic fallback for *that* finding's id only)
+ * instead of throwing away the whole batch. A missing `findings` array is a real
+ * schema failure (the model ignored the contract) and falls the batch back.
+ */
+function tolerantBatch(raw: unknown): BatchResponse {
+  const arr = (raw as { findings?: unknown } | null)?.findings;
+  if (!Array.isArray(arr)) throw new EnrichmentError("schema", "response did not include a findings array");
+  const findings: BatchResponse["findings"] = [];
+  for (const item of arr) {
+    const id = (item as { id?: unknown } | null)?.id;
+    if (typeof id !== "string") continue;
+    const parsed = enrichmentSchema.safeParse((item as { enrichment?: unknown }).enrichment);
+    if (parsed.success) findings.push({ id, enrichment: parsed.data });
+  }
+  return { findings };
 }
 
 const openai = new ChatCompletionsProvider({
