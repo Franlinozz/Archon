@@ -8,6 +8,12 @@ The PDF is the citable edition and is versioned — never silently edited. Claim
 - §04 reflects the hardened AI-enrichment bound: per-call timeout 45s → 75s with a single transient (429/5xx) retry and per-finding schema validation; the report logs the exact fallback cause per batch. No detection-claim changes — detection remains deterministic-first.
 - Staked challenges stay explicitly design-only (ADR 0014, nothing deployed); webhooks stay planned. Served at `/whitepaper.pdf`; the docs Whitepaper page is the aligned HTML edition.
 
+### Post-v2.1 surface-status (HTML edition; no PDF reprint)
+
+- 2026-06-14 — **ERC-8004 Reputation Registry write wired into Generate Proof**: a successful anchor now ALSO appends a `giveFeedback` entry against Agent #97 (feedbackHash = report hash) from a funded non-owner client, in addition to ArchonProofRegistry. Verified on-chain (Agent #97 feedback count incremented). The "accruing reputation" claim is now real, not aspirational.
+- 2026-06-14 — **Tencent Cloud COS artifact backup is LIVE** (region `ap-hongkong`), best-effort beside IPFS/Postgres; `/api/providers` `storage.backup → tencent-cos: active`. The Hunyuan inference adapter stays built-in and inert (OpenAI `gpt-4o-mini` remains the active enrichment model).
+- 2026-06-14 — **ELFA removed** from the AI provider chain: it is a crypto/market *data* API, not an LLM, so it could only 404. If reintroduced it will be external data enrichment, never an AI provider.
+
 ## v2.0 — 2026-06-12 (`archon-whitepaper-v2.pdf`)
 
 - Full rewrite around the "verifiable DevTools" thesis: four commitments, seven-layer architecture (Figure 2), three artifact types.

@@ -65,7 +65,7 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **Reports + public viewer** | ✅ Live | Every report has a permanent, wallet-free public page that re-derives the hash and shows the on-chain proof | [/r/&lt;id&gt;](https://archonaudit.xyz/proofs) |
 | **Gas Optimizer** | ✅ Live | Optimization catalog, validated patches, receipt-calibrated L2/DA split, annualized savings under stated assumptions | [Gas Optimizer](https://archonaudit.xyz/app/gas) |
 | **Cost Guard** | ✅ Live | Real spend telemetry from persisted gas reports and optimizations | [Cost Guard](https://archonaudit.xyz/app/cost-guard) |
-| **On-chain proof** | ✅ Live | Canonical report hash anchored to ArchonProofRegistry under ERC-8004 Agent #97; public, wallet-free verification | [/proofs](https://archonaudit.xyz/proofs) |
+| **On-chain proof** | ✅ Live | Canonical report hash anchored to ArchonProofRegistry **and** appended as an ERC-8004 Reputation entry against Agent #97 (feedbackHash = report hash); public, wallet-free verification | [/proofs](https://archonaudit.xyz/proofs) |
 | **CI (CLI + Action)** | ✅ Live | `archon-scan` CLI with `--fail-on` gates + GitHub Action posting real gas-diff PR comments | [CLI](https://archonaudit.xyz/docs/platform-api/cli) · [Action](https://archonaudit.xyz/docs/gas-optimizer/ci-github-action) |
 | **Sentinel** | ✅ Live | Continuous monitoring of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
 | **Verified builds** | ✅ Live | Deterministic source→bytecode attestation (immutables masked, metadata-aware) with public verification pages and anchorable hashes | [Verified builds docs](https://archonaudit.xyz/docs/on-chain-proofs/verified-builds) |
@@ -76,6 +76,8 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **VS Code extension** | ✅ Live (Open VSX) | Diagnostics in the editor, safe gas quick fixes as Code Actions, per-opportunity gas lenses — thin client of the public API ([Open VSX](https://open-vsx.org/extension/archon/archon-mantle) · [v0.1.2 release](https://github.com/Franlinozz/Archon/releases/tag/vscode-v0.1.2); MS Marketplace appeal pending) | [Editor docs](https://archonaudit.xyz/docs/platform-api/editor-integration) |
 | **Gas Leaderboard** | ✅ Live | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
 | **Challenge ledger** | ✅ Live | Public challenge records against reports and optimizations (staked challenges are designed, not deployed — ADR 0014) | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
+| **Tencent COS backup** | ✅ Live | Best-effort artifact backup (proof/report JSON) to Tencent COS (`ap-hongkong`); never blocks the IPFS/Postgres primary path — status at [/api/providers](https://archonaudit.xyz/api/providers) | [Cloud providers](https://archonaudit.xyz/docs/platform-api/cloud-providers) |
+| **Tencent Hunyuan** | 🟢 Ready (optional) | OpenAI-compatible enrichment adapter, built and inert pending an inference key — **OpenAI `gpt-4o-mini` stays the active enrichment model** | [Cloud providers](https://archonaudit.xyz/docs/platform-api/cloud-providers) |
 
 ## Built for the agentic economy
 
@@ -120,7 +122,7 @@ code --install-extension archon-mantle-0.1.2.vsix
 
 ## Tech stack
 
-Next.js 15 · TypeScript · Tailwind · BullMQ + Redis · Supabase Postgres · solc/Slither · Foundry · viem/wagmi · pluggable AI providers (OpenAI live; Tencent Cloud Hunyuan adapter built-in and inert until credentialed, [status](https://archonaudit.xyz/api/providers)) · Pinata/IPFS (+ Tencent COS backup adapter) · PM2 + Caddy on one VM.
+Next.js 15 · TypeScript · Tailwind · BullMQ + Redis · Supabase Postgres · solc/Slither · Foundry · viem/wagmi · pluggable AI providers (OpenAI `gpt-4o-mini` live; Tencent Cloud Hunyuan adapter built-in, inert pending an inference key, [status](https://archonaudit.xyz/api/providers)) · Pinata/IPFS primary (+ **Tencent COS artifact backup, live** in `ap-hongkong`) · PM2 + Caddy on one VM.
 
 The scan pipeline is read-only. The only intended transaction path is the explicit user-approved proof log, guarded by simulation and cost checks.
 

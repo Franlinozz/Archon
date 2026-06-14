@@ -5,6 +5,11 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V5.4 — Full ERC-8004 loop + Tencent COS live
+
+- **The full ERC-8004 loop now fires.** A successful Generate Proof anchors to ArchonProofRegistry **and** appends a Reputation Registry `giveFeedback` entry against Agent #97 (feedbackHash = the report hash), from a funded non-owner client — best-effort and non-blocking, so a reputation hiccup never fails a registry anchor. Verified on-chain (Agent #97's feedback count increments).
+- **Tencent Cloud COS artifact backup is live** (region `ap-hongkong`): proof/report artifacts back up best-effort beside IPFS/Postgres, verifiable at `/api/providers`. The Hunyuan inference adapter stays ready/inert — OpenAI `gpt-4o-mini` remains the active enrichment model.
+
 ## V5.3 — Enrichment reliability, reach & landing
 
 - AI enrichment now records **why** any finding falls back to a deterministic explanation — per batch and as a distribution (timeout / rate-limit / 5xx / auth / JSON / schema) — so the real cause is diagnosable instead of opaque. Per-call timeout raised to 75s with one transient (429/5xx) retry, payloads trimmed to a tight code window, and a single malformed enrichment degrades only that finding rather than the whole batch. Detection stays deterministic-first.
