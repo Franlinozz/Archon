@@ -35,3 +35,6 @@ coverage
 .source
 packages/vscode/*.vsix
 packages/mcp/node_modules
+
+# VS Code extension release artifacts (attached to GH releases, not tracked)
+release-assets/
