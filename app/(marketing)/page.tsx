@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { Hero } from "@/components/marketing/Hero";
 import { LiveProofStrip, type StripStat } from "@/components/marketing/LiveProofStrip";
 import { Pillars } from "@/components/marketing/Pillars";
+import { PlatformBand } from "@/components/marketing/PlatformBand";
 import { DaInsightBand } from "@/components/marketing/DaInsightBand";
 import { ProofReceipt } from "@/components/marketing/ProofReceipt";
+import { ResourcesStrip } from "@/components/marketing/ResourcesStrip";
 import { FinalCta } from "@/components/marketing/FinalCta";
 import { daShareLabel, getLandingStats, ORACLE_DIVERGENCE, shortHash } from "@/lib/marketing/stats";
 
-// Landing structure (R2): hero → live proof strip → three pillars → DA insight
-// → proof receipt → final CTA. Every number on this page is queried from the
+// Landing structure (R2): hero → live proof strip → three pillars → platform
+// band (V5.8) → DA insight → proof receipt → resources strip (V5.8) → final CTA.
+// Every number on this page is queried from the
 // production database (revalidated every 60s); sections that depend on live
 // data hide themselves rather than render placeholders.
 export const revalidate = 60;
@@ -57,8 +60,10 @@ export default async function MarketingHome() {
         da={da ? { daLabel: da.da, l2Label: da.l2 } : null}
         latestHash={stats?.latestProof ? shortHash(stats.latestProof.reportHash, 12, 8) : null}
       />
+      <PlatformBand />
       <DaInsightBand rows={divergenceRows} />
       <ProofReceipt proof={stats?.latestProof ?? null} />
+      <ResourcesStrip />
       <FinalCta />
     </main>
   );
