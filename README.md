@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo-light.png" alt="Archon" width="420" />
+  <img src="docs/archon-banner.svg" alt="Archon — verifiable DevTools for Mantle" width="900" />
 </p>
 
 <h3 align="center">Audit it. Optimize it. Prove it.</h3>

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { getObservatory } from "@/lib/observatory/stats";
 import { explorerTx } from "@/lib/observatory/sampler";
-import { OracleChart } from "@/components/observatory/OracleChart";
+import { OracleChartPanel } from "@/components/observatory/OracleChartPanel";
+import { RelativeTime } from "@/components/observatory/RelativeTime";
 import { Reveal } from "@/components/motion";
 
 export const revalidate = 300;
@@ -75,7 +76,7 @@ export default async function ObservatoryPage() {
               <h2 className="font-display text-2xl tracking-[-0.02em] text-ink">Oracle prediction vs charged receipt fee</h2>
               <Link href="/embed/observatory/oracle" className="inline-flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600">Embeddable chart <ArrowUpRight size={12} /></Link>
             </div>
-            <div className="mt-4"><OracleChart series={o.oracle.series} anchors={o.oracle.anchors} /></div>
+            <div className="mt-4"><OracleChartPanel series={o.oracle.series} anchors={o.oracle.anchors} /></div>
             <p className="mt-3 font-mono text-[11px] text-muted">Receipt (green) = charged <span className="text-text-code">l1Fee</span> per byte; oracle (amber) = legacy <span className="text-text-code">getL1Fee</span> prediction for the same payload. Embed: <span className="text-text-code">&lt;iframe src=&quot;https://archonaudit.xyz/embed/observatory/oracle&quot;&gt;</span></p>
           </section>
 
@@ -90,13 +91,22 @@ export default async function ObservatoryPage() {
               </ul>
             </section>
             <section className="overflow-x-auto rounded-card border border-border-subtle bg-surface-1 p-5 shadow-card">
-              <h3 className="text-sm font-semibold text-ink">Recent samples</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-ink">Recent samples</h3>
+                {o.recent[0]?.at ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+                    <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" /></span>
+                    updated <RelativeTime iso={o.recent[0].at} className="text-text-mid" />
+                  </span>
+                ) : null}
+              </div>
               <table className="mt-3 w-full text-sm">
-                <thead><tr className="text-left text-xs uppercase tracking-[0.1em] text-muted"><th className="pb-2">Tx</th><th className="pb-2">Bytes</th><th className="pb-2">DA (receipt)</th><th className="pb-2">Oracle</th></tr></thead>
+                <thead><tr className="text-left text-xs uppercase tracking-[0.1em] text-muted"><th className="pb-2">Tx</th><th className="pb-2">Time</th><th className="pb-2">Bytes</th><th className="pb-2">DA (receipt)</th><th className="pb-2">Oracle</th></tr></thead>
                 <tbody>
                   {o.recent.map((r) => (
                     <tr key={r.txHash} className="border-t border-border-subtle">
                       <td className="py-1.5"><a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer" className="font-mono text-xs text-brand-500 hover:text-brand-600">{r.txHash.slice(0, 10)}…</a></td>
+                      <td className="py-1.5 text-xs text-text-mid">{r.at ? <RelativeTime iso={r.at} /> : "—"}</td>
                       <td className="py-1.5 font-mono text-xs text-text-mid">{r.bytes}</td>
                       <td className="py-1.5 font-mono text-xs text-text-hi">{fmtMnt(r.daMnt)}</td>
                       <td className="py-1.5 font-mono text-xs text-muted">{r.oracleMnt != null ? fmtMnt(r.oracleMnt) : "—"}</td>

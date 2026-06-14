@@ -123,4 +123,23 @@ function HeroMetric({ label, value }: { label: string; value: string }) { return
 function Mini({ label, value }: { label: string; value: string }) { return <div className="rounded-control border border-border-subtle bg-terminal p-2"><p className="text-[10px] uppercase tracking-[0.12em] text-text-low">{label}</p><p className="mt-1 break-all font-mono text-xs text-text-hi">{value}</p></div>; }
 function Chip({ children }: { children: React.ReactNode }) { return <span className="rounded-pill border border-border-subtle bg-surface-2 px-2 py-1 text-xs text-text-mid">{children}</span>; }
 function SplitBar({ l2, l1 }: { l2: number; l1: number }) { const safeL2 = Number.isFinite(l2) ? l2 : 0; const safeL1 = Number.isFinite(l1) ? l1 : 0; return <div className="mt-6"><div className="flex h-14 overflow-hidden rounded-card border border-border-subtle bg-terminal shadow-[0_16px_30px_rgba(0,0,0,0.22)]"><div className="bg-green-400/80" style={{ width: `${safeL2}%` }} /><div className="bg-info/80" style={{ width: `${safeL1}%` }} />{safeL1 + safeL2 === 0 ? <div className="w-full bg-surface-2" /> : null}</div><div className="mt-2 flex justify-between text-xs text-text-low"><span>L2 execution {safeL2.toFixed(1)}%</span><span>L1/DA {safeL1.toFixed(1)}%</span></div></div>; }
-function Donut({ l1, l2 }: { l1: number; l2: number }) { const a = Number.isFinite(l2) ? l2 : 0; const b = Number.isFinite(l1) ? l1 : 0; const grad = a + b === 0 ? "conic-gradient(var(--surface-2) 0 100%)" : `conic-gradient(var(--green-400) 0 ${a}%, var(--info) ${a}% ${a + b}%, var(--surface-2) ${a + b}% 100%)`; return <div className="mx-auto mt-5 grid size-44 place-items-center rounded-full shadow-[0_18px_40px_rgba(0,0,0,0.28)]" style={{ background: grad }}><div className="grid size-28 place-items-center rounded-full bg-surface-1 text-center"><Zap className="mx-auto text-green-400"/><p className="mt-1 text-xs text-text-low">Cost split</p></div></div>; }
+function Donut({ l1, l2 }: { l1: number; l2: number }) {
+  const a = Number.isFinite(l2) ? l2 : 0; // L2 execution
+  const b = Number.isFinite(l1) ? l1 : 0; // L1 / DA
+  const empty = a + b === 0;
+  const grad = empty ? "conic-gradient(var(--surface-2) 0 100%)" : `conic-gradient(var(--green-400) 0 ${a}%, var(--info) ${a}% 100%)`;
+  const dom = a >= b ? { label: "L2", pct: a } : { label: "DA", pct: b };
+  const other = a >= b ? { label: "DA", pct: b } : { label: "L2", pct: a };
+  // Always show the split in the hole — a 100%/0% donut otherwise reads as hollow.
+  return (
+    <div className="relative mx-auto mt-5 grid size-44 place-items-center rounded-full shadow-[0_18px_40px_rgba(0,0,0,0.28)]" style={{ background: grad }}>
+      <Zap size={14} className="absolute right-3.5 top-3.5 text-green-400/70" aria-hidden />
+      <div className="grid size-28 place-items-center rounded-full bg-surface-1 text-center">
+        <div>
+          <p className="text-xl font-bold leading-none text-text-hi">{empty ? "—" : `${dom.label} ${dom.pct.toFixed(0)}%`}</p>
+          <p className="mt-1 text-xs text-text-low">{empty ? "Cost split" : `${other.label} ${other.pct.toFixed(0)}%`}</p>
+        </div>
+      </div>
+    </div>
+  );
+}

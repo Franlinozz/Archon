@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { AlertTriangle, Download, Search, Share2 } from "lucide-react";
 import { GenerateProofModal } from "./GenerateProofModal";
 import { ChallengePanel } from "@/components/challenges/ChallengePanel";
@@ -11,6 +11,15 @@ import type { Severity } from "@/components/archon/severity";
 
 const tabs = ["Findings", "Mantle-Specific Risks", "Gas & Cost Optimizations", "Recommended Fixes", "Next Actions"] as const;
 const severityColors: Record<string, string> = { critical: "var(--danger)", high: "var(--high)", medium: "var(--warning)", low: "var(--success)", info: "var(--info)" };
+const severityLegendOrder = ["critical", "high", "medium", "low", "info"] as const;
+
+// Measurement label — never the word "degraded". A deterministic delta is an
+// honest, receipt-calibrated estimate; Foundry runs are measured.
+function measurementText(m: { status: string; source: string }): string {
+  return m.status === "measured" || m.source === "foundry"
+    ? "measured (Foundry)"
+    : "deterministic estimate (receipt-calibrated)";
+}
 
 type Finding = { id: string; severity: Severity; category: string; title: string; file: string; lineStart: number | null; lineEnd: number | null; summary: string | null; recommendedFix: string | null; whyMantle: string | null; gasImpact: string | null; status: string };
 type GasOptimizerScope = {
@@ -49,6 +58,7 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
   const [severity, setSeverity] = useState<Severity | "all">("all");
 
   const chartData = Object.entries(report.severityCounts ?? {}).filter(([, value]) => Number(value) > 0).map(([name, value]) => ({ name, value }));
+  const totalFindings = Object.values(report.severityCounts ?? {}).reduce((sum, v) => sum + Number(v), 0);
   const filtered = useMemo(() => findings.filter((finding) => {
     const text = `${finding.title} ${finding.category} ${finding.file}`.toLowerCase();
     if (query && !text.includes(query.toLowerCase())) return false;
@@ -108,13 +118,37 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
 
     <div className="grid gap-4 xl:grid-cols-4">
       <RiskScoreCard score={report.riskScore} severity={report.riskScore >= 85 ? "critical" : report.riskScore >= 65 ? "high" : "medium"} />
-      <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Severity Distribution</p><div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={chartData} dataKey="value" nameKey="name" label={({ name, value }) => `${name}: ${value}`} outerRadius={76}>{chartData.map((entry) => <Cell key={entry.name} fill={severityColors[entry.name] ?? "var(--text-low)"} />)}</Pie><Tooltip contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border-subtle)", color: "var(--text-hi)" }}/><Legend /></PieChart></ResponsiveContainer></div></section>
+      <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Severity Distribution</p>
+        <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row">
+          <div className="relative h-44 w-44 shrink-0 [filter:drop-shadow(0_8px_18px_rgba(0,0,0,0.28))]">
+            <ResponsiveContainer width="100%" height="100%"><PieChart>
+              <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={78} paddingAngle={2} stroke="var(--surface-1)" strokeWidth={2}>
+                {chartData.map((entry) => <Cell key={entry.name} fill={severityColors[entry.name] ?? "var(--text-low)"} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border-subtle)", color: "var(--text-hi)" }} />
+            </PieChart></ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-bold leading-none text-text-hi">{totalFindings}</span>
+              <span className="mt-1 text-[11px] uppercase tracking-[0.12em] text-text-low">findings</span>
+            </div>
+            <div className="pointer-events-none absolute inset-[34px] rounded-full border border-border-subtle/50" aria-hidden />
+          </div>
+          <ul className="grid w-full gap-1">
+            {severityLegendOrder.map((name) => { const v = Number(report.severityCounts?.[name] ?? 0); return (
+              <li key={name} className={`flex items-center justify-between gap-3 rounded-control px-2.5 py-1.5 text-sm transition-colors ${v > 0 ? "hover:bg-surface-2" : "opacity-45"}`}>
+                <span className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: severityColors[name] }} /><span className="capitalize text-text-mid">{name}</span></span>
+                <span className="font-mono text-text-hi">{v}</span>
+              </li>
+            ); })}
+          </ul>
+        </div>
+      </section>
       <InfoCard title="Scope" lines={[`${report.contractName}`, `${String(report.scope?.lineCount ?? "not captured")} lines`, `Source ${String(report.scope?.sourceKind ?? "scan input")}`, `Solidity ${String(report.scope?.pragma ?? report.scope?.solcVersion ?? "not captured")}`]} />
       <InfoCard title="Protocol" lines={["Mantle Mainnet", "Chain ID 5000", `Block ${String(report.scope?.blockNumber ?? "not captured by this scan")}`, `Duration ${duration}`, `Protocols ${(report.scope?.protocols as string[] | undefined)?.join(", ") || "none selected"}`]} />
     </div>
 
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Executive Summary</p><p className="mt-3 max-w-5xl leading-7 text-text-mid">{report.executiveSummary}</p></section>
-    <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Gas Optimizer</p><Link href="/app/gas" className="rounded-control border border-green-400/35 bg-green-400/10 px-3 py-2 text-sm font-semibold text-green-400">Open full gas engine</Link></div><div className="mt-3 grid gap-3 md:grid-cols-5"><Metric label="Creation bytecode" value={`${gasOptimizer?.pricing?.creationBytecodeBytes ?? "—"} bytes`} /><Metric label="Mantle L2 gas price" value={l2GasPrice} /><Metric label="Deploy L1/DA fee" value={pricedDeployFee} /><Metric label="Opportunities" value={String(gasOpportunities.length)} /><Metric label="Measurement" value={gasMeasurement ? `${gasMeasurement.status} · ${gasMeasurement.source}` : "pending"} /></div>{gasOptimizer?.pricing?.mode !== "calibrated-receipts" ? <p className="mt-3 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">DA fee is not calibrated yet: {gasOptimizer?.pricing?.unavailableReason ?? "receipt calibration unavailable"}</p> : <p className="mt-3 text-sm text-text-mid">Estimated from Mantle receipt ground truth (`l1Fee`) using a zero/nonzero calldata-byte calibration. Real deployed transactions use receipt `l1Fee` directly.</p>}</section>
+    <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Gas Optimizer</p><Link href="/app/gas" className="rounded-control border border-green-400/35 bg-green-400/10 px-3 py-2 text-sm font-semibold text-green-400">Open full gas engine</Link></div><div className="mt-3 grid gap-3 md:grid-cols-5"><Metric label="Creation bytecode" value={`${gasOptimizer?.pricing?.creationBytecodeBytes ?? "—"} bytes`} /><Metric label="Mantle L2 gas price" value={l2GasPrice} /><Metric label="Deploy L1/DA fee" value={pricedDeployFee} /><Metric label="Opportunities" value={String(gasOpportunities.length)} /><Metric label="Measurement" value={gasMeasurement ? measurementText(gasMeasurement) : "pending"} /></div>{gasOptimizer?.pricing?.mode !== "calibrated-receipts" ? <p className="mt-3 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">DA fee is not calibrated yet: {gasOptimizer?.pricing?.unavailableReason ?? "receipt calibration unavailable"}</p> : <p className="mt-3 text-sm text-text-mid">Estimated from Mantle receipt ground truth (`l1Fee`) using a zero/nonzero calldata-byte calibration. Real deployed transactions use receipt `l1Fee` directly.</p>}</section>
     <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Key Takeaways</p><ul className="mt-3 grid gap-2 md:grid-cols-2">{takeaways.map((item) => <li key={item} className="rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid">✓ {item}</li>)}</ul></section>
 
     <ChallengePanel endpoint={`/api/reports/${report.id}/challenges`} targetType="report" initialChallenges={challenges} />
@@ -146,7 +180,7 @@ function GasOpportunityPanel({ opportunities, measurement, sourceHash, model, pr
       <p><span className="text-text-mid">Validation:</span> {model ? `${model.sampleCount} samples · max error ${model.maxValidationErrorPct.toFixed(4)}% · mean error ${model.meanValidationErrorPct.toFixed(4)}%` : "unavailable"}</p>
       <p><span className="text-text-mid">Rates:</span> zero byte {model ? `${Number(model.zeroByteFeeWei).toLocaleString()} wei` : "—"} · nonzero byte {model ? `${Number(model.nonZeroByteFeeWei).toLocaleString()} wei` : "—"}</p>
       {calibrationErrorPct != null && calibrationErrorPct >= 10 ? <p className="mt-2 text-warning">Calibration error {calibrationErrorPct.toFixed(4)}% exceeds tolerance; deploy DA fee falls back to labeled deterministic estimate.</p> : null}
-      {measurement ? <p className={measurement.status === "measured" ? "mt-2 text-success" : "mt-2 text-warning"}><span className="text-text-mid">Measurement:</span> {measurement.status} via {measurement.source}{measurement.forge.error ? ` — ${measurement.forge.error}` : ""}</p> : null}
+      {measurement ? <p className={measurement.status === "measured" ? "mt-2 text-success" : "mt-2 text-text-mid"}><span className="text-text-mid">Measurement:</span> {measurementText(measurement)}{measurement.forge.error ? ` — ${measurement.forge.error}` : ""}</p> : null}
     </div>
     <div className="grid gap-3 lg:grid-cols-3">
       {opportunities.map((item) => {

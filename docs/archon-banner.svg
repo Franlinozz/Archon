@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="Archon — verifiable DevTools for Mantle">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0C100E"/>
+      <stop offset="55%" stop-color="#171C19"/>
+      <stop offset="100%" stop-color="#1C201E"/>
+    </linearGradient>
+    <linearGradient id="wm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5BF7C0"/>
+      <stop offset="100%" stop-color="#16A06B"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#34F5B0"/>
+      <stop offset="100%" stop-color="#0E9E6E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="38%" cy="44%" r="55%">
+      <stop offset="0%" stop-color="#16A06B" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#16A06B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="340" rx="18" fill="url(#bg)"/>
+  <ellipse cx="430" cy="150" rx="540" ry="210" fill="url(#glow)"/>
+  <rect x="0.5" y="0.5" width="1199" height="339" rx="18" fill="none" stroke="#2C3630" stroke-width="1"/>
+
+  <!-- layered mark (stacked planes — the Archon "verifiable layers" motif) -->
+  <g transform="translate(96,112)">
+    <path d="M52 0 L104 30 L52 60 L0 30 Z" fill="url(#mark)"/>
+    <path d="M52 46 L104 76 L52 106 L0 76 Z" fill="url(#mark)" opacity="0.62"/>
+    <path d="M52 92 L104 122 L52 152 L0 122 Z" fill="url(#mark)" opacity="0.34"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="246" y="170" font-family="ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="96" font-weight="800" letter-spacing="7" fill="url(#wm)">ARCHON</text>
+
+  <!-- tagline -->
+  <text x="250" y="212" font-family="ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="22" font-weight="500" letter-spacing="0.4" fill="#C7D2CC">Audit it. Optimize it. Prove it.</text>
+
+  <!-- chips -->
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="14" fill="#A7BAB0">
+    <g transform="translate(250,248)">
+      <rect width="232" height="36" rx="18" fill="#11150F" stroke="#2C3630"/>
+      <circle cx="22" cy="18" r="4" fill="#34F5B0"/>
+      <text x="38" y="23">Mantle Mainnet · 5000</text>
+    </g>
+    <g transform="translate(498,248)">
+      <rect width="214" height="36" rx="18" fill="#11150F" stroke="#2C3630"/>
+      <circle cx="22" cy="18" r="4" fill="#34F5B0"/>
+      <text x="38" y="23">ERC-8004 Agent #97</text>
+    </g>
+    <g transform="translate(728,248)">
+      <rect width="276" height="36" rx="18" fill="#11150F" stroke="#2C3630"/>
+      <circle cx="22" cy="18" r="4" fill="#34F5B0"/>
+      <text x="38" y="23">Verifiable on-chain proofs</text>
+    </g>
+  </g>
+</svg>
