@@ -16,7 +16,6 @@ import {
   type LucideIcon,
   Settings,
   ShieldAlert,
-  Sparkles,
   ListChecks,
 } from "lucide-react";
 
@@ -34,7 +33,6 @@ type NavGroup = { title: string; items: NavItem[] };
 const navGroups: NavGroup[] = [
   { title: "Command", items: [
     { label: "Overview", href: "/app", icon: LayoutDashboard },
-    { label: "Creator Workspace", href: "/app/creator", icon: Sparkles, match: "/app/creator" },
     { label: "Contract Context", href: "/app/context", icon: FileSearch },
     { label: "Reports", href: "/app/reports", icon: FileText, match: "/app/reports" },
   ] },
