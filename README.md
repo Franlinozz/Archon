@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Mantle_Mainnet-5000-16A06B" alt="Mantle Mainnet 5000" />
   <a href="https://archonaudit.xyz/.well-known/archon-agent.json"><img src="https://img.shields.io/badge/ERC--8004-Agent_%2397-16A06B" alt="ERC-8004 Agent #97" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" /></a>
-  <a href="https://archonaudit.xyz/whitepaper.pdf"><img src="https://img.shields.io/badge/whitepaper-v2.0_PDF-0E815A" alt="Whitepaper v2.0" /></a>
+  <a href="https://archonaudit.xyz/whitepaper.pdf"><img src="https://img.shields.io/badge/whitepaper-v2.1_PDF-0E815A" alt="Whitepaper v2.1" /></a>
   <a href="https://archonaudit.xyz/address/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a"><img src="https://archonaudit.xyz/badge/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a.svg" alt="Archon security profile" /></a>
 </p>
 

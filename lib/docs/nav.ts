@@ -40,6 +40,7 @@ export const docsNav: DocsNavGroup[] = [
       { title: "Applying patches & gas-diff tests", href: "/docs/gas-optimizer/applying-patches-gas-diff-tests" },
       { title: "CI GitHub Action", href: "/docs/gas-optimizer/ci-github-action" },
       { title: "Gas Leaderboard", href: "/docs/gas-optimizer/gas-leaderboard" },
+      { title: "Gas Observatory", href: "/docs/gas-optimizer/observatory" },
     ],
   },
   {

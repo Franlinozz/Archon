@@ -1,0 +1,51 @@
+---
+title: Gas Observatory
+description: The public, receipt-calibrated source of truth for Mantle DA economics — and the live oracle-vs-receipt divergence tracker.
+---
+
+# Gas Observatory
+
+The Gas Observatory is Archon's public, wallet-free source of truth for **Mantle data-availability (DA) economics**. It lives at:
+
+```text
+/observatory
+```
+
+Where a single audit report shows the gas story for one contract, the Observatory shows the story for the chain: what a calldata byte actually costs in DA today, where the L2 base fee sits, how both move over time, and — most importantly — how far the legacy fee oracle drifts from what Mantle really charges.
+
+## What it shows
+
+- **Receipt-calibrated DA cost per calldata byte** and the current **L2 base fee**, with 24h / 7d / 30d trends. Every figure traces back to real transaction receipts, and the sample size behind each number is shown.
+- **"What it costs on Mantle today"** cards — a typical transfer, swap, and deploy — priced from the live model, each labeled **measured**, **estimated**, or **unpriced**.
+- **The oracle-vs-receipt tracker:** a standing chart of the legacy `GasPriceOracle.getL1Fee` *prediction* against the charged receipt `l1Fee` *ground truth*. This is the living, continuously-updated version of [ADR 0007](https://github.com/Franlinozz/Archon/blob/main/docs/decisions/0007-mantle-gas-oracle-verification.md) — the same divergence the [whitepaper](/docs/resources/whitepaper) reports in Table 1, kept current instead of frozen.
+
+## Embed & data access
+
+The oracle divergence chart is iframe-embeddable, so any project or dashboard can show the live Mantle DA truth:
+
+```html
+<iframe src="https://archonaudit.xyz/embed/observatory/oracle" width="100%" height="420" style="border:0"></iframe>
+```
+
+A machine-readable snapshot of the current readings is served at:
+
+```text
+GET /api/observatory
+```
+
+## Methodology
+
+The Observatory is fed by a single repeatable **sampler worker** that also feeds Archon's DA pricing model — one calibration loop, one source of truth:
+
+- **Sampling.** Recent Mantle transactions are read in batches under a hard per-day RPC budget with backpressure; per-cycle call counts are logged. No number is invented to fill a gap — a thin sample is shown as thin, not smoothed over.
+- **Calibration.** DA cost is fit with a two-variable (zero/nonzero calldata byte) least-squares model against receipt ground truth. The fit is version-stamped and its validation error is published, so the model's own accuracy is auditable.
+- **The oracle caveat.** `getL1Fee` is a predeploy interface that cannot reproduce Mantle's richer post-migration fee fields (`l1Fee`, `l1GasUsed`, `l1GasPrice`, blob fee fields, `daFootprintGasScalar`, operator fees); it is shown precisely *because* it diverges, never as a pricing source.
+- **Labeling.** Every value carries its evidence class — **measured** (from a receipt), **estimated** (calibrated, labeled), or **unpriced** — the same taxonomy used across reports and the [leaderboard](/gas-leaderboard).
+
+The full methodology, including sampling cadence and the oracle-call caveat, is documented at [`/observatory/methodology`](/observatory/methodology).
+
+## Related
+
+- [How Mantle gas works](/docs/gas-optimizer/how-mantle-gas-works) — the L2-execution-vs-DA split the Observatory measures.
+- [Gas Leaderboard](/docs/gas-optimizer/gas-leaderboard) — per-contract optimization results, priced with the same model.
+- [Whitepaper §05](/docs/resources/whitepaper) — the Mantle gas engine and the receipt-calibration thesis.

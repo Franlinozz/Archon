@@ -5,6 +5,14 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V5.3 — Enrichment reliability, reach & landing
+
+- AI enrichment now records **why** any finding falls back to a deterministic explanation — per batch and as a distribution (timeout / rate-limit / 5xx / auth / JSON / schema) — so the real cause is diagnosable instead of opaque. Per-call timeout raised to 75s with one transient (429/5xx) retry, payloads trimmed to a tight code window, and a single malformed enrichment degrades only that finding rather than the whole batch. Detection stays deterministic-first.
+- Docs side rails (left navigation + on-this-page) are now sticky and scroll independently; only the article column participates in page scroll.
+- Surfaced the public pages: the **Gas Observatory** joins the top navigation; every contract links to its `/address/<address>` profile from the leaderboard, Contract Context, and the Sentinel watchlist; pasting an address into the ⌘K command palette jumps straight to its profile.
+- Trimmed the workspace sidebar (Overview is the command center) — the Creator Workspace route is retained but unlinked.
+- Landing: a restrained capabilities band surfaces the platform (Sentinel, Gas Observatory, CI / GitHub App, agent trust API + MCP) and a calm developers-and-resources strip adds the whitepaper, API reference, docs, and Observatory above the final call to action.
+
 ## V5.2 — Address intelligence pages, badges & embeds
 
 - Public `/address/<address>`: a permanent, indexed security profile for any Mantle contract — audit timeline with anchored proofs, build-attestation status, Sentinel freshness, gas profile, and challenges; clean "run the first scan" state for unknown addresses. No per-view RPC; OG cards + sitemap.

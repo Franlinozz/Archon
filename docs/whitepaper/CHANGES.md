@@ -2,6 +2,12 @@
 
 The PDF is the citable edition and is versioned — never silently edited. Claim-level changes between versions are noted here; the docs Whitepaper page (HTML edition) tracks the current PDF.
 
+## v2.1 — 2026-06-14 (`archon-whitepaper-v2.1.pdf`)
+
+- Folds the post-v2.0 deliveries into the citable edition: **Sentinel**, **verified-build attestations**, the **Gas Observatory**, the **agent trust API + MCP server**, **address pages + badges**, the **GitHub App**, and the **VS Code extension** move from roadmap ("Next"/"Later") to **Now (live)** in §10; §08 now lists the full platform surface.
+- §04 reflects the hardened AI-enrichment bound: per-call timeout 45s → 75s with a single transient (429/5xx) retry and per-finding schema validation; the report logs the exact fallback cause per batch. No detection-claim changes — detection remains deterministic-first.
+- Staked challenges stay explicitly design-only (ADR 0014, nothing deployed); webhooks stay planned. Served at `/whitepaper.pdf`; the docs Whitepaper page is the aligned HTML edition.
+
 ## v2.0 — 2026-06-12 (`archon-whitepaper-v2.pdf`)
 
 - Full rewrite around the "verifiable DevTools" thesis: four commitments, seven-layer architecture (Figure 2), three artifact types.

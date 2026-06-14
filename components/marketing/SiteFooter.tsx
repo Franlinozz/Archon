@@ -30,7 +30,7 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
       { label: "API Reference", href: "/api-reference" },
       { label: "CI GitHub Action", href: "/docs/gas-optimizer/ci-github-action" },
       { label: "Whitepaper", href: "/docs/resources/whitepaper" },
-      { label: "Whitepaper PDF (v2.0)", href: "/whitepaper.pdf", external: true },
+      { label: "Whitepaper PDF (v2.1)", href: "/whitepaper.pdf", external: true },
       { label: "Changelog", href: "/docs/resources/changelog" },
       { label: "GitHub", href: "https://github.com/Franlinozz/Archon", external: true },
     ],

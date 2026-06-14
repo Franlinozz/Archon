@@ -1,15 +1,15 @@
 ---
 title: Whitepaper
-description: Archon whitepaper v2.0 — verifiable DevTools for Mantle. HTML edition; the PDF is the citable edition.
+description: Archon whitepaper v2.1 — verifiable DevTools for Mantle. HTML edition; the PDF is the citable edition.
 ---
 
 # Archon whitepaper
 
 <div className="not-prose my-6 rounded-card border border-brand-500/25 bg-surface-2 p-5 shadow-card">
-  <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Archon Whitepaper · V2.0 · June 2026</p>
+  <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Archon Whitepaper · V2.1 · June 2026</p>
   <p className="mt-2 text-sm text-body">Verifiable DevTools for Mantle: AI-assisted smart-contract auditing and receipt-calibrated gas optimization, with every report anchored on Mantle as a challengeable on-chain proof. This page is the HTML edition; the PDF is the citable edition — same claims, same labels.</p>
   <div className="mt-4 flex flex-wrap gap-2">
-    <a href="/whitepaper.pdf" className="inline-flex rounded-input bg-green-500 px-4 py-2 text-sm font-bold text-on-green shadow-sm hover:bg-green-400">Download PDF (v2.0)</a>
+    <a href="/whitepaper.pdf" className="inline-flex rounded-input bg-green-500 px-4 py-2 text-sm font-bold text-on-green shadow-sm hover:bg-green-400">Download PDF (v2.1)</a>
     <a href="/api-reference" className="inline-flex rounded-input border border-subtle bg-surface-1 px-4 py-2 text-sm font-semibold text-ink hover:border-emphasis">API reference</a>
   </div>
 </div>
@@ -49,7 +49,7 @@ The execution pipeline runs stage-by-stage with explicit failure behavior: code 
 
 ## 04 · The audit engine
 
-Deterministic detection produces findings with file/line anchors, categories, severities, and confidence. AI enrichment — through a [pluggable provider layer](/docs/platform-api/cloud-providers) — adds explanations, Mantle-specific context, exploit scenarios, recommended fixes, and minimal patch diffs; it is bounded (batched, 45-second per-call timeout), schema-validated, and falls back to deterministic templates, with the report saying so when that happens. Each report ships generated Foundry regression tests so findings become executable checks rather than prose.
+Deterministic detection produces findings with file/line anchors, categories, severities, and confidence. AI enrichment — through a [pluggable provider layer](/docs/platform-api/cloud-providers) — adds explanations, Mantle-specific context, exploit scenarios, recommended fixes, and minimal patch diffs; it is bounded (batched, a 75-second per-call timeout with a single transient retry, per-finding schema validation), and falls back to deterministic templates, with the report logging the exact cause per batch when that happens. Each report ships generated Foundry regression tests so findings become executable checks rather than prose.
 
 ## 05 · The Mantle gas engine
 
@@ -76,7 +76,7 @@ Exactly what is guaranteed: deterministic findings are reproducible from the sam
 
 ## 08 · Platform and integrations
 
-The app (Audit Studio, Gas Optimizer, Cost Guard, proofs, validation), public surfaces (landing, [docs](/docs), [public reports](/proofs), [leaderboard](/gas-leaderboard)), the REST API with [OpenAPI 3.1 reference](/api-reference), the [`archon-scan` CLI](/docs/platform-api/cli), the [CI GitHub Action](/docs/gas-optimizer/ci-github-action) with live PR evidence, webhooks, and report/test/patch exports. AI and storage run on the [cloud provider layer](/docs/platform-api/cloud-providers) (OpenAI live; ELFA and Tencent Cloud Hunyuan/COS adapters built-in, inert until credentialed — status at [/api/providers](/api/providers)).
+The app (Audit Studio, Gas Optimizer, Cost Guard, proofs, validation, [Sentinel](/docs/audit/sentinel) continuous monitoring, and [verified builds](/docs/on-chain-proofs/verified-builds)), public surfaces (landing, [docs](/docs), [public reports](/proofs), [leaderboard](/gas-leaderboard), the [Gas Observatory](/observatory), and a permanent per-contract [address page + badge](/docs/platform-api/public-pages-badges)), the REST API with [OpenAPI 3.1 reference](/api-reference) — including a signed [agent verdict + MCP server](/docs/platform-api/for-agents) — the [`archon-scan` CLI](/docs/platform-api/cli), the [CI GitHub Action](/docs/gas-optimizer/ci-github-action) and [GitHub App](/docs/platform-api/github-app) with live PR evidence, the [VS Code extension](/docs/platform-api/editor-integration) (published on Open VSX), planned webhooks, and report/test/patch exports. AI and storage run on the [cloud provider layer](/docs/platform-api/cloud-providers) (OpenAI live; ELFA and Tencent Cloud Hunyuan/COS adapters built-in, inert until credentialed — status at [/api/providers](/api/providers)).
 
 ## 09 · Business model and GTM
 
@@ -95,9 +95,9 @@ Current pricing posture: [all tiers free during the hackathon period](/pricing);
 
 | Horizon | Direction |
 | --- | --- |
-| **Now (live)** | Audit and gas engines on Mantle Mainnet; proof anchoring in both modes; public verification, leaderboard, challenge ledger; docs, CLI, CI Action, generated tests. |
-| **Next** | Reliability hardening across upload/repo inputs; public API keys and webhooks; deeper protocol packs; continuous monitoring of deployed contracts with drift alerts; cloud provider adapters (including Tencent Cloud) activated on provisioned credits; pricing made public. |
-| **Later** | ERC-8004 Validation Registry integration when an official Mantle address ships; verified-build attestations; cross-agent attestations; staked challenges; agent-consumable trust APIs; team workspaces and ecosystem dashboards. |
+| **Now (live)** | Audit and gas engines on Mantle Mainnet; proof anchoring in both modes; public verification, leaderboard, challenge ledger; docs, CLI, CI Action + GitHub App, generated tests; **Sentinel** continuous monitoring with drift alerts; **verified-build attestations**; the **Gas Observatory**; an **agent trust API + MCP server** (signed verdicts that recover to Agent #97); per-contract **address pages + badges**; the **VS Code extension** (Open VSX); public pricing. |
+| **Next** | Reliability hardening across upload/repo inputs; public API keys and webhooks; deeper protocol packs; cloud provider adapters (including Tencent Cloud) activated on provisioned credits; team workspaces. |
+| **Later** | ERC-8004 Validation Registry integration when an official Mantle address ships; cross-agent attestations; **staked challenges** (designed in ADR 0014; design-only, nothing deployed); ecosystem dashboards. |
 
 The end state is an audit-and-optimization layer whose outputs are consumed not only by humans but by other agents — exactly what verifiable, machine-checkable reports make possible, and exactly what ERC-8004 identity was designed for.
 
@@ -111,4 +111,4 @@ Archon is a developer security tool, not a guarantee of safety. Automated scans 
 - **ERC-8004 Identity / Reputation:** [`0x8004A169…539a432`](https://mantlescan.xyz/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) / [`0x8004BAa1…dE9b63`](https://mantlescan.xyz/address/0x8004BAa17C55a88189AE136b182e5fdA19dE9b63) — Archon is [Agent #97](/.well-known/archon-agent.json)
 - **DA methodology:** [ADR 0007 — Mantle gas oracle verification](https://github.com/Franlinozz/Archon/blob/main/docs/decisions/0007-mantle-gas-oracle-verification.md)
 - **ERC-8004: Trustless Agents:** [eips.ethereum.org/EIPS/eip-8004](https://eips.ethereum.org/EIPS/eip-8004)
-- **Source:** [github.com/Franlinozz/Archon](https://github.com/Franlinozz/Archon) · **Citable edition:** [whitepaper PDF v2.0](/whitepaper.pdf)
+- **Source:** [github.com/Franlinozz/Archon](https://github.com/Franlinozz/Archon) · **Citable edition:** [whitepaper PDF v2.1](/whitepaper.pdf)
