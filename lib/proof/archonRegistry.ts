@@ -4,6 +4,19 @@ import { mantle } from "viem/chains";
 import archonProofRegistryAbi from "@/lib/chain/abis/ArchonProofRegistry.json";
 import { db } from "@/lib/db/client";
 import { upsertPreparedProof } from "./report";
+import { appendReputationFeedback } from "./reputation";
+
+// Best-effort ERC-8004 Reputation Registry feedback AFTER the primary registry
+// anchor. Non-blocking by contract: a reputation failure/skip never fails a
+// successful ArchonProofRegistry anchor (the award-eligible primary). Closes the
+// full ERC-8004 loop when ARCHON_REPUTATION_CLIENT_PRIVATE_KEY is funded.
+async function tryAppendReputation(reportId: string) {
+  try {
+    return await appendReputationFeedback(reportId);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "reputation append failed" };
+  }
+}
 
 // Session 15: Archon's OWN deployed contract (ArchonProofRegistry) is the primary,
 // award-eligible anchor. logAuditProof is permissionless (no self-feedback rule) and
@@ -98,10 +111,12 @@ export async function logPreparedProofOnArchonRegistry(reportId: string) {
   if (receipt.status !== "success") throw new Error("Proof transaction reverted on-chain.");
 
   await recordProof(prepared.proofId, hash, prepared.metadataUri, { registry, agentId: agentIdNum(), author: account.address });
+  const reputation = await tryAppendReputation(reportId);
   return {
     reportId, proofId: prepared.proofId, txHash: hash, reportHash: prepared.reportHash, metadataUri: prepared.metadataUri,
     agentId: agentIdNum().toString(), author: account.address, loggedBy: account.address, status: receipt.status,
     gas: { used: receipt.gasUsed.toString(), actualCostMnt: formatEther(receipt.gasUsed * (receipt.effectiveGasPrice ?? gasPrice)) },
+    reputation,
     explorer: `https://mantlescan.xyz/tx/${hash}`,
   };
 }
@@ -136,7 +151,8 @@ export async function verifyAndRecordArchonUserProof(reportId: string, txHash: `
   const author = (receipt.from ?? "").toLowerCase();
   if (expectedAuthor && author !== expectedAuthor.toLowerCase()) throw new Error("The transaction was submitted by a different wallet than the signed-in session.");
   await recordProof(prepared.proofId, txHash, prepared.metadataUri, { registry, agentId: agentIdNum(), author });
-  return { reportId, proofId: prepared.proofId, txHash, reportHash: prepared.reportHash, agentId: agentIdNum().toString(), author, loggedBy: author, verified: true, confirmedVia, explorer: `https://mantlescan.xyz/tx/${txHash}` };
+  const reputation = await tryAppendReputation(reportId);
+  return { reportId, proofId: prepared.proofId, txHash, reportHash: prepared.reportHash, agentId: agentIdNum().toString(), author, loggedBy: author, verified: true, confirmedVia, reputation, explorer: `https://mantlescan.xyz/tx/${txHash}` };
 }
 
 async function recordProof(proofId: string, txHash: string, metadataUri: string, ref: { registry: string; agentId: bigint; author: string }) {

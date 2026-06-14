@@ -144,3 +144,72 @@ export async function logPreparedProofOnReputation(reportId: string) {
     explorer: `https://mantlescan.xyz/tx/${hash}`,
   };
 }
+
+/**
+ * Append an ERC-8004 Reputation Registry feedback entry for an already-anchored
+ * report, WITHOUT touching the proof row's primary `tx_hash` (which stays the
+ * ArchonProofRegistry anchor). This is what closes the "full ERC-8004 loop":
+ * registry anchor (primary) + reputation feedback (the standard track record).
+ *
+ * Best-effort and env-gated — returns `{ skipped }` when `ARCHON_REPUTATION_
+ * CLIENT_PRIVATE_KEY` is absent, so callers wire it non-blocking (a reputation
+ * revert never fails a successful registry anchor). The client wallet must NOT
+ * own Agent #97 (the owner self-feedbacks → revert) and must be funded.
+ */
+export async function appendReputationFeedback(
+  reportId: string,
+): Promise<
+  | { skipped: true; reason: string }
+  | { ok: true; txHash: string; feedbackIndex: string | null; client: string; agentId: string; tag2: string; explorer: string }
+> {
+  const reputationRegistry = process.env.ERC8004_REPUTATION_REGISTRY as Address | undefined;
+  const clientKey = process.env.ARCHON_REPUTATION_CLIENT_PRIVATE_KEY as `0x${string}` | undefined;
+  const agentRef = process.env.ARCHON_AGENT_IDENTITY_REF;
+  if (!clientKey) return { skipped: true, reason: "ARCHON_REPUTATION_CLIENT_PRIVATE_KEY not set" };
+  if (!reputationRegistry || !isAddress(reputationRegistry)) return { skipped: true, reason: "ERC8004_REPUTATION_REGISTRY not set" };
+  if (!agentRef) return { skipped: true, reason: "ARCHON_AGENT_IDENTITY_REF not set" };
+  const agentIdText = agentRef.split(":").at(-1);
+  if (!agentIdText || !/^\d+$/.test(agentIdText)) return { skipped: true, reason: `agentId unparseable from ${agentRef}` };
+  const agentId = BigInt(agentIdText);
+
+  const rpcUrl = process.env.MANTLE_RPC_URL ?? "https://rpc.mantle.xyz";
+  const account = privateKeyToAccount(clientKey);
+  const chain = { ...mantle, id: 5000 };
+  const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
+  const walletClient = createWalletClient({ account, chain, transport: http(rpcUrl) });
+
+  const prepared = await upsertPreparedProof(reportId);
+  const metadata = prepared.metadata as { report?: { riskScore?: number } };
+  const tag2 = `risk:${metadata.report?.riskScore ?? "unknown"}`;
+  const args = [agentId, 100n, 0, FEEDBACK_TAG1, tag2, FEEDBACK_ENDPOINT, prepared.metadataUri, prepared.reportHash as `0x${string}`] as const;
+
+  await publicClient.simulateContract({ account: account.address, address: reputationRegistry, abi: reputationRegistryAbi, functionName: "giveFeedback", args });
+  const gas = await publicClient.estimateContractGas({ account: account.address, address: reputationRegistry, abi: reputationRegistryAbi, functionName: "giveFeedback", args });
+  const gasPrice = await publicClient.getGasPrice();
+  const balance = await publicClient.getBalance({ address: account.address });
+  if (balance < gas * gasPrice) throw new Error(`Reputation client ${account.address} has insufficient MNT: need ${formatEther(gas * gasPrice)}, have ${formatEther(balance)}.`);
+
+  const data = encodeFunctionData({ abi: reputationRegistryAbi, functionName: "giveFeedback", args });
+  const nonce = await publicClient.getTransactionCount({ address: account.address, blockTag: "pending" });
+  const serialized = await walletClient.signTransaction({ account, chain, to: reputationRegistry, data, gas, gasPrice, nonce });
+  const hash = await publicClient.sendRawTransaction({ serializedTransaction: serialized });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash, confirmations: 1, timeout: 120_000 });
+  if (receipt.status !== "success") throw new Error("Reputation feedback transaction reverted on-chain.");
+
+  const logs = await publicClient.getLogs({ address: reputationRegistry, event: NEW_FEEDBACK_EVENT, fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber }).catch(() => []);
+  const ownLog = logs.find((l) => l.transactionHash.toLowerCase() === hash.toLowerCase() && l.args.clientAddress?.toLowerCase() === account.address.toLowerCase());
+  let feedbackIndex = ownLog?.args.feedbackIndex === undefined ? null : String(ownLog.args.feedbackIndex);
+  // Same-block getLogs can lag on the public RPC; the contract's getLastIndex view
+  // is authoritative for this client's latest feedback index.
+  if (feedbackIndex === null) {
+    const last = await publicClient.readContract({ address: reputationRegistry, abi: reputationRegistryAbi, functionName: "getLastIndex", args: [agentId, account.address] }).catch(() => null);
+    if (last != null) feedbackIndex = String(last);
+  }
+
+  // Augment erc8004_ref.reputation; NEVER overwrite the primary registry tx_hash/mechanism.
+  await db.query(
+    `update proofs set erc8004_ref = coalesce(erc8004_ref, '{}'::jsonb) || jsonb_build_object('reputation', $2::jsonb) where id = $1`,
+    [prepared.proofId, JSON.stringify({ reputationRegistry, feedbackClient: account.address, feedbackIndex, txHash: hash, agentId: agentId.toString(), tag2 })],
+  );
+  return { ok: true, txHash: hash, feedbackIndex, client: account.address, agentId: agentId.toString(), tag2, explorer: `https://mantlescan.xyz/tx/${hash}` };
+}
