@@ -21,7 +21,7 @@ type DocsShellProps = {
 function Sidebar({ currentHref }: { currentHref: string }) {
   return (
     <aside className="lg:w-72 lg:shrink-0">
-      <div className="sticky top-6 space-y-5 rounded-card border border-subtle bg-surface-1/75 p-4 shadow-card backdrop-blur">
+      <div className="docs-rail-scroll space-y-5 rounded-card border border-subtle bg-surface-1/75 p-4 shadow-card backdrop-blur lg:sticky lg:top-[7.5rem] lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:overscroll-contain">
         <Link href="/" className="flex items-center gap-3 rounded-input px-2 py-1.5 text-sm font-semibold text-ink hover:bg-surface-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-700"><BookOpen className="h-4 w-4" /></span>
           Archon Docs

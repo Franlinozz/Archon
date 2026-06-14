@@ -426,3 +426,15 @@ a { color: inherit; text-decoration: none; }
   padding: 0.9rem 1rem;
   color: var(--body);
 }
+
+/* V5.4 — docs side rails (left nav + right TOC) are sticky and scroll
+   internally; only the center article participates in page scroll. Thin
+   themed scrollbar so the rail's overflow stays unobtrusive. */
+.docs-rail-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-emphasis) transparent;
+}
+.docs-rail-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.docs-rail-scroll::-webkit-scrollbar-track { background: transparent; }
+.docs-rail-scroll::-webkit-scrollbar-thumb { background-color: var(--border-emphasis); border-radius: 9999px; }
+.docs-rail-scroll:hover::-webkit-scrollbar-thumb { background-color: var(--muted); }

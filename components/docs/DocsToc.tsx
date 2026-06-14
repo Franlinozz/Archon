@@ -44,7 +44,7 @@ export function DocsToc({ items }: { items: TocItem[] }) {
 
   return (
     <nav className="hidden xl:block xl:w-64 xl:shrink-0" aria-label="On this page">
-      <div className="sticky top-24 rounded-card border border-subtle bg-surface-1/70 p-4 shadow-card backdrop-blur">
+      <div className="docs-rail-scroll rounded-card border border-subtle bg-surface-1/70 p-4 shadow-card backdrop-blur xl:sticky xl:top-[7.5rem] xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto xl:overscroll-contain">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted">On this page</p>
         <ol className="space-y-2 text-sm">
           {items.map((item) => (
