@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { db } from "@/lib/db/client";
 import { foundryConfigToml, foundryRemappingGroups } from "@/lib/source/solidity";
+import { solidityDefinitionNames } from "@/lib/source/names";
 import type { GasOptimizationRuleResult } from "@/lib/gas/rules";
 
 const execFileAsync = promisify(execFile);
@@ -109,9 +110,14 @@ contract ${contractName}ArchonGasMeasurementTest is Test {
 `;
 }
 
-/** Is this a dependency-resolution failure (vs a real compile/test error)? */
+/**
+ * A genuine dependency-resolution failure (vs a real compile/type error). Must
+ * NOT match solc's "Identifier not found" (a code error), or a contract-name
+ * mismatch would wrongly trigger the OZ-major retry and surface a misleading
+ * "import not found" instead of the real cause.
+ */
 function isImportError(text: string) {
-  return /not found|could not find|failed to resolve|source .* not found|file .* not found|unable to resolve import/i.test(text);
+  return /Source ["'][^"']+["'] not found|File ["'][^"']+["'] not found|could not find[^\n]*\.sol|unable to resolve import|failed to resolve import/i.test(text);
 }
 
 /** Collapse a forge failure to one structured line — never a raw traceback in the live log. */
@@ -125,6 +131,12 @@ function collapseForgeError(text: string): string {
 }
 
 async function runForgeProject(source: string, sourceFile: string, contractName: string) {
+  // The harness imports and instantiates the deployable contract by name, so it
+  // must use the ACTUAL primary contract defined in the source — never a display
+  // label. A mismatch (label != contract) made the harness reference an
+  // undefined symbol ("Identifier not found"), which previously masqueraded as
+  // an import failure.
+  const name = solidityDefinitionNames(source)[0] ?? contractName;
   const project = await mkdtemp(path.join(tmpdir(), "archon-gas-measure-"));
   const srcDir = path.join(project, "src");
   const testDir = path.join(project, "test");
@@ -134,8 +146,8 @@ async function runForgeProject(source: string, sourceFile: string, contractName:
   // gas harness resolves vendored OZ/solmate/solady/forge-std exactly like the
   // Slither path (V5.2). Two remapping groups = preferred OZ major then fallback.
   await writeFile(path.join(project, "foundry.toml"), foundryConfigToml());
-  await writeFile(path.join(srcDir, `${contractName}.sol`), source);
-  await writeFile(path.join(testDir, `${contractName}.t.sol`), buildHarness(contractName));
+  await writeFile(path.join(srcDir, `${name}.sol`), source);
+  await writeFile(path.join(testDir, `${name}.t.sol`), buildHarness(name));
   await copyFile(sourceFile, path.join(project, "Original.sol")).catch(() => undefined);
 
   const groups = foundryRemappingGroups(source);
