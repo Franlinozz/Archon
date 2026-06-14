@@ -59,21 +59,23 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 
 ## Feature matrix
 
-| Capability | What you get | Where |
-| --- | --- | --- |
-| **Audit** | Severity-ranked findings with file/line evidence, Mantle-specific risk, AI explanations, generated Foundry tests | [Audit Studio](https://archonaudit.xyz/app/audit/new) |
-| **Gas** | Optimization catalog, validated patches, receipt-calibrated L2/DA split, annualized savings under stated assumptions | [Gas Optimizer](https://archonaudit.xyz/app/gas) |
-| **Proof** | Canonical hash anchored to ArchonProofRegistry; public, wallet-free verification | [/proofs](https://archonaudit.xyz/proofs) |
-| **CI** | `archon-scan` CLI with `--fail-on` gates + GitHub Action posting real gas-diff PR comments | [CLI docs](https://archonaudit.xyz/docs/platform-api/cli) · [Action docs](https://archonaudit.xyz/docs/gas-optimizer/ci-github-action) |
-| **Leaderboard** | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
-| **Address pages + badges** | A permanent public security URL for every Mantle contract (audit timeline, attestation, freshness, gas, challenges) + README badge + embeddable card — the distribution surface | [Public pages docs](https://archonaudit.xyz/docs/platform-api/public-pages-badges) |
-| **Observatory** | Public source-of-truth on Mantle DA economics: receipt-calibrated DA cost/byte, L2 base fee, trends, and the live oracle-vs-receipt divergence (embeddable chart) | [/observatory](https://archonaudit.xyz/observatory) |
-| **Challenge** | Public challenge records against reports and optimizations | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
-| **Sentinel** | Continuous audit of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
-| **Verified builds** | Deterministic attestation that deployed bytecode matches claimed source (immutables masked, metadata-aware), with public verification pages and anchorable hashes | [Verified builds docs](https://archonaudit.xyz/docs/on-chain-proofs/verified-builds) |
-| **VS Code** | Diagnostics in the editor, safe gas quick fixes as local Code Actions, per-opportunity gas lenses — thin client of the public API ([Open VSX](https://open-vsx.org/extension/archon/archon-mantle) · [.vsix release](https://github.com/Franlinozz/Archon/releases/tag/vscode-v0.1.0); MS Marketplace next) | [Editor docs](https://archonaudit.xyz/docs/platform-api/editor-integration) |
-| **Agents (MCP)** | Signed contract-trust verdict API (recovers to Agent #97) + MCP server with four tools — Archon as an AI agent's security sense | [For agents](https://archonaudit.xyz/docs/platform-api/for-agents) |
-| **GitHub App** | PR check + single updating comment (findings, gas diff), policy via `archon.config.json`, `/archon fix` opens compile-validated autofix PRs on Archon's own branches (server side shipped; install link lands with App registration — live status at [/api/providers](https://archonaudit.xyz/api/providers)) | [GitHub App docs](https://archonaudit.xyz/docs/platform-api/github-app) |
+| Surface | Status | What it does | Where |
+| --- | --- | --- | --- |
+| **Audit Studio + 7-stage pipeline** | ✅ Live | Severity-ranked findings with file/line evidence, Mantle-specific risk, AI explanations, generated Foundry tests | [Audit Studio](https://archonaudit.xyz/app/audit/new) |
+| **Reports + public viewer** | ✅ Live | Every report has a permanent, wallet-free public page that re-derives the hash and shows the on-chain proof | [/r/&lt;id&gt;](https://archonaudit.xyz/proofs) |
+| **Gas Optimizer** | ✅ Live | Optimization catalog, validated patches, receipt-calibrated L2/DA split, annualized savings under stated assumptions | [Gas Optimizer](https://archonaudit.xyz/app/gas) |
+| **Cost Guard** | ✅ Live | Real spend telemetry from persisted gas reports and optimizations | [Cost Guard](https://archonaudit.xyz/app/cost-guard) |
+| **On-chain proof** | ✅ Live | Canonical report hash anchored to ArchonProofRegistry under ERC-8004 Agent #97; public, wallet-free verification | [/proofs](https://archonaudit.xyz/proofs) |
+| **CI (CLI + Action)** | ✅ Live | `archon-scan` CLI with `--fail-on` gates + GitHub Action posting real gas-diff PR comments | [CLI](https://archonaudit.xyz/docs/platform-api/cli) · [Action](https://archonaudit.xyz/docs/gas-optimizer/ci-github-action) |
+| **Sentinel** | ✅ Live | Continuous monitoring of deployed contracts: drift detection (bytecode, EIP-1967, owner), auto re-scans with findings diff, audit-freshness scores, webhook alerts | [Sentinel docs](https://archonaudit.xyz/docs/audit/sentinel) |
+| **Verified builds** | ✅ Live | Deterministic source→bytecode attestation (immutables masked, metadata-aware) with public verification pages and anchorable hashes | [Verified builds docs](https://archonaudit.xyz/docs/on-chain-proofs/verified-builds) |
+| **Gas Observatory** | ✅ Live | Public source-of-truth on Mantle DA economics: receipt-calibrated DA cost/byte, L2 base fee, trends, and the live oracle-vs-receipt divergence (embeddable) | [/observatory](https://archonaudit.xyz/observatory) |
+| **GitHub App + autofix** | 🟡 Live (install pending) | PR check + single updating comment (findings, gas diff), policy via `archon.config.json`, `/archon fix` opens compile-validated autofix PRs on Archon's own branches | [GitHub App docs](https://archonaudit.xyz/docs/platform-api/github-app) |
+| **Agent Trust API + MCP** | ✅ Live | Signed contract-trust verdict API (recovers to Agent #97) + MCP server with four tools — Archon as an AI agent's security sense | [For agents](https://archonaudit.xyz/docs/platform-api/for-agents) |
+| **Address pages + badges** | ✅ Live | A permanent public security URL for every Mantle contract (audit timeline, attestation, freshness, gas, challenges) + README badge + embeddable card | [Public pages docs](https://archonaudit.xyz/docs/platform-api/public-pages-badges) |
+| **VS Code extension** | ✅ Live (Open VSX) | Diagnostics in the editor, safe gas quick fixes as Code Actions, per-opportunity gas lenses — thin client of the public API ([Open VSX](https://open-vsx.org/extension/archon/archon-mantle) · [v0.1.2 release](https://github.com/Franlinozz/Archon/releases/tag/vscode-v0.1.2); MS Marketplace appeal pending) | [Editor docs](https://archonaudit.xyz/docs/platform-api/editor-integration) |
+| **Gas Leaderboard** | ✅ Live | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
+| **Challenge ledger** | ✅ Live | Public challenge records against reports and optimizations (staked challenges are designed, not deployed — ADR 0014) | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
 
 ## Built for the agentic economy
 
@@ -107,6 +109,14 @@ steps:
 ```
 
 **API:** OpenAPI 3.1 at [/api/openapi](https://archonaudit.xyz/api/openapi), interactive reference at [/api-reference](https://archonaudit.xyz/api-reference).
+
+**VS Code:** install from [Open VSX](https://open-vsx.org/extension/archon/archon-mantle) (Cursor / VSCodium / Windsurf), or grab the [`vscode-v0.1.2` release](https://github.com/Franlinozz/Archon/releases/tag/vscode-v0.1.2) `.vsix`:
+
+```bash
+code --install-extension archon-mantle-0.1.2.vsix
+```
+
+**MCP (for agents):** `npx github:Franlinozz/archon-mcp` exposes `archon_scan_source`, `archon_verdict`, `archon_gas_report`, `archon_verify_proof`. [Whitepaper](https://archonaudit.xyz/whitepaper.pdf) · [agent manifest](https://archonaudit.xyz/.well-known/archon-agent.json).
 
 ## Tech stack
 
