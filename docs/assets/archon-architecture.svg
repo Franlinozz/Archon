@@ -27,16 +27,16 @@
 <rect x="24" y="164" width="4" height="46" rx="2" fill="#34F5B0"/>
 <text x="42" y="185" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">QUEUE &amp; WORKERS</text>
 <text x="42" y="203" font-size="10.5" fill="#8B968F">layer 2</text>
-<rect x="260" y="173" width="119" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="319.5" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">BullMQ + Redis</text>
-<rect x="389" y="173" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="462" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Content-hash cache</text>
-<rect x="545" y="173" width="112" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="601" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Hard timeouts</text>
-<rect x="667" y="173" width="139" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="736.5" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Live SSE progress</text>
-<rect x="816" y="173" width="174" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="903" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Sentinel + Observatory</text>
+<rect x="260" y="173" width="108" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="314" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">BullMQ + Redis</text>
+<rect x="376" y="173" width="136" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="444" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Content-hash cache</text>
+<rect x="520" y="173" width="102" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="571" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Hard timeouts</text>
+<rect x="630" y="173" width="126" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="693" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Live SSE progress</text>
+<rect x="764" y="173" width="160" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="844" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Sentinel + Observatory</text>
 <line x1="133" y1="227" x2="133" y2="246" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
 <rect x="24" y="250" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
 <rect x="24" y="250" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
@@ -69,14 +69,16 @@
 <rect x="24" y="464" width="4" height="46" rx="2" fill="#34F5B0"/>
 <text x="42" y="485" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">ARTIFACTS</text>
 <text x="42" y="503" font-size="10.5" fill="#8B968F">layer 5</text>
-<rect x="260" y="473" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="333" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Report JSON + hash</text>
-<rect x="416" y="473" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="489" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Findings &amp; patches</text>
-<rect x="572" y="473" width="126" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="635" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Generated tests</text>
-<rect x="708" y="473" width="112" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
-<text x="764" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">IPFS metadata</text>
+<rect x="260" y="473" width="132" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="326" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Report JSON + hash</text>
+<rect x="400" y="473" width="132" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="466" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Findings &amp; patches</text>
+<rect x="540" y="473" width="112" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="596" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Generated tests</text>
+<rect x="660" y="473" width="98" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="709" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">IPFS metadata</text>
+<rect x="766" y="473" width="142" height="28" rx="14" fill="#16A06B" fill-opacity="0.10" stroke="#2C7A5A"/>
+<text x="837" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Tencent COS (backup)</text>
 <line x1="133" y1="527" x2="133" y2="546" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
 <rect x="24" y="550" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
 <rect x="24" y="550" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
