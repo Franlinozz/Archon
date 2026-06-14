@@ -119,8 +119,8 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
     <div className="grid gap-4 xl:grid-cols-4">
       <RiskScoreCard score={report.riskScore} severity={report.riskScore >= 85 ? "critical" : report.riskScore >= 65 ? "high" : "medium"} />
       <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><p className="text-xs uppercase tracking-[0.12em] text-green-400">Severity Distribution</p>
-        <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row">
-          <div className="relative h-44 w-44 shrink-0 [filter:drop-shadow(0_8px_18px_rgba(0,0,0,0.28))]">
+        <div className="mt-4 flex flex-col items-center gap-5">
+          <div className="relative h-40 w-40 shrink-0 [filter:drop-shadow(0_8px_18px_rgba(0,0,0,0.28))]">
             <ResponsiveContainer width="100%" height="100%"><PieChart>
               <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={78} paddingAngle={2} stroke="var(--surface-1)" strokeWidth={2}>
                 {chartData.map((entry) => <Cell key={entry.name} fill={severityColors[entry.name] ?? "var(--text-low)"} />)}
