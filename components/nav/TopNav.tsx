@@ -17,6 +17,7 @@ export const topNavItems: TopNavItem[] = [
   { label: "Audit Studio", href: "/app/audit/new", match: "/app/audit" },
   { label: "Cost Guard", href: "/app/cost-guard", match: "/app/cost-guard" },
   { label: "Leaderboard", href: "/gas-leaderboard", match: "/gas-leaderboard" },
+  { label: "Observatory", href: "/observatory", match: "/observatory" },
   { label: "Reports", href: "/proofs", match: "/proofs" },
   { label: "Docs", href: "/docs", match: "/docs" },
 ];

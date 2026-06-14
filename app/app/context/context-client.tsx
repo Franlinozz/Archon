@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, ExternalLink, FileJson, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Copy, ExternalLink, FileJson, Loader2, ShieldCheck } from "lucide-react";
 
 type ContextData = {
   address: string; explorerUrl: string; fetchedAt: string;
@@ -69,6 +69,6 @@ export function ContextClient() {
 function Summary({ label, value, good }: { label: string; value: string; good?: boolean }) { return <section className="rounded-card border border-border-subtle bg-surface-1 p-4"><p className="text-xs uppercase tracking-[0.12em] text-text-low">{label}</p><p className={good ? "mt-2 text-sm font-semibold text-success" : "mt-2 text-sm font-semibold text-text-hi"}>{value}</p></section>; }
 function Panel({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) { return <section className="rounded-card border border-border-subtle bg-surface-1 p-5"><div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-text-hi">{title}</h2>{action}</div><div className="space-y-2 text-sm text-text-mid">{children}</div></section>; }
 function CopyButton({ value }: { value: string }) { return <button onClick={() => navigator.clipboard.writeText(value)} className="rounded border border-border-subtle p-1 text-text-low hover:text-green-400"><Copy size={13}/></button>; }
-function AddressLine({ label, value }: { label: string; value: string }) { return <div className="flex items-center gap-2"><span className="min-w-28 text-text-low">{label}</span><span className="break-all font-mono text-text-hi">{value}</span><CopyButton value={value}/></div>; }
+function AddressLine({ label, value }: { label: string; value: string }) { const isAddr = /^0x[a-fA-F0-9]{40}$/.test(value); return <div className="flex items-center gap-2"><span className="min-w-28 text-text-low">{label}</span><span className="break-all font-mono text-text-hi">{value}</span><CopyButton value={value}/>{isAddr ? <Link href={`/address/${value}`} title="Archon address profile" className="text-text-low hover:text-green-400"><ArrowUpRight size={13}/></Link> : null}</div>; }
 function JsonRows({ object }: { object: Record<string, unknown> }) { return <div className="grid gap-2 md:grid-cols-2">{Object.entries(object).map(([key, value]) => <div key={key} className="rounded-control bg-terminal p-3"><p className="text-xs uppercase text-text-low">{key}</p><p className="mt-1 break-all font-mono text-text-hi">{String(value)}</p></div>)}</div>; }
 function List({ items }: { items: string[] }) { return <ul className="space-y-2">{items.map((item) => <li key={item} className="flex gap-2 rounded-control bg-terminal p-3"><ShieldCheck className="mt-0.5 shrink-0 text-green-400" size={15}/><span>{item}</span></li>)}</ul>; }

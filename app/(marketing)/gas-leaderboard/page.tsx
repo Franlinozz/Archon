@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, BarChart3, ExternalLink, Filter, Search, ShieldCheck, Trophy, Zap } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BarChart3, ExternalLink, Filter, Search, ShieldCheck, Trophy, Zap } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { DegradedNotice } from "@/components/archon";
 
@@ -160,7 +160,7 @@ export default async function GasLeaderboardPage({ searchParams }: { searchParam
           <Metric label="Score" value={num(row.gasEfficiencyScore).toLocaleString(undefined, { maximumFractionDigits: 0 })} />
           <Metric label="Savings" value={money(row.annualSavingsUsd)} />
           <div className="md:block"><p className="text-xs uppercase tracking-[0.12em] text-text-low">Gas split</p><p className="mt-1 font-mono text-sm text-text-hi">{num(row.l2GasSavedPerCall).toLocaleString()} L2</p><p className="mt-1 font-mono text-xs text-text-low">{num(row.l1DaWeiSavedPerCall).toLocaleString()} L1/DA wei</p></div>
-          <div className="flex flex-wrap gap-2"><Link href={`/app/gas/${row.gasReportId}`} className="inline-flex items-center gap-1 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400">Open <ExternalLink size={14}/></Link>{row.anchorTxHash ? <a href={`https://mantlescan.xyz/tx/${row.anchorTxHash}`} className="inline-flex items-center gap-1 rounded-control border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">Proof <ArrowDownRight size={14}/></a> : null}</div>
+          <div className="flex flex-wrap gap-2"><Link href={`/app/gas/${row.gasReportId}`} className="inline-flex items-center gap-1 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400">Open <ExternalLink size={14}/></Link>{row.sourceKind === "address" && row.sourceRef && /^0x[a-fA-F0-9]{40}$/.test(row.sourceRef) ? <Link href={`/address/${row.sourceRef}`} className="inline-flex items-center gap-1 rounded-control border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-mid hover:text-green-400" title="Archon address profile">Address <ArrowUpRight size={14}/></Link> : null}{row.anchorTxHash ? <a href={`https://mantlescan.xyz/tx/${row.anchorTxHash}`} className="inline-flex items-center gap-1 rounded-control border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">Proof <ArrowDownRight size={14}/></a> : null}</div>
         </article>;
       })}
       {!rows.length ? <div className="p-8 text-center"><p className="text-xl font-semibold text-text-hi">No completed gas reports match these filters yet.</p><p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-mid">Archon will not invent leaderboard rows. Run a Mantle gas optimization or clear filters to see completed reports that already exist.</p><Link href="/app/gas" className="mt-5 inline-flex rounded-control bg-green-500 px-4 py-2 text-sm font-semibold text-on-green hover:bg-green-400">Run Gas Optimizer</Link></div> : null}

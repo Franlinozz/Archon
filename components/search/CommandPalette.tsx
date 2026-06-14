@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Clock, FileText, Search, ShieldCheck, SquareCode } from "lucide-react";
+import { Clock, FileText, Search, ShieldCheck, SquareCode, Wallet } from "lucide-react";
 import { SeverityPill } from "@/components/archon";
 import type { Severity } from "@/components/archon/severity";
 
@@ -19,7 +19,6 @@ const RECENT_KEY = "archon-recent-search";
 
 const PAGES: { label: string; route: string; keywords?: string }[] = [
   { label: "Overview", route: "/app", keywords: "home workspace dashboard reports" },
-  { label: "Creator Workspace", route: "/app/creator", keywords: "builder launch templates founder workspace" },
   { label: "Audit Studio", route: "/app/audit/new", keywords: "scan new contract solidity" },
   { label: "Contract Context", route: "/app/context", keywords: "abi address verified" },
   { label: "Cost Guard", route: "/app/cost-guard", keywords: "gas spend rpc ai" },
@@ -109,6 +108,13 @@ export function CommandPalette() {
     return PAGES.filter((p) => p.label.toLowerCase().includes(q) || p.keywords?.includes(q));
   }, [query]);
 
+  // V5.5: paste a Mantle address → jump straight to its public /address profile.
+  // Resolved client-side, so it works instantly without waiting on the API.
+  const addressMatch = useMemo(() => {
+    const q = query.trim();
+    return /^0x[a-fA-F0-9]{40}$/.test(q) ? q : null;
+  }, [query]);
+
   const go = useCallback((route: string, entry: RecentEntry) => {
     try {
       const next = [entry, ...loadRecent().filter((r) => r.route !== entry.route)].slice(0, 5);
@@ -121,7 +127,7 @@ export function CommandPalette() {
   }, [router]);
 
   const hasQuery = query.trim().length > 0;
-  const noResults = hasQuery && !loading && pages.length === 0 && results.findings.length === 0 && results.reports.length === 0 && results.contracts.length === 0;
+  const noResults = hasQuery && !loading && !addressMatch && pages.length === 0 && results.findings.length === 0 && results.reports.length === 0 && results.contracts.length === 0;
 
   return (
     <>
@@ -189,6 +195,15 @@ export function CommandPalette() {
                     ) : (
                       <p className="px-3 py-6 text-center text-sm text-text-low">Type to search findings, reports, contracts…</p>
                     )
+                  ) : null}
+
+                  {addressMatch ? (
+                    <Group heading="Address">
+                      <Item value={`address-${addressMatch}`} onSelect={() => go(`/address/${addressMatch}`, { label: `${addressMatch.slice(0, 10)}…`, sub: "Address profile", route: `/address/${addressMatch}` })} icon={<Wallet size={15} className="text-text-low" />}>
+                        <span className="min-w-0 flex-1 truncate text-text-hi">View address profile</span>
+                        <span className="ml-2 shrink-0 truncate font-mono text-xs text-text-low">{addressMatch.slice(0, 10)}…</span>
+                      </Item>
+                    </Group>
                   ) : null}
 
                   {noResults ? <p className="px-3 py-6 text-center text-sm text-text-low">No matches for &ldquo;{query.trim()}&rdquo;</p> : null}

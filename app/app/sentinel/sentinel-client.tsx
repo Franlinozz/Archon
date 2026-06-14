@@ -124,7 +124,7 @@ export function SentinelClient() {
               <tr key={w.id} className="border-b border-border-subtle last:border-0">
                 <td className="px-4 py-3">
                   <p className="font-semibold text-text-hi">{w.label ?? short(w.address)}</p>
-                  <p className="font-mono text-[11px] text-text-low">{short(w.address)}{w.status === "paused" ? " · paused" : ""}</p>
+                  <p className="font-mono text-[11px] text-text-low"><Link href={`/address/${w.address}`} className="hover:text-green-400" title="Archon address profile">{short(w.address)}</Link>{w.status === "paused" ? " · paused" : ""}</p>
                 </td>
                 <td className="px-4 py-3">{w.riskScore !== null ? <Link href={`/r/${w.reportId}`} className="font-mono text-text-hi hover:text-green-400">{w.riskScore}/100{w.anchored ? " ⚓" : ""}</Link> : <span className="text-text-low">—</span>}</td>
                 <td className="px-4 py-3"><span title={w.freshness.reason} className={`inline-flex rounded-pill border px-2.5 py-0.5 text-xs ${FRESHNESS_STYLE[w.freshness.level]}`}>{w.freshness.level}{typeof w.freshness.days === "number" ? ` · ${w.freshness.days}d` : ""}</span></td>
