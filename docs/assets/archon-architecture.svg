@@ -1,106 +1,111 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="756" viewBox="0 0 960 756" font-family="ui-sans-serif,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
-<rect width="960" height="756" fill="#F4F8F5" rx="16"/>
-<text x="24" y="30" font-size="13" font-weight="700" fill="#0E815A" letter-spacing="2.5">ARCHON · SYSTEM ARCHITECTURE</text>
-<text x="936" y="30" font-size="11" fill="#46544D" text-anchor="end">one pipeline · three artifacts · seven layers — whitepaper v2, fig. 2</text>
-<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#16A06B"/></marker></defs>
-<rect x="24" y="50" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
-<rect x="24" y="50" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
-<rect x="24" y="64" width="4" height="46" rx="2" fill="#16A06B"/>
-<text x="42" y="85" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">INPUT</text>
-<text x="42" y="103" font-size="10.5" fill="#46544D">layer 1</text>
-<rect x="260" y="73" width="57" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="288.5" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">Paste</text>
-<rect x="327" y="73" width="63" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="358.5" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">Upload</text>
-<rect x="400" y="73" width="98" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="449" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">GitHub repo</text>
-<rect x="508" y="73" width="181" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="598.5" y="91" font-size="12" fill="#0B1A14" text-anchor="middle">Verified Mantle address</text>
-<line x1="133" y1="127" x2="133" y2="146" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
-<rect x="24" y="150" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
-<rect x="24" y="150" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
-<rect x="24" y="164" width="4" height="46" rx="2" fill="#16A06B"/>
-<text x="42" y="185" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">QUEUE &amp; WORKERS</text>
-<text x="42" y="203" font-size="10.5" fill="#46544D">layer 2</text>
-<rect x="260" y="173" width="119" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="319.5" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">BullMQ + Redis</text>
-<rect x="389" y="173" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="462" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Content-hash cache</text>
-<rect x="545" y="173" width="112" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="601" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Hard timeouts</text>
-<rect x="667" y="173" width="139" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="736.5" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Live SSE progress</text>
-<rect x="816" y="173" width="174" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="903" y="191" font-size="12" fill="#0B1A14" text-anchor="middle">Sentinel + Observatory</text>
-<line x1="133" y1="227" x2="133" y2="246" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
-<rect x="24" y="250" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
-<rect x="24" y="250" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
-<rect x="24" y="264" width="4" height="46" rx="2" fill="#16A06B"/>
-<text x="42" y="285" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">ANALYSIS</text>
-<text x="42" y="303" font-size="10.5" fill="#46544D">layer 3</text>
-<rect x="260" y="273" width="105" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="312.5" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">solc compile</text>
-<rect x="375" y="273" width="70" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="410" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">Slither</text>
-<rect x="455" y="273" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="528" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">Mantle rule engine</text>
-<rect x="611" y="273" width="167" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="694.5" y="291" font-size="12" fill="#0B1A14" text-anchor="middle">AI enrichment (gated)</text>
-<line x1="133" y1="327" x2="133" y2="346" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
-<rect x="24" y="350" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
-<rect x="24" y="350" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
-<rect x="24" y="364" width="4" height="46" rx="2" fill="#16A06B"/>
-<text x="42" y="385" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">GAS MEASUREMENT</text>
-<text x="42" y="403" font-size="10.5" fill="#46544D">layer 4</text>
-<rect x="260" y="373" width="160" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="340" y="391" font-size="12" fill="#0B1A14" text-anchor="middle">Optimization catalog</text>
-<rect x="430" y="373" width="139" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="499.5" y="391" font-size="12" fill="#0B1A14" text-anchor="middle">Foundry harnesses</text>
-<rect x="579" y="373" width="208" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="683" y="391" font-size="12" fill="#0B1A14" text-anchor="middle">Receipt-calibrated DA model</text>
-<line x1="133" y1="427" x2="133" y2="446" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
-<rect x="24" y="450" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
-<rect x="24" y="450" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
-<rect x="24" y="464" width="4" height="46" rx="2" fill="#16A06B"/>
-<text x="42" y="485" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">ARTIFACTS</text>
-<text x="42" y="503" font-size="10.5" fill="#46544D">layer 5</text>
-<rect x="260" y="473" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="333" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">Report JSON + hash</text>
-<rect x="416" y="473" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="489" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">Findings &amp; patches</text>
-<rect x="572" y="473" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="635" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">Generated tests</text>
-<rect x="708" y="473" width="112" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="764" y="491" font-size="12" fill="#0B1A14" text-anchor="middle">IPFS metadata</text>
-<line x1="133" y1="527" x2="133" y2="546" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
-<rect x="24" y="550" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
-<rect x="24" y="550" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
-<rect x="24" y="564" width="4" height="46" rx="2" fill="#16A06B"/>
-<text x="42" y="585" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">VERIFICATION</text>
-<text x="42" y="603" font-size="10.5" fill="#46544D">layer 6</text>
-<rect x="260" y="573" width="153" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="336.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">ArchonProofRegistry</text>
-<rect x="423" y="573" width="167" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="506.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">ERC-8004 identity #97</text>
-<rect x="600" y="573" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="673" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">Build attestations</text>
-<rect x="756" y="573" width="195" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="853.5" y="591" font-size="12" fill="#0B1A14" text-anchor="middle">Public verify + challenge</text>
-<line x1="133" y1="627" x2="133" y2="646" stroke="#16A06B" stroke-width="2" marker-end="url(#a)"/>
-<rect x="24" y="650" width="912" height="74" rx="12" fill="#FFFFFF" stroke="#DCE8E1"/>
-<rect x="24" y="650" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.08"/>
-<rect x="24" y="664" width="4" height="46" rx="2" fill="#16A06B"/>
-<text x="42" y="685" font-size="14" font-weight="700" fill="#0E815A" letter-spacing="0.8">DISTRIBUTION</text>
-<text x="42" y="703" font-size="10.5" fill="#46544D">layer 7</text>
-<rect x="260" y="673" width="146" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="333" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">App + public pages</text>
-<rect x="416" y="673" width="50" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="441" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">Docs</text>
-<rect x="476" y="673" width="84" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="518" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">API + MCP</text>
-<rect x="570" y="673" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="633" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">CI + GitHub App</text>
-<rect x="706" y="673" width="126" height="28" rx="14" fill="#EFF8F3" stroke="#C2E5D5"/>
-<text x="769" y="691" font-size="12" fill="#0B1A14" text-anchor="middle">Gas leaderboard</text>
-<text x="24" y="742" font-size="11" fill="#46544D">Read-only analysis end to end — the only on-chain write is user-approved proof logging to ArchonProofRegistry on Mantle Mainnet (5000).</text>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#151916"/><stop offset="100%" stop-color="#1C201E"/></linearGradient>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#34F5B0"/></marker>
+</defs>
+<rect width="960" height="756" fill="#1A1E1B" rx="16"/>
+<rect width="960" height="756" fill="url(#bg)" rx="16"/>
+<rect x="0.5" y="0.5" width="959" height="755" rx="16" fill="none" stroke="#2C3630"/>
+<text x="24" y="30" font-size="13" font-weight="700" fill="#34F5B0" letter-spacing="2.5">ARCHON · SYSTEM ARCHITECTURE</text>
+<text x="936" y="30" font-size="11" fill="#8B968F" text-anchor="end">one pipeline · three artifacts · seven layers — whitepaper v2, fig. 2</text>
+<rect x="24" y="50" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
+<rect x="24" y="50" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
+<rect x="24" y="64" width="4" height="46" rx="2" fill="#34F5B0"/>
+<text x="42" y="85" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">INPUT</text>
+<text x="42" y="103" font-size="10.5" fill="#8B968F">layer 1</text>
+<rect x="260" y="73" width="57" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="288.5" y="91" font-size="12" fill="#CDD8D2" text-anchor="middle">Paste</text>
+<rect x="327" y="73" width="63" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="358.5" y="91" font-size="12" fill="#CDD8D2" text-anchor="middle">Upload</text>
+<rect x="400" y="73" width="98" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="449" y="91" font-size="12" fill="#CDD8D2" text-anchor="middle">GitHub repo</text>
+<rect x="508" y="73" width="181" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="598.5" y="91" font-size="12" fill="#CDD8D2" text-anchor="middle">Verified Mantle address</text>
+<line x1="133" y1="127" x2="133" y2="146" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="150" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
+<rect x="24" y="150" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
+<rect x="24" y="164" width="4" height="46" rx="2" fill="#34F5B0"/>
+<text x="42" y="185" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">QUEUE &amp; WORKERS</text>
+<text x="42" y="203" font-size="10.5" fill="#8B968F">layer 2</text>
+<rect x="260" y="173" width="119" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="319.5" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">BullMQ + Redis</text>
+<rect x="389" y="173" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="462" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Content-hash cache</text>
+<rect x="545" y="173" width="112" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="601" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Hard timeouts</text>
+<rect x="667" y="173" width="139" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="736.5" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Live SSE progress</text>
+<rect x="816" y="173" width="174" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="903" y="191" font-size="12" fill="#CDD8D2" text-anchor="middle">Sentinel + Observatory</text>
+<line x1="133" y1="227" x2="133" y2="246" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="250" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
+<rect x="24" y="250" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
+<rect x="24" y="264" width="4" height="46" rx="2" fill="#34F5B0"/>
+<text x="42" y="285" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">ANALYSIS</text>
+<text x="42" y="303" font-size="10.5" fill="#8B968F">layer 3</text>
+<rect x="260" y="273" width="105" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="312.5" y="291" font-size="12" fill="#CDD8D2" text-anchor="middle">solc compile</text>
+<rect x="375" y="273" width="70" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="410" y="291" font-size="12" fill="#CDD8D2" text-anchor="middle">Slither</text>
+<rect x="455" y="273" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="528" y="291" font-size="12" fill="#CDD8D2" text-anchor="middle">Mantle rule engine</text>
+<rect x="611" y="273" width="167" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="694.5" y="291" font-size="12" fill="#CDD8D2" text-anchor="middle">AI enrichment (gated)</text>
+<line x1="133" y1="327" x2="133" y2="346" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="350" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
+<rect x="24" y="350" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
+<rect x="24" y="364" width="4" height="46" rx="2" fill="#34F5B0"/>
+<text x="42" y="385" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">GAS MEASUREMENT</text>
+<text x="42" y="403" font-size="10.5" fill="#8B968F">layer 4</text>
+<rect x="260" y="373" width="160" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="340" y="391" font-size="12" fill="#CDD8D2" text-anchor="middle">Optimization catalog</text>
+<rect x="430" y="373" width="139" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="499.5" y="391" font-size="12" fill="#CDD8D2" text-anchor="middle">Foundry harnesses</text>
+<rect x="579" y="373" width="208" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="683" y="391" font-size="12" fill="#CDD8D2" text-anchor="middle">Receipt-calibrated DA model</text>
+<line x1="133" y1="427" x2="133" y2="446" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="450" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
+<rect x="24" y="450" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
+<rect x="24" y="464" width="4" height="46" rx="2" fill="#34F5B0"/>
+<text x="42" y="485" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">ARTIFACTS</text>
+<text x="42" y="503" font-size="10.5" fill="#8B968F">layer 5</text>
+<rect x="260" y="473" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="333" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Report JSON + hash</text>
+<rect x="416" y="473" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="489" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Findings &amp; patches</text>
+<rect x="572" y="473" width="126" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="635" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">Generated tests</text>
+<rect x="708" y="473" width="112" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="764" y="491" font-size="12" fill="#CDD8D2" text-anchor="middle">IPFS metadata</text>
+<line x1="133" y1="527" x2="133" y2="546" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="550" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
+<rect x="24" y="550" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
+<rect x="24" y="564" width="4" height="46" rx="2" fill="#34F5B0"/>
+<text x="42" y="585" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">VERIFICATION</text>
+<text x="42" y="603" font-size="10.5" fill="#8B968F">layer 6</text>
+<rect x="260" y="573" width="153" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="336.5" y="591" font-size="12" fill="#CDD8D2" text-anchor="middle">ArchonProofRegistry</text>
+<rect x="423" y="573" width="167" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="506.5" y="591" font-size="12" fill="#CDD8D2" text-anchor="middle">ERC-8004 identity #97</text>
+<rect x="600" y="573" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="673" y="591" font-size="12" fill="#CDD8D2" text-anchor="middle">Build attestations</text>
+<rect x="756" y="573" width="195" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="853.5" y="591" font-size="12" fill="#CDD8D2" text-anchor="middle">Public verify + challenge</text>
+<line x1="133" y1="627" x2="133" y2="646" stroke="#34F5B0" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="650" width="912" height="74" rx="12" fill="#10150F" stroke="#2C3630"/>
+<rect x="24" y="650" width="218" height="74" rx="12" fill="#16A06B" fill-opacity="0.13"/>
+<rect x="24" y="664" width="4" height="46" rx="2" fill="#34F5B0"/>
+<text x="42" y="685" font-size="14" font-weight="700" fill="#34F5B0" letter-spacing="0.8">DISTRIBUTION</text>
+<text x="42" y="703" font-size="10.5" fill="#8B968F">layer 7</text>
+<rect x="260" y="673" width="146" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="333" y="691" font-size="12" fill="#CDD8D2" text-anchor="middle">App + public pages</text>
+<rect x="416" y="673" width="50" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="441" y="691" font-size="12" fill="#CDD8D2" text-anchor="middle">Docs</text>
+<rect x="476" y="673" width="84" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="518" y="691" font-size="12" fill="#CDD8D2" text-anchor="middle">API + MCP</text>
+<rect x="570" y="673" width="126" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="633" y="691" font-size="12" fill="#CDD8D2" text-anchor="middle">CI + GitHub App</text>
+<rect x="706" y="673" width="126" height="28" rx="14" fill="#181E1A" stroke="#2C3630"/>
+<text x="769" y="691" font-size="12" fill="#CDD8D2" text-anchor="middle">Gas leaderboard</text>
+<text x="24" y="742" font-size="11" fill="#8B968F">Read-only analysis end to end — the only on-chain write is user-approved proof logging to ArchonProofRegistry on Mantle Mainnet (5000).</text>
 </svg>
