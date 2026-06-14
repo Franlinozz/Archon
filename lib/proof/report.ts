@@ -81,13 +81,32 @@ export async function prepareProof(reportId: string) {
 }
 
 export async function upsertPreparedProof(reportId: string) {
+  // FREEZE (V5.1 root-cause fix): the report hash is a cryptographic commitment.
+  // Once a proof row has committed a hash, reuse it verbatim and NEVER re-derive
+  // it from live metadata. Re-deriving here meant any later display-field edit
+  // (e.g. a contract_name repair) silently changed the hash, so a verifier
+  // searching for the new hash failed with "No AuditProofLogged event found"
+  // even though the original hash was validly anchored on-chain.
+  const existing = (await db.query<{ id: string; report_hash: string | null; metadata_uri: string; metadata: Record<string, unknown> }>(
+    "select id, report_hash, metadata_uri, metadata from proofs where report_id=$1", [reportId])).rows[0];
+  if (existing?.report_hash) {
+    const configured = hasVerifiedErc8004Config();
+    return {
+      proofId: existing.id, reportHash: existing.report_hash, metadata: existing.metadata, metadataUri: existing.metadata_uri,
+      ipfs: null, cosBackup: null, network: "mantle-mainnet", chainId: 5000, configured,
+      blocker: configured ? null : "ERC-8004 registry addresses / agent identity are not configured and verified.",
+      frozen: true,
+    };
+  }
+
+  // First preparation for this report — compute, pin, and commit the hash once.
   const prepared = await prepareProof(reportId);
   const result = await db.query<{ id: string }>(
     `insert into proofs (report_id, report_hash, metadata_uri, metadata, network, logged_at, verification_status, erc8004_ref)
      values ($1,$2,$3,$4::jsonb,$5,now(),'prepared',$6::jsonb)
-     on conflict (report_id) do update set report_hash=excluded.report_hash, metadata_uri=excluded.metadata_uri, metadata=excluded.metadata, erc8004_ref=excluded.erc8004_ref
+     on conflict (report_id) do update set metadata_uri=excluded.metadata_uri, erc8004_ref=excluded.erc8004_ref
      returning id`,
     [reportId, prepared.reportHash, prepared.metadataUri, JSON.stringify(prepared.metadata), prepared.network, JSON.stringify(prepared.metadata.erc8004)],
   );
-  return { ...prepared, proofId: result.rows[0]!.id };
+  return { ...prepared, proofId: result.rows[0]!.id, frozen: false };
 }

@@ -134,7 +134,7 @@ export async function logPreparedProofOnReputation(reportId: string) {
     reputationRegistry,
     reportHash: prepared.reportHash,
     metadataUri: prepared.metadataUri,
-    ipfsPinned: prepared.ipfs.pinned,
+    ipfsPinned: prepared.ipfs?.pinned ?? null,
     simulation: { ok: true, gas: gas.toString(), gasPriceWei: gasPrice.toString(), estimatedCostMnt: formatEther(estimatedCostWei) },
     txHash: hash,
     status: receipt.status,

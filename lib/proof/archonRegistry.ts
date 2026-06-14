@@ -115,14 +115,28 @@ export async function verifyAndRecordArchonUserProof(reportId: string, txHash: `
   const receipt = await pc.waitForTransactionReceipt({ hash: txHash, confirmations: 1, timeout: 90_000 });
   if (receipt.status !== "success") throw new Error("Transaction reverted on-chain.");
 
-  const logs = await pc.getLogs({ address: registry, event: PROOF_LOGGED_EVENT, fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber });
-  const own = logs.find((l) => l.transactionHash.toLowerCase() === txHash.toLowerCase() && (l.args.reportHash as string)?.toLowerCase() === (prepared.reportHash as string).toLowerCase());
-  if (!own) throw new Error("No AuditProofLogged event with this report hash was found in the transaction.");
+  // Confirm the proof is genuinely on-chain for the FROZEN report hash. Primary:
+  // the AuditProofLogged event in this tx's block matching the hash. Fallback:
+  // the registry's own isAnchored() view — authoritative and immune to log
+  // range/indexing quirks, so a confirmed proof is never reported as missing.
+  const reportHash = (prepared.reportHash as string).toLowerCase();
+  const logs = await pc.getLogs({ address: registry, event: PROOF_LOGGED_EVENT, fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber }).catch(() => []);
+  const eventMatch = logs.find((l) => l.transactionHash.toLowerCase() === txHash.toLowerCase() && (l.args.reportHash as string)?.toLowerCase() === reportHash);
+  let confirmedVia: "event" | "registry-view" | null = eventMatch ? "event" : null;
+  if (!confirmedVia) {
+    const anchored = (await pc.readContract({ address: registry, abi: archonProofRegistryAbi, functionName: "isAnchored", args: [reportHash as `0x${string}`] }).catch(() => false)) as boolean;
+    if (anchored) confirmedVia = "registry-view";
+  }
+  if (!confirmedVia) {
+    // Tx mined but this exact report hash is not anchored — an honest, distinct
+    // failure from "pending" or "reverted".
+    throw new Error("The transaction mined, but this report hash is not anchored in ArchonProofRegistry. Re-anchor from this report (its hash may have changed).");
+  }
 
   const author = (receipt.from ?? "").toLowerCase();
   if (expectedAuthor && author !== expectedAuthor.toLowerCase()) throw new Error("The transaction was submitted by a different wallet than the signed-in session.");
   await recordProof(prepared.proofId, txHash, prepared.metadataUri, { registry, agentId: agentIdNum(), author });
-  return { reportId, proofId: prepared.proofId, txHash, reportHash: prepared.reportHash, agentId: agentIdNum().toString(), author, loggedBy: author, verified: true, explorer: `https://mantlescan.xyz/tx/${txHash}` };
+  return { reportId, proofId: prepared.proofId, txHash, reportHash: prepared.reportHash, agentId: agentIdNum().toString(), author, loggedBy: author, verified: true, confirmedVia, explorer: `https://mantlescan.xyz/tx/${txHash}` };
 }
 
 async function recordProof(proofId: string, txHash: string, metadataUri: string, ref: { registry: string; agentId: bigint; author: string }) {
