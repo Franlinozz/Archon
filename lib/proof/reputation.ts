@@ -179,6 +179,10 @@ export async function appendReputationFeedback(
   const walletClient = createWalletClient({ account, chain, transport: http(rpcUrl) });
 
   const prepared = await upsertPreparedProof(reportId);
+  // Idempotency: never write a second reputation entry for the same report. The
+  // already-anchored backfill path calls this for reports that may already have one.
+  const existing = await db.query<{ rep: unknown }>(`select erc8004_ref->'reputation' as rep from proofs where id=$1`, [prepared.proofId]).catch(() => null);
+  if (existing?.rows[0]?.rep) return { skipped: true, reason: "reputation already recorded for this report" };
   const metadata = prepared.metadata as { report?: { riskScore?: number } };
   const tag2 = `risk:${metadata.report?.riskScore ?? "unknown"}`;
   const args = [agentId, 100n, 0, FEEDBACK_TAG1, tag2, FEEDBACK_ENDPOINT, prepared.metadataUri, prepared.reportHash as `0x${string}`] as const;

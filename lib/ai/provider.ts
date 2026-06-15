@@ -181,46 +181,54 @@ class ChatCompletionsProvider implements AIProvider {
     });
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      // Each attempt is independently time-bounded, so the stage can never hang
-      // regardless of retries (preserves the R1.2 no-hang guarantee).
+      // The abort timer covers the fetch AND the body read (clearTimeout only fires
+      // in `finally`), so a response that stalls mid-body can't hang the stage past
+      // timeoutMs — this preserves the R1.2 no-hang guarantee across retries.
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
-      let response: Response;
       try {
-        response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-          method: "POST",
-          signal: controller.signal,
-          headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-          body,
-        });
-      } catch (err) {
-        clearTimeout(timer);
-        if (err instanceof Error && err.name === "AbortError") throw new EnrichmentError("timeout", `${this.cfg.label} timed out after ${timeoutMs}ms`);
-        throw new EnrichmentError("network", `${this.cfg.label} request failed: ${(err as Error).message?.slice(0, 200) ?? "unknown"}`);
-      }
-      clearTimeout(timer);
-
-      if (!response.ok) {
-        const kind = classifyStatus(response.status);
-        const transient = kind === "rate_limit" || kind === "server_error";
-        if (transient && attempt < MAX_ATTEMPTS) {
-          const retryAfter = Number(response.headers.get("retry-after"));
-          await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, timeoutMs) : RETRY_BACKOFF_MS * attempt);
-          continue;
+        let response: Response;
+        try {
+          response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: "POST",
+            signal: controller.signal,
+            headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+            body,
+          });
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") throw new EnrichmentError("timeout", `${this.cfg.label} timed out after ${timeoutMs}ms`);
+          throw new EnrichmentError("network", `${this.cfg.label} request failed: ${(err as Error).message?.slice(0, 200) ?? "unknown"}`);
         }
-        throw new EnrichmentError(kind, `${this.cfg.label} HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
-      }
 
-      const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-      const content = payload.choices?.[0]?.message?.content;
-      if (!content) throw new EnrichmentError("empty", `${this.cfg.label} response did not include content`);
-      let raw: unknown;
-      try {
-        raw = JSON.parse(stripJsonFences(content));
-      } catch {
-        throw new EnrichmentError("json_parse", `${this.cfg.label} returned content that was not valid JSON`);
+        if (!response.ok) {
+          const kind = classifyStatus(response.status);
+          const transient = kind === "rate_limit" || kind === "server_error";
+          if (transient && attempt < MAX_ATTEMPTS) {
+            const retryAfter = Number(response.headers.get("retry-after"));
+            await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, timeoutMs) : RETRY_BACKOFF_MS * attempt);
+            continue;
+          }
+          throw new EnrichmentError(kind, `${this.cfg.label} HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
+        }
+
+        const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const content = payload.choices?.[0]?.message?.content;
+        if (!content) throw new EnrichmentError("empty", `${this.cfg.label} response did not include content`);
+        let raw: unknown;
+        try {
+          raw = JSON.parse(stripJsonFences(content));
+        } catch {
+          throw new EnrichmentError("json_parse", `${this.cfg.label} returned content that was not valid JSON`);
+        }
+        return tolerantBatch(raw);
+      } catch (err) {
+        // A timer-fired abort during the body read surfaces as a raw AbortError;
+        // classify it as a timeout. Already-classified EnrichmentErrors pass through.
+        if (err instanceof Error && err.name === "AbortError") throw new EnrichmentError("timeout", `${this.cfg.label} timed out after ${timeoutMs}ms`);
+        throw err;
+      } finally {
+        clearTimeout(timer);
       }
-      return tolerantBatch(raw);
     }
     throw new EnrichmentError("unknown", `${this.cfg.label} exhausted ${MAX_ATTEMPTS} attempts`);
   }

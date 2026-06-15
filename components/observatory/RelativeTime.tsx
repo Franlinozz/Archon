@@ -16,15 +16,25 @@ function relative(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+// Deterministic placeholder for SSR + first client paint (no Date.now()), so the
+// server HTML and the hydration render match exactly. We switch to the live relative
+// label only after mount — avoids a React hydration mismatch (the page is ISR, so the
+// cached HTML's "now" can be minutes stale).
+function utcHm(iso: string): string {
+  return `${new Date(iso).toISOString().slice(11, 16)} UTC`;
+}
+
 export function RelativeTime({ iso, className }: { iso: string; className?: string }) {
-  const [, setTick] = useState(0);
+  const [label, setLabel] = useState<string | null>(null);
   useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    const update = () => setLabel(relative(iso));
+    update();
+    const id = setInterval(update, 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [iso]);
   return (
     <time dateTime={iso} title={new Date(iso).toUTCString()} className={className}>
-      {relative(iso)}
+      {label ?? utcHm(iso)}
     </time>
   );
 }

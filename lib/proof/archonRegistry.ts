@@ -3,19 +3,21 @@ import { privateKeyToAccount } from "viem/accounts";
 import { mantle } from "viem/chains";
 import archonProofRegistryAbi from "@/lib/chain/abis/ArchonProofRegistry.json";
 import { db } from "@/lib/db/client";
+import { logger } from "@/lib/logger";
 import { upsertPreparedProof } from "./report";
 import { appendReputationFeedback } from "./reputation";
 
-// Best-effort ERC-8004 Reputation Registry feedback AFTER the primary registry
-// anchor. Non-blocking by contract: a reputation failure/skip never fails a
-// successful ArchonProofRegistry anchor (the award-eligible primary). Closes the
-// full ERC-8004 loop when ARCHON_REPUTATION_CLIENT_PRIVATE_KEY is funded.
-async function tryAppendReputation(reportId: string) {
-  try {
-    return await appendReputationFeedback(reportId);
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "reputation append failed" };
-  }
+// Best-effort ERC-8004 Reputation Registry feedback, AFTER the primary registry
+// anchor and **fire-and-forget** so the second on-chain tx's latency never blocks
+// the anchor response (the proof is already recorded). appendReputationFeedback is
+// idempotent per report, so this also runs on the already-anchored path to backfill
+// a missing entry without ever double-writing. Completes on Archon's persistent VM.
+function kickReputation(reportId: string): void {
+  void appendReputationFeedback(reportId)
+    .then((r) => ("ok" in r
+      ? logger.info({ reportId, tx: r.txHash, idx: r.feedbackIndex }, "ERC-8004 reputation feedback appended")
+      : logger.info({ reportId, reason: r.reason }, "ERC-8004 reputation feedback skipped")))
+    .catch((error) => logger.warn({ reportId, err: error instanceof Error ? error.message : String(error) }, "ERC-8004 reputation feedback failed"));
 }
 
 // Session 15: Archon's OWN deployed contract (ArchonProofRegistry) is the primary,
@@ -90,7 +92,10 @@ export async function logPreparedProofOnArchonRegistry(reportId: string) {
   const prepared = await upsertPreparedProof(reportId);
 
   const dup = await alreadyAnchored(reportId, prepared);
-  if (dup) return { reportId, proofId: prepared.proofId, alreadyAnchored: true, txHash: dup.txHash, reportHash: prepared.reportHash, metadataUri: prepared.metadataUri, explorer: dup.txHash ? `https://mantlescan.xyz/tx/${dup.txHash}` : null };
+  if (dup) {
+    kickReputation(reportId); // backfill a missing reputation entry (idempotent); never re-anchors
+    return { reportId, proofId: prepared.proofId, alreadyAnchored: true, txHash: dup.txHash, reportHash: prepared.reportHash, metadataUri: prepared.metadataUri, explorer: dup.txHash ? `https://mantlescan.xyz/tx/${dup.txHash}` : null };
+  }
 
   const account = privateKeyToAccount(ownerKey);
   const pc = publicClient();
@@ -111,12 +116,12 @@ export async function logPreparedProofOnArchonRegistry(reportId: string) {
   if (receipt.status !== "success") throw new Error("Proof transaction reverted on-chain.");
 
   await recordProof(prepared.proofId, hash, prepared.metadataUri, { registry, agentId: agentIdNum(), author: account.address });
-  const reputation = await tryAppendReputation(reportId);
+  kickReputation(reportId); // fire-and-forget; does not block the response
   return {
     reportId, proofId: prepared.proofId, txHash: hash, reportHash: prepared.reportHash, metadataUri: prepared.metadataUri,
     agentId: agentIdNum().toString(), author: account.address, loggedBy: account.address, status: receipt.status,
     gas: { used: receipt.gasUsed.toString(), actualCostMnt: formatEther(receipt.gasUsed * (receipt.effectiveGasPrice ?? gasPrice)) },
-    reputation,
+    reputation: "submitting (best-effort, async)",
     explorer: `https://mantlescan.xyz/tx/${hash}`,
   };
 }
@@ -151,8 +156,8 @@ export async function verifyAndRecordArchonUserProof(reportId: string, txHash: `
   const author = (receipt.from ?? "").toLowerCase();
   if (expectedAuthor && author !== expectedAuthor.toLowerCase()) throw new Error("The transaction was submitted by a different wallet than the signed-in session.");
   await recordProof(prepared.proofId, txHash, prepared.metadataUri, { registry, agentId: agentIdNum(), author });
-  const reputation = await tryAppendReputation(reportId);
-  return { reportId, proofId: prepared.proofId, txHash, reportHash: prepared.reportHash, agentId: agentIdNum().toString(), author, loggedBy: author, verified: true, confirmedVia, reputation, explorer: `https://mantlescan.xyz/tx/${txHash}` };
+  kickReputation(reportId); // fire-and-forget; does not block the response
+  return { reportId, proofId: prepared.proofId, txHash, reportHash: prepared.reportHash, agentId: agentIdNum().toString(), author, loggedBy: author, verified: true, confirmedVia, reputation: "submitting (best-effort, async)", explorer: `https://mantlescan.xyz/tx/${txHash}` };
 }
 
 async function recordProof(proofId: string, txHash: string, metadataUri: string, ref: { registry: string; agentId: bigint; author: string }) {
