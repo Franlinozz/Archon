@@ -112,7 +112,23 @@ export function GenerateProofModal({ reportId }: { reportId: string }) {
     try {
       if (publicClient) {
         setPhase("simulating"); setStatus("Checking the transaction will succeed…");
-        await publicClient.simulateContract({ account: address, address: w.address, abi: w.abi, functionName: w.functionName, args: w.args });
+        // Hard timeout: a slow/hanging RPC must never leave this on "Checking…"
+        // forever. A genuine revert rejects fast (caught below → "reverted" with a
+        // clear reason). A timeout is non-fatal — we proceed to the wallet, which
+        // surfaces any real revert itself. So owner/non-owner both reach a definite
+        // state within the window.
+        const sim = publicClient.simulateContract({ account: address, address: w.address, abi: w.abi, functionName: w.functionName, args: w.args });
+        const TIMED_OUT = Symbol("timeout");
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const raced = await Promise.race([
+          sim.then(() => "ok" as const),
+          new Promise<typeof TIMED_OUT>((resolve) => { timer = setTimeout(() => resolve(TIMED_OUT), 12_000); }),
+        ]);
+        if (timer) clearTimeout(timer);
+        if (raced === TIMED_OUT) {
+          sim.catch(() => {}); // we've moved on; don't leak an unhandled rejection
+          setStatus("Pre-check timed out — continuing; your wallet will confirm the final result.");
+        }
       }
       setPhase("awaiting"); setStatus("Confirm in your wallet — a small MNT gas fee, no token spend.");
       const hash = await writeContractAsync({ address: w.address, abi: w.abi, functionName: w.functionName, args: w.args });
