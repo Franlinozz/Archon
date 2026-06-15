@@ -53,10 +53,10 @@ function displayContractName(input: GasScanInput, source: string) {
   return deriveContractName(source, { label: input.contractLabel });
 }
 
-async function sourceFromAddress(address: string) {
+async function sourceFromAddress(address: string): Promise<{ source: string; files: SourceFileBundle }> {
   try {
-    const { source } = await fetchVerifiedSource(address);
-    return source;
+    const { source, files } = await fetchVerifiedSource(address);
+    return { source, files };
   } catch (err) {
     if (err instanceof ExplorerError) {
       // Graceful degradation: surface an actionable message; pasting source still works.
@@ -69,14 +69,22 @@ async function sourceFromAddress(address: string) {
 }
 
 export async function resolveGasSource(input: GasScanInput) {
-  const source = input.sourceKind === "sample"
-    ? await readFile(path.join(process.cwd(), "contracts/VaultV2.sol"), "utf8")
-    : input.sourceKind === "address"
-      ? await sourceFromAddress(input.sourceRef?.trim() ?? "")
-      : input.sourceCode?.trim() ?? "";
+  // Carry a multi-file bundle through to the workspace so verified multi-file
+  // contracts (address mode) and uploaded projects compile with their imports.
+  let sourceFiles: SourceFileBundle | undefined = input.sourceFiles;
+  let source: string;
+  if (input.sourceKind === "sample") {
+    source = await readFile(path.join(process.cwd(), "contracts/VaultV2.sol"), "utf8");
+  } else if (input.sourceKind === "address") {
+    const verified = await sourceFromAddress(input.sourceRef?.trim() ?? "");
+    source = verified.source;
+    if (verified.files.length > 1) sourceFiles = verified.files; // multi-file verified bundle
+  } else {
+    source = input.sourceCode?.trim() ?? "";
+  }
   if (!source || !/pragma\s+solidity/.test(source) || !/\bcontract\s+[A-Za-z_][A-Za-z0-9_]*/.test(source)) throw new Error("Gas scan source must include a Solidity pragma and at least one contract.");
   if (Buffer.byteLength(source, "utf8") > MAX_GAS_SOURCE_BYTES) throw new Error(`Gas scan source exceeds ${MAX_GAS_SOURCE_BYTES} bytes.`);
-  return { source, contractName: displayContractName(input, source), sourceHash: sha256(source) };
+  return { source, sourceFiles, contractName: displayContractName(input, source), sourceHash: sha256(source) };
 }
 
 export async function createGasReport(input: GasScanInput) {
@@ -89,7 +97,7 @@ export async function createGasReport(input: GasScanInput) {
   const result = await db.query<{ id: string }>(
     `insert into gas_reports (source_kind, source_ref, source_code, source_bundle, source_hash, contract_name, network, status, progress, current_stage, assumptions, created_at)
      values ($1,$2,$3,$4::jsonb,$5,$6,'mantle-mainnet','queued',0,'Queued',$7::jsonb,now()) returning id`,
-    [input.sourceKind, input.sourceRef ?? input.contractLabel ?? null, resolved.source, input.sourceFiles ? JSON.stringify(input.sourceFiles) : null, resolved.sourceHash, resolved.contractName, JSON.stringify(assumptions)],
+    [input.sourceKind, input.sourceRef ?? input.contractLabel ?? null, resolved.source, resolved.sourceFiles ? JSON.stringify(resolved.sourceFiles) : null, resolved.sourceHash, resolved.contractName, JSON.stringify(assumptions)],
   );
   return { id: result.rows[0]!.id, ...resolved, assumptions };
 }

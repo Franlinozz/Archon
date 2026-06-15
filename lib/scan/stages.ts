@@ -226,15 +226,16 @@ function chooseSolcVersion(pragma: string) {
   return exact ?? "0.8.24";
 }
 
-async function ensureSource(scan: ScanRecord) {
+async function ensureSource(scan: ScanRecord): Promise<{ source: string; bundle: ScanRecord["source_bundle"] }> {
   // Only an explicit address scan goes to the explorer; paste (and any upload/github
   // bundle, which the API stores as paste) reads the stored source directly.
-  if (scan.source_kind !== "address") return scan.source_code?.trim() ?? "";
+  if (scan.source_kind !== "address") return { source: scan.source_code?.trim() ?? "", bundle: null };
   const address = scan.source_ref?.trim();
   if (!address) throw new Error("Contract address scan is missing source_ref");
   try {
-    const { source } = await fetchVerifiedSource(address);
-    return source;
+    const { source, files } = await fetchVerifiedSource(address);
+    // Multi-file verified contracts need their dependency siblings written too.
+    return { source, bundle: files.length > 1 ? files : null };
   } catch (err) {
     if (err instanceof ExplorerError) {
       if (err.kind === "not-verified") throw new Error("No verified Solidity source for this address on Mantle. Paste the contract source instead.");
@@ -298,20 +299,6 @@ function slitherAttempts(ctx: ScanContext) {
   }).slice(0, 2);
 }
 
-async function scanWorkspaceFiles(root: string) {
-  const files: string[] = [];
-  async function walk(dir: string) {
-    const entries = await import("node:fs/promises").then(({ readdir }) => readdir(dir, { withFileTypes: true })).catch(() => []);
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) await walk(full);
-      else if (entry.isFile() && entry.name.endsWith(".sol")) files.push(full);
-    }
-  }
-  await walk(root);
-  return files;
-}
-
 async function workspaceRemappings(workdir: string, sourceCode = "") {
   const texts = await Promise.all([
     readFile(path.join(workdir, "remappings.txt"), "utf8").catch(() => ""),
@@ -345,11 +332,16 @@ async function copyLocalCandidate(workdir: string, candidatePath: string) {
   return true;
 }
 
-async function hydrateWorkspaceImports(workdir: string, sourceCode: string) {
+async function hydrateWorkspaceImports(workdir: string, sourceCode: string, entryFile: string) {
   const remappings = await workspaceRemappings(workdir, sourceCode);
   const seen = new Set<string>();
   const unresolved = new Set<string>();
-  const queue = await scanWorkspaceFiles(workdir);
+  // Seed ONLY from the selected contract and walk its transitive import closure.
+  // (Previously this seeded from every .sol in the workspace, so unrelated files
+  // bundled alongside the target — e.g. a whole GitHub repo's siblings or foundry
+  // out/ artifacts — could pull a clean contract into reduced mode when one of
+  // THEIR imports didn't resolve.)
+  const queue = [entryFile];
 
   while (queue.length && seen.size < 240) {
     const file = queue.shift()!;
@@ -399,10 +391,12 @@ async function writeSourceWorkspace(workdir: string, sourceCode: string, bundle:
 }
 
 export async function createInitialContext(scan: ScanRecord): Promise<ScanContext> {
-  const sourceCode = await ensureSource(scan);
+  const { source: sourceCode, bundle } = await ensureSource(scan);
   const workdir = await mkdtemp(path.join(tmpdir(), `archon-scan-${scan.id}-`));
-  const sourceFile = await writeSourceWorkspace(workdir, sourceCode, scan.source_bundle, displayContractName(scan, sourceCode));
-  const unresolvedImports = await hydrateWorkspaceImports(workdir, sourceCode);
+  // An address scan's verified bundle (multi-file) takes precedence; otherwise the
+  // stored upload/github bundle.
+  const sourceFile = await writeSourceWorkspace(workdir, sourceCode, bundle ?? scan.source_bundle, displayContractName(scan, sourceCode));
+  const unresolvedImports = await hydrateWorkspaceImports(workdir, sourceCode, sourceFile);
   const pragma = detectPragma(sourceCode);
   return {
     scan,
