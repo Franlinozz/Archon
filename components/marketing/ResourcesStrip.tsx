@@ -14,7 +14,7 @@ type Resource = { icon: LucideIcon; label: string; descriptor: string; href: str
 
 const RESOURCES: Resource[] = [
   { icon: FileText, label: "Whitepaper", descriptor: "The protocol & proof model (PDF).", href: "/whitepaper.pdf", external: true },
-  { icon: Youtube, label: "Demo video", descriptor: "2-min product walkthrough.", href: "https://youtu.be/d0xn5OYBENA", external: true },
+  { icon: Youtube, label: "Demo video", descriptor: "Full product walkthrough.", href: "https://youtu.be/d0xn5OYBENA", external: true },
   { icon: Terminal, label: "API Reference", descriptor: "Verdict & MCP endpoints for agents.", href: "/api-reference" },
   { icon: BookOpen, label: "Documentation", descriptor: "Guides for every Archon surface.", href: "/docs" },
   { icon: Activity, label: "Gas Observatory", descriptor: "Live Mantle DA economics.", href: "/observatory" },

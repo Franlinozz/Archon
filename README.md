@@ -29,7 +29,7 @@
 | Surface | URL |
 | --- | --- |
 | App | <https://archonaudit.xyz> |
-| **Demo (2-min video)** | <https://youtu.be/d0xn5OYBENA> |
+| **Demo (video walkthrough)** | <https://youtu.be/d0xn5OYBENA> |
 | Docs | <https://archonaudit.xyz/docs> |
 | Whitepaper (PDF) | <https://archonaudit.xyz/whitepaper.pdf> |
 | Gas leaderboard | <https://archonaudit.xyz/gas-leaderboard> |
