@@ -140,16 +140,24 @@ export async function verifyAndRecordArchonUserProof(reportId: string, txHash: `
   // the registry's own isAnchored() view — authoritative and immune to log
   // range/indexing quirks, so a confirmed proof is never reported as missing.
   const reportHash = (prepared.reportHash as string).toLowerCase();
-  const logs = await pc.getLogs({ address: registry, event: PROOF_LOGGED_EVENT, fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber }).catch(() => []);
-  const eventMatch = logs.find((l) => l.transactionHash.toLowerCase() === txHash.toLowerCase() && (l.args.reportHash as string)?.toLowerCase() === reportHash);
-  let confirmedVia: "event" | "registry-view" | null = eventMatch ? "event" : null;
-  if (!confirmedVia) {
+  // Read-back can momentarily lag the receipt on a load-balanced RPC: the block is
+  // mined (receipt returned) but the replica that answers getLogs/isAnchored hasn't
+  // indexed it yet. Confirm via the AuditProofLogged event first, then the
+  // authoritative isAnchored() view, retrying a few times with a short wait before
+  // declaring a genuine divergence — so transient lag is never mis-reported as
+  // "hash not anchored". (Hash unification itself is guaranteed by the frozen
+  // prepared.reportHash used for calldata AND this read-back.)
+  let confirmedVia: "event" | "registry-view" | null = null;
+  for (let attempt = 0; attempt < 4 && !confirmedVia; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+    const logs = await pc.getLogs({ address: registry, event: PROOF_LOGGED_EVENT, fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber }).catch(() => []);
+    if (logs.find((l) => l.transactionHash.toLowerCase() === txHash.toLowerCase() && (l.args.reportHash as string)?.toLowerCase() === reportHash)) { confirmedVia = "event"; break; }
     const anchored = (await pc.readContract({ address: registry, abi: archonProofRegistryAbi, functionName: "isAnchored", args: [reportHash as `0x${string}`] }).catch(() => false)) as boolean;
     if (anchored) confirmedVia = "registry-view";
   }
   if (!confirmedVia) {
-    // Tx mined but this exact report hash is not anchored — an honest, distinct
-    // failure from "pending" or "reverted".
+    // Tx mined but this exact report hash is not anchored after retries — an honest,
+    // distinct failure from "pending" or "reverted".
     throw new Error("The transaction mined, but this report hash is not anchored in ArchonProofRegistry. Re-anchor from this report (its hash may have changed).");
   }
 
