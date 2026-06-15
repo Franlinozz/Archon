@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, BookOpen, FileText, Github, Terminal, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, FileText, Github, Terminal, Youtube, type LucideIcon } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { fadeUp, instant, staggerContainer, viewportOnce } from "@/lib/motion";
 
@@ -14,6 +14,7 @@ type Resource = { icon: LucideIcon; label: string; descriptor: string; href: str
 
 const RESOURCES: Resource[] = [
   { icon: FileText, label: "Whitepaper", descriptor: "The protocol & proof model (PDF).", href: "/whitepaper.pdf", external: true },
+  { icon: Youtube, label: "Demo video", descriptor: "2-min product walkthrough.", href: "https://youtu.be/d0xn5OYBENA", external: true },
   { icon: Terminal, label: "API Reference", descriptor: "Verdict & MCP endpoints for agents.", href: "/api-reference" },
   { icon: BookOpen, label: "Documentation", descriptor: "Guides for every Archon surface.", href: "/docs" },
   { icon: Activity, label: "Gas Observatory", descriptor: "Live Mantle DA economics.", href: "/observatory" },
@@ -36,7 +37,7 @@ export function ResourcesStrip() {
       </motion.p>
 
       <motion.div
-        className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+        className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
         variants={instant(staggerContainer, reduce)}
         initial={reduce ? false : "hidden"}
         whileInView="show"

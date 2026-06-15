@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Github } from "lucide-react";
+import { ArrowUpRight, Github, Twitter } from "lucide-react";
 import { ArchonLogo, CopyButton, MainnetBadge } from "@/components/archon";
 import { MANTLE_EXPLORER_URL } from "@/lib/chain/mantle";
 import { shortHash } from "@/lib/marketing/stats";
@@ -33,6 +33,8 @@ const COLUMNS: Array<{ title: string; links: FooterLink[] }> = [
       { label: "Whitepaper PDF (v2.1)", href: "/whitepaper.pdf", external: true },
       { label: "Changelog", href: "/docs/resources/changelog" },
       { label: "GitHub", href: "https://github.com/Franlinozz/Archon", external: true },
+      { label: "Watch the demo", href: "https://youtu.be/d0xn5OYBENA", external: true },
+      { label: "X · @archondevtools", href: "https://x.com/archondevtools", external: true },
     ],
   },
   {
@@ -81,7 +83,10 @@ export function SiteFooter() {
           <span className="inline-flex items-center gap-1.5 font-mono">
             ArchonProofRegistry {shortHash(REGISTRY, 6, 4)} <CopyButton value={REGISTRY} />
           </span>
-          <a href="https://github.com/Franlinozz/Archon" target="_blank" rel="noreferrer" aria-label="Archon on GitHub" className="text-muted transition-colors hover:text-ink"><Github size={16} /></a>
+          <span className="flex items-center gap-3">
+            <a href="https://x.com/archondevtools" target="_blank" rel="noreferrer" aria-label="Archon on X" className="text-muted transition-colors hover:text-ink"><Twitter size={16} /></a>
+            <a href="https://github.com/Franlinozz/Archon" target="_blank" rel="noreferrer" aria-label="Archon on GitHub" className="text-muted transition-colors hover:text-ink"><Github size={16} /></a>
+          </span>
         </div>
       </div>
     </footer>

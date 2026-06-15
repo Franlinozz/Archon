@@ -12,6 +12,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" /></a>
   <a href="https://archonaudit.xyz/whitepaper.pdf"><img src="https://img.shields.io/badge/whitepaper-v2.1_PDF-0E815A" alt="Whitepaper v2.1" /></a>
   <a href="https://archonaudit.xyz/address/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a"><img src="https://archonaudit.xyz/badge/0xe7043e2ec95eF357FbBa3359BA2f1edb10cEAD2a.svg" alt="Archon security profile" /></a>
+  <a href="https://youtu.be/d0xn5OYBENA"><img src="https://img.shields.io/badge/Demo-YouTube-FF0000" alt="Demo video" /></a>
+  <a href="https://x.com/archondevtools"><img src="https://img.shields.io/badge/X-%40archondevtools-111111" alt="Archon on X" /></a>
 </p>
 
 ---
@@ -27,6 +29,7 @@
 | Surface | URL |
 | --- | --- |
 | App | <https://archonaudit.xyz> |
+| **Demo (2-min video)** | <https://youtu.be/d0xn5OYBENA> |
 | Docs | <https://archonaudit.xyz/docs> |
 | Whitepaper (PDF) | <https://archonaudit.xyz/whitepaper.pdf> |
 | Gas leaderboard | <https://archonaudit.xyz/gas-leaderboard> |
@@ -35,6 +38,7 @@
 | Example public report | <https://archonaudit.xyz/r/d37f46d6-aded-41fc-9215-900370300111> |
 | Example proof tx | [`0x141e3973…c88c10b` on MantleScan](https://mantlescan.xyz/tx/0x141e3973a3dc4a5f8b2dec3c6bf0ed6f1f8132ba1be4e9b8086e0fab9c88c10b) |
 | CI Action demo (real PRs) | [green run + gas comment](https://github.com/Franlinozz/archon-gas-action-demo/pull/1) · [red run on a regression](https://github.com/Franlinozz/archon-gas-action-demo/pull/2) |
+| X / Twitter | [@archondevtools](https://x.com/archondevtools) · [launch post](https://x.com/archondevtools/status/2066535285186318615) |
 
 ## Architecture
 
