@@ -163,13 +163,13 @@ export async function POST(request: Request) {
     const branch = ref ?? await defaultBranch(owner, repo);
 
     if (selectedPath) {
-      const tree = await github(`/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`) as { truncated?: boolean; tree?: TreeItem[] };
-      const siblings = (tree.tree ?? [])
-        .filter((item) => item.type === "blob" && item.path.endsWith(".sol") && !(item.path.includes("/test/") || item.path.includes("/script/") || item.path.includes("/node_modules/")))
-        .slice(0, MAX_GITHUB_SOL_FILES);
-      const files = await Promise.all(siblings.map((item) => fetchSolidityFile(owner, repo, item.path, branch)));
-      const selected = files.find((file) => file.path === selectedPath) ?? await fetchSolidityFile(owner, repo, selectedPath, branch);
-      const enriched = await enrichReferencedDependencies(owner, repo, branch, files.some((file) => file.path === selected.path) ? files : [selected, ...files]);
+      // Bundle ONLY the selected file + its transitive import closure — not every
+      // sibling in the repo. Over-bundling pulled in unrelated files (e.g. fixtures
+      // with deliberately unresolvable imports), which forced a clean contract into
+      // reduced mode. enrichReferencedDependencies fetches exactly the imports the
+      // selected file (transitively) needs, from the repo and vendored fallbacks.
+      const selected = await fetchSolidityFile(owner, repo, selectedPath, branch);
+      const enriched = await enrichReferencedDependencies(owner, repo, branch, [selected]);
       return NextResponse.json({ repo: `${owner}/${repo}`, ref: branch, unresolvedImports: enriched.unresolved, ...withConfigFiles(chooseOrList(enriched.files, selected.path), enriched.configFiles) });
     }
 
