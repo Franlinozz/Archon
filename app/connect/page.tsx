@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { AlertTriangle, ArrowLeft, Wallet } from "lucide-react";
@@ -17,33 +16,26 @@ function safeNext(raw: string | null): string {
 }
 
 export default function ConnectPage() {
-  const router = useRouter();
   const { isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
   const { switchChain, isPending } = useSwitchChain();
   const { signedIn, signIn, status, error } = useSiwe();
-  const [next, setNext] = useState("/app");
   const onMantle = isConnected && chainId === MANTLE_CHAIN_ID;
 
   async function completeSignIn() {
-    const ok = await signIn();
-    if (ok) {
-      router.refresh();
-      router.replace(next);
-    }
+    await signIn(); // navigation is handled by the signedIn effect below
   }
 
+  // Single source of the post-sign-in redirect — covers the button click, the
+  // provider's auto sign-in timer, and a returning user who is already signed in.
+  // signIn() has already confirmed the session cookie is visible, so a hard
+  // navigation reliably lands on the gated route. (The previous SPA
+  // router.refresh()+router.replace() pair raced when both the click handler and
+  // this effect fired, leaving the user stuck on /connect until a manual refresh.)
   useEffect(() => {
-    setNext(safeNext(new URLSearchParams(window.location.search).get("next")));
-  }, []);
-
-  // Once signed in (cookie set), land the user where they intended.
-  useEffect(() => {
-    if (signedIn) {
-      router.refresh();
-      router.replace(next);
-    }
-  }, [signedIn, next, router]);
+    if (!signedIn) return;
+    window.location.assign(safeNext(new URLSearchParams(window.location.search).get("next")));
+  }, [signedIn]);
 
   return (
     <main className="grid min-h-screen place-items-center px-6 text-text-hi">
