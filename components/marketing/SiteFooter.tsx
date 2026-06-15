@@ -1,8 +1,18 @@
 import Link from "next/link";
-import { ArrowUpRight, Github, Twitter } from "lucide-react";
+import { ArrowUpRight, Github } from "lucide-react";
 import { ArchonLogo, CopyButton, MainnetBadge } from "@/components/archon";
 import { MANTLE_EXPLORER_URL } from "@/lib/chain/mantle";
 import { shortHash } from "@/lib/marketing/stats";
+
+// lucide ships the legacy Twitter bird, not the current X mark — inline the official
+// X logo so the footer matches the @archondevtools brand.
+function XLogo({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644Z" />
+    </svg>
+  );
+}
 
 // The footer is where serious evaluators go first — a sitemap of credibility.
 // Every link is real; on-chain artifacts link to their explorer/manifest form.
@@ -84,7 +94,7 @@ export function SiteFooter() {
             ArchonProofRegistry {shortHash(REGISTRY, 6, 4)} <CopyButton value={REGISTRY} />
           </span>
           <span className="flex items-center gap-3">
-            <a href="https://x.com/archondevtools" target="_blank" rel="noreferrer" aria-label="Archon on X" className="text-muted transition-colors hover:text-ink"><Twitter size={16} /></a>
+            <a href="https://x.com/archondevtools" target="_blank" rel="noreferrer" aria-label="Archon on X" className="text-muted transition-colors hover:text-ink"><XLogo size={16} /></a>
             <a href="https://github.com/Franlinozz/Archon" target="_blank" rel="noreferrer" aria-label="Archon on GitHub" className="text-muted transition-colors hover:text-ink"><Github size={16} /></a>
           </span>
         </div>
