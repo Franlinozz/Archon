@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db/client";
+import { fetchVerifiedSource, ExplorerError } from "@/lib/chain/explorer";
 import { compileSoliditySource } from "@/lib/solidity/compiler";
 import { enrichFindingsForScan } from "@/lib/ai/enrichment";
 import { measureGasOptimizations } from "@/lib/gas/measurement";
@@ -226,27 +227,21 @@ function chooseSolcVersion(pragma: string) {
 }
 
 async function ensureSource(scan: ScanRecord) {
-  if (scan.source_kind === "paste") return scan.source_code?.trim() ?? "";
+  // Only an explicit address scan goes to the explorer; paste (and any upload/github
+  // bundle, which the API stores as paste) reads the stored source directly.
+  if (scan.source_kind !== "address") return scan.source_code?.trim() ?? "";
   const address = scan.source_ref?.trim();
   if (!address) throw new Error("Contract address scan is missing source_ref");
-  const explorerUrl = process.env.MANTLE_EXPLORER_API_URL ?? "https://explorer.mantle.xyz/api";
-  const url = `${explorerUrl}?module=contract&action=getsourcecode&address=${address}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { accept: "application/json" } });
-    if (!response.ok) throw new Error(`Mantle explorer returned HTTP ${response.status}`);
-    const payload = await response.json() as { result?: Array<{ SourceCode?: string; ContractName?: string }> };
-    const raw = payload.result?.[0]?.SourceCode?.trim() ?? "";
-    const source = raw.startsWith("{{") && raw.endsWith("}}") ? JSON.parse(raw.slice(1, -1)).sources : raw;
-    if (typeof source === "string" && source.includes("pragma solidity")) return source;
-    if (typeof source === "object" && source) {
-      const first = Object.values(source).find((entry): entry is { content: string } => typeof (entry as { content?: unknown }).content === "string");
-      if (first?.content) return first.content;
+    const { source } = await fetchVerifiedSource(address);
+    return source;
+  } catch (err) {
+    if (err instanceof ExplorerError) {
+      if (err.kind === "not-verified") throw new Error("No verified Solidity source for this address on Mantle. Paste the contract source instead.");
+      if (err.kind === "no-key" || err.kind === "bad-input") throw new Error(err.message);
+      throw new Error(`Couldn't reach the Mantle explorer (${err.kind}). Paste the contract source instead.`);
     }
-    throw new Error("Mantle explorer did not return verified Solidity source for this address");
-  } finally {
-    clearTimeout(timeout);
+    throw err;
   }
 }
 

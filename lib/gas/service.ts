@@ -4,11 +4,12 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { formatEther, parseAbiItem, createPublicClient, createWalletClient, encodeFunctionData, http, isAddress, type Address } from "viem";
+import { formatEther, parseAbiItem, createPublicClient, createWalletClient, encodeFunctionData, http, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { mantle } from "viem/chains";
 import archonProofRegistryAbi from "@/lib/chain/abis/ArchonProofRegistry.json";
 import { getMantlePublicClient } from "@/lib/chain/mantle";
+import { fetchVerifiedSource, ExplorerError } from "@/lib/chain/explorer";
 import { db } from "@/lib/db/client";
 import { analyzeGasOptimizations } from "@/lib/gas/optimizer";
 import { measureGasOptimizations, type GasMeasurementProfile } from "@/lib/gas/measurement";
@@ -53,24 +54,17 @@ function displayContractName(input: GasScanInput, source: string) {
 }
 
 async function sourceFromAddress(address: string) {
-  if (!isAddress(address)) throw new Error("Enter a valid Mantle contract address.");
-  const explorerUrl = process.env.MANTLE_EXPLORER_API_URL ?? "https://explorer.mantle.xyz/api";
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
   try {
-    const response = await fetch(`${explorerUrl}?module=contract&action=getsourcecode&address=${address}`, { signal: controller.signal, headers: { accept: "application/json" } });
-    if (!response.ok) throw new Error(`Mantle explorer returned HTTP ${response.status}`);
-    const payload = await response.json() as { result?: Array<{ SourceCode?: string; ContractName?: string }> };
-    const raw = payload.result?.[0]?.SourceCode?.trim() ?? "";
-    const source = raw.startsWith("{{") && raw.endsWith("}}") ? JSON.parse(raw.slice(1, -1)).sources : raw;
-    if (typeof source === "string" && source.includes("pragma solidity")) return source;
-    if (typeof source === "object" && source) {
-      const first = Object.values(source).find((entry): entry is { content: string } => typeof (entry as { content?: unknown }).content === "string");
-      if (first?.content) return first.content;
+    const { source } = await fetchVerifiedSource(address);
+    return source;
+  } catch (err) {
+    if (err instanceof ExplorerError) {
+      // Graceful degradation: surface an actionable message; pasting source still works.
+      if (err.kind === "not-verified") throw new Error("No verified Solidity source for this address on Mantle. Paste the contract source instead.");
+      if (err.kind === "no-key" || err.kind === "bad-input") throw new Error(err.message);
+      throw new Error(`Couldn't reach the Mantle explorer (${err.kind}). Paste the contract source instead.`);
     }
-    throw new Error("Mantle explorer did not return verified Solidity source for this address.");
-  } finally {
-    clearTimeout(timeout);
+    throw err;
   }
 }
 

@@ -2,6 +2,7 @@ import { createPublicClient, http, isAddress, keccak256, type Address, type Hex 
 import { db } from "@/lib/db/client";
 import { logger } from "@/lib/logger";
 import { mantleMainnet } from "@/lib/chain/mantle";
+import { fetchVerifiedSource } from "@/lib/chain/explorer";
 import { enqueueScan } from "@/lib/queue/scans";
 
 // Archon Sentinel (F1): continuous audit of deployed Mantle contracts.
@@ -64,14 +65,12 @@ export async function readChainState(address: Address): Promise<ChainState> {
   };
 }
 
-/** Explorer verified-source check (same endpoint the scan pipeline uses). */
+/** Explorer verified-source check (same endpoint the scan pipeline uses). Best-effort:
+ *  any failure (no key, not verified, explorer down) means "treat as unverified". */
 export async function checkVerifiedSource(address: string): Promise<boolean> {
-  const explorerUrl = process.env.MANTLE_EXPLORER_API_URL ?? "https://explorer.mantle.xyz/api";
   try {
-    const response = await fetch(`${explorerUrl}?module=contract&action=getsourcecode&address=${address}`, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
-    if (!response.ok) return false;
-    const payload = await response.json() as { result?: Array<{ SourceCode?: string }> };
-    return Boolean(payload.result?.[0]?.SourceCode?.trim());
+    const { source } = await fetchVerifiedSource(address);
+    return Boolean(source.trim());
   } catch {
     return false;
   }
