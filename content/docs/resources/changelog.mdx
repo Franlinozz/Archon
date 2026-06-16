@@ -5,6 +5,11 @@ description: Product documentation changelog.
 
 # Changelog
 
+## V5.5 — AI reasoning live on Tencent Cloud TokenHub
+
+- **AI reasoning is now served on Tencent Cloud TokenHub** (`deepseek-v4-pro`), Tencent's OpenAI-compatible MaaS, with **OpenAI `gpt-4o-mini` as runtime failover** and deterministic templates as the final floor. Each enrichment batch tries TokenHub → OpenAI → deterministic; the scan log records which provider served each batch and any failover, and report views attribute "Models used" to the providers that actually served. Rollback is a single env unset.
+- TokenHub serves third-party reasoning models — Archon does **not** run a Hunyuan model and never claims to (the international TokenHub has no Hunyuan reasoning model). Reasoning calls run at a small batch size to stay inside the per-call timeout.
+
 ## V5.4 — Full ERC-8004 loop + Tencent COS live
 
 - **The full ERC-8004 loop now fires.** A successful Generate Proof anchors to ArchonProofRegistry **and** appends a Reputation Registry `giveFeedback` entry against Agent #97 (feedbackHash = the report hash), from a funded non-owner client — best-effort and non-blocking, so a reputation hiccup never fails a registry anchor. Verified on-chain (Agent #97's feedback count increments).

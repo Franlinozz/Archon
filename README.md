@@ -81,7 +81,7 @@ Methodology, tx hashes, and validation error: [ADR 0007](docs/decisions/0007-man
 | **Gas Leaderboard** | ✅ Live | Public ranking of completed gas reports (sample rows labeled) | [/gas-leaderboard](https://archonaudit.xyz/gas-leaderboard) |
 | **Challenge ledger** | ✅ Live | Public challenge records against reports and optimizations (staked challenges are designed, not deployed — ADR 0014) | [Security & safety model](https://archonaudit.xyz/docs/resources/security-safety-model) |
 | **Tencent COS backup** | ✅ Live | Best-effort artifact backup (proof/report JSON) to Tencent COS (`ap-hongkong`); never blocks the IPFS/Postgres primary path — status at [/api/providers](https://archonaudit.xyz/api/providers) | [Cloud providers](https://archonaudit.xyz/docs/platform-api/cloud-providers) |
-| **Tencent Hunyuan** | 🟢 Ready (optional) | OpenAI-compatible enrichment adapter, built and inert pending an inference key — **OpenAI `gpt-4o-mini` stays the active enrichment model** | [Cloud providers](https://archonaudit.xyz/docs/platform-api/cloud-providers) |
+| **Tencent Cloud TokenHub** | 🟢 Live | **AI reasoning served on Tencent Cloud TokenHub** (`deepseek-v4-pro`), with **OpenAI `gpt-4o-mini` as runtime failover** → deterministic templates. Serves third-party reasoning models — not a Hunyuan model. | [Cloud providers](https://archonaudit.xyz/docs/platform-api/cloud-providers) |
 
 ## Built for the agentic economy
 
@@ -126,7 +126,7 @@ code --install-extension archon-mantle-0.1.2.vsix
 
 ## Tech stack
 
-Next.js 15 · TypeScript · Tailwind · BullMQ + Redis · Supabase Postgres · solc/Slither · Foundry · viem/wagmi · pluggable AI providers (OpenAI `gpt-4o-mini` live; Tencent Cloud Hunyuan adapter built-in, inert pending an inference key, [status](https://archonaudit.xyz/api/providers)) · Pinata/IPFS primary (+ **Tencent COS artifact backup, live** in `ap-hongkong`) · PM2 + Caddy on one VM.
+Next.js 15 · TypeScript · Tailwind · BullMQ + Redis · Supabase Postgres · solc/Slither · Foundry · viem/wagmi · pluggable AI providers (**AI reasoning served on Tencent Cloud TokenHub `deepseek-v4-pro`, with OpenAI `gpt-4o-mini` runtime failover**, [status](https://archonaudit.xyz/api/providers)) · Pinata/IPFS primary (+ **Tencent COS artifact backup, live** in `ap-hongkong`) · PM2 + Caddy on one VM.
 
 The scan pipeline is read-only. The only intended transaction path is the explicit user-approved proof log, guarded by simulation and cost checks.
 

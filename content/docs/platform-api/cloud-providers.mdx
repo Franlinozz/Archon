@@ -1,6 +1,6 @@
 ---
 title: Cloud providers
-description: Archon's pluggable AI and storage provider layer — OpenAI, Tencent Cloud Hunyuan, and Tencent COS.
+description: Archon's pluggable AI and storage provider layer — Tencent Cloud TokenHub, OpenAI failover, and Tencent COS.
 ---
 
 # Cloud providers
@@ -19,14 +19,14 @@ The AI Reasoning stage enriches deterministic findings through a single interfac
 
 | Provider | Selected by | Credentials | Notes |
 | --- | --- | --- | --- |
-| OpenAI | `AI_PROVIDER=openai` (or fallback) | `OPENAI_API_KEY` | `gpt-4o-mini` by default; override with `OPENAI_MODEL`. |
-| Tencent Cloud Hunyuan | `AI_PROVIDER=hunyuan` | `TENCENT_HUNYUAN_KEY` | Uses Tencent's OpenAI-compatible endpoint (`https://api.hunyuan.cloud.tencent.com/v1`, overridable via `TENCENT_HUNYUAN_BASE_URL`); `hunyuan-turbo` by default. |
+| **Tencent Cloud TokenHub** (live primary) | `AI_PROVIDER=tokenhub` | `TENCENT_TOKENHUB_KEY` | Tencent's MaaS, OpenAI-compatible endpoint (`https://tokenhub-intl.tencentcloudmaas.com/v1`, overridable via `TENCENT_TOKENHUB_BASE_URL`); `deepseek-v4-pro` by default (`TENCENT_TOKENHUB_MODEL`). Serves third-party reasoning models — it is **not** a Hunyuan model. Small batch size keeps each reasoning call inside the per-call timeout. |
+| OpenAI (runtime failover) | `AI_PROVIDER=openai`, or automatic failover | `OPENAI_API_KEY` | `gpt-4o-mini` by default; override with `OPENAI_MODEL`. |
 
-**Selection logic.** `AI_PROVIDER` wins when that adapter's credentials are present. Otherwise Archon falls back in order **OpenAI → deterministic templates**. Every scan log records which provider served each enrichment batch, and batches that fail or time out fall back to deterministic explanations for exactly those findings, with the cause logged per batch.
+**Selection logic.** `AI_PROVIDER` wins when that adapter's credentials are present. With `AI_PROVIDER=tokenhub` (the live default), each enrichment batch tries **Tencent Cloud TokenHub → OpenAI → deterministic templates** in order — a real runtime failover, not a one-shot pick. Every scan log records which provider served each batch and any failover, and batches that all providers fail or time out on fall back to deterministic explanations for exactly those findings, with the cause logged per batch. Rollback is a single env unset (back to OpenAI-only).
 
 > **ELFA is not an LLM provider.** An earlier build shipped a generic chat-completions adapter labeled "ELFA". ELFA is a crypto/market **data** API, not an inference endpoint, so that adapter was removed from the AI chain — it could only ever 404. If ELFA is integrated in future it will be an *external data enrichment* feature behind its own env flag, never an AI provider.
 
-**Honesty rule.** An adapter without credentials is *inert*: it exists in the codebase, it is listed by `/api/providers` with the env vars it is waiting on, and it is never represented as serving traffic. The Tencent Hunyuan adapter ships fully built and activates the moment hackathon computing credits provide a key — no code change required.
+**Honesty rule.** An adapter without credentials is *inert*: it exists in the codebase, it is listed by `/api/providers` with the env vars it is waiting on, and it is never represented as serving traffic. AI reasoning is served on **Tencent Cloud TokenHub** (`deepseek-v4-pro`); report views attribute "Models used" only to the providers that actually served, and claim "served on Tencent Cloud TokenHub" only when TokenHub served. TokenHub serves third-party reasoning models — Archon does **not** run, and never claims to run, a Hunyuan model.
 
 ## Artifact storage
 
