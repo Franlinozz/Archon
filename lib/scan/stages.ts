@@ -424,19 +424,60 @@ async function codeParse(ctx: ScanContext) {
     ctx.contractName = displayContractName(ctx.scan, ctx.sourceCode, result.contractNames);
     ctx.metadata.compile = { ok: true, pragma: ctx.pragma, solcVersion: result.compilerVersion, contractName: ctx.contractName, warnings: result.warnings };
   } catch (error) {
-    if (!isImportResolutionError(error)) throw error;
-    const unresolvedImports = [...new Set([...(ctx.reducedMode?.unresolvedImports ?? []), ...missingImportsFromError(error)])];
-    ctx.reducedMode = { reason: "External imports could not be resolved.", unresolvedImports, detail: shortToolError(error) };
-    ctx.metadata.compile = { ok: false, pragma: ctx.pragma, solcVersion: ctx.solcVersion, reducedMode: true, unresolvedImports, detail: shortToolError(error) };
-    await appendScanLog(ctx.scan.id, "WARN", `External imports could not be resolved (${unresolvedImports.join(", ") || "unknown import"}); static analysis will run in reduced mode.`);
+    if (isImportResolutionError(error)) {
+      const unresolvedImports = [...new Set([...(ctx.reducedMode?.unresolvedImports ?? []), ...missingImportsFromError(error)])];
+      ctx.reducedMode = { reason: "External imports could not be resolved.", unresolvedImports, detail: shortToolError(error) };
+      ctx.metadata.compile = { ok: false, pragma: ctx.pragma, solcVersion: ctx.solcVersion, reducedMode: true, unresolvedImports, detail: shortToolError(error) };
+      await appendScanLog(ctx.scan.id, "WARN", `External imports could not be resolved (${unresolvedImports.join(", ") || "unknown import"}); static analysis will run in reduced mode.`);
+    } else {
+      // A genuine compile/type/syntax error (e.g. an external function called
+      // internally, an undeclared symbol). The contract can't deploy and Slither/
+      // measured-gas need a successful compile — but an auditor still reviews broken
+      // code. Degrade to reduced mode and surface the compile error AS A FINDING
+      // instead of hard-failing the scan (which previously errored + loop-requeued).
+      const detail = shortToolError(error);
+      ctx.reducedMode = { reason: "Contract does not compile.", unresolvedImports: [], detail };
+      ctx.metadata.compile = { ok: false, pragma: ctx.pragma, solcVersion: ctx.solcVersion, reducedMode: true, compileError: detail };
+      recordCompileErrorFinding(ctx, error);
+      await appendScanLog(ctx.scan.id, "WARN", `Contract does not compile (${detail}); Slither needs a successful compile, so static analysis runs in reduced mode and the compile error is reported as a finding.`);
+    }
   }
   return ctx;
 }
 
+function snippetAround(source: string, line: number, radius = 4) {
+  const lines = source.split("\n");
+  const start = Math.max(0, line - 1 - radius);
+  return lines.slice(start, Math.min(lines.length, line + radius)).join("\n").slice(0, 700);
+}
+
+/** Turn a solc failure into a high-severity "does not compile" finding (with the
+ *  solc headline + the offending line) so a non-compiling contract still yields a
+ *  report instead of crashing the scan. */
+function recordCompileErrorFinding(ctx: ScanContext, error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error);
+  const loc = raw.match(/-->\s*[^\s:]+:(\d+):\d+/);
+  const line = loc ? Number(loc[1]) : null;
+  const headline = raw.match(/\b([A-Za-z]+Error:\s*[^\n]+?)(?:\s*-->|\n|$)/)?.[1]?.trim() ?? "The Solidity compiler rejected this source.";
+  addFinding(ctx, {
+    severity: "high",
+    category: "compilation",
+    title: "Contract does not compile",
+    file: path.relative(ctx.workdir, ctx.sourceFile).replaceAll("\\", "/"),
+    lineStart: line,
+    lineEnd: line,
+    codeSnippet: line ? snippetAround(ctx.sourceCode, line) : null,
+    summary: `The Solidity compiler rejected this contract: ${headline.slice(0, 400)} A contract that does not compile cannot be deployed, and Slither / measured-gas analysis cannot run, so Archon ran deterministic source rules in reduced mode. Fix this and re-scan for full coverage.`,
+    recommendedFix: "Resolve the compiler error above, then re-run the scan. A common cause is calling an `external` function internally without `this.` (use `this.fn(...)` or make the function `public`), or referencing an undeclared/renamed symbol.",
+    confidence: 1,
+    source: "rule",
+  });
+}
+
 async function staticAnalysis(ctx: ScanContext) {
   if (ctx.reducedMode) {
-    ctx.metadata.slither = { skipped: true, reducedMode: true, unresolvedImports: ctx.reducedMode.unresolvedImports, detail: ctx.reducedMode.detail ?? null };
-    await appendScanLog(ctx.scan.id, "WARN", "Slither skipped because external imports could not be resolved. Archon deterministic rules will still run.");
+    ctx.metadata.slither = { skipped: true, reducedMode: true, reason: ctx.reducedMode.reason, unresolvedImports: ctx.reducedMode.unresolvedImports, detail: ctx.reducedMode.detail ?? null };
+    await appendScanLog(ctx.scan.id, "WARN", `Slither skipped — ${ctx.reducedMode.reason} (Slither needs a successful compile). Archon deterministic rules still run.`);
     return ctx;
   }
   const outFile = path.join(ctx.workdir, "slither.json");

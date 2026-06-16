@@ -106,8 +106,8 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
     </div>
 
     {reducedMode ? <details className="rounded-card border border-warning/30 bg-warning/10 p-4 text-sm text-warning" open>
-      <summary className="flex cursor-pointer items-center gap-2 font-semibold"><AlertTriangle size={16} /> External imports could not be resolved; static analysis ran in reduced mode.</summary>
-      <p className="mt-2 leading-6 text-text-mid">Archon skipped Slither/import-dependent checks and ran deterministic AST/rule analysis on the parseable units.</p>
+      <summary className="flex cursor-pointer items-center gap-2 font-semibold"><AlertTriangle size={16} /> {reducedMode.reason ?? "External imports could not be resolved."} Static analysis ran in reduced mode.</summary>
+      <p className="mt-2 leading-6 text-text-mid">Slither needs a successful compile, so Archon skipped it and ran deterministic AST/rule analysis on the parseable units. Findings remain risk intelligence; fix the issue above and re-scan for full coverage.</p>
       {reducedMode.unresolvedImports?.length ? <p className="mt-2 font-mono text-xs text-text-low">Unresolved: {reducedMode.unresolvedImports.join(", ")}</p> : null}
       {reducedMode.detail ? <p className="mt-2 font-mono text-xs text-text-low">Detail: {reducedMode.detail}</p> : null}
     </details> : null}
