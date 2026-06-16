@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { Bot, Send, Sparkles, X } from "lucide-react";
 
@@ -26,12 +27,16 @@ export function ArchonAssistant() {
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState<RouteContext | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     try { setMessages(JSON.parse(localStorage.getItem(storageKey) ?? "[]")); } catch { setMessages([]); }
   }, []);
   useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(messages.slice(-20))); }, [messages]);
-  useEffect(() => { if (open) void buildContext().then(setContext); }, [open]);
+  // Rebuild context on open AND whenever the route changes while open — otherwise
+  // navigating between report pages with the panel mounted answers about the
+  // previous page. (submit() also rebuilds fresh, as a belt-and-suspenders.)
+  useEffect(() => { if (open) void buildContext().then(setContext); }, [open, pathname]);
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
 
   const footerTx = useMemo(() => context?.latestProofTx ? `${context.latestProofTx.slice(0, 10)}…${context.latestProofTx.slice(-6)}` : "latest proof ready", [context]);
@@ -40,7 +45,9 @@ export function ArchonAssistant() {
     const content = text.trim();
     if (!content || loading) return;
     setInput("");
-    const routeContext = context ?? await buildContext();
+    // Always rebuild fresh at send time so the answer is about the CURRENT page,
+    // never a cached/previous report's context.
+    const routeContext = await buildContext();
     setContext(routeContext);
     const nextMessages: Message[] = [...messages, { role: "user", content }];
     setMessages(nextMessages);
