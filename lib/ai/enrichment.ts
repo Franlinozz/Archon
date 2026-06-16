@@ -7,14 +7,15 @@ export { FINDING_ENRICHMENT_PROMPT_VERSION };
 const BATCH_SIZE = Number(process.env.ARCHON_AI_ENRICHMENT_BATCH_SIZE ?? 5);
 // 75s per call (with one transient retry in the provider).
 const CALL_TIMEOUT_MS = Number(process.env.ARCHON_AI_ENRICHMENT_TIMEOUT_MS ?? 75_000);
-// Enrich EVERY finding by default. The binding rails are a sanity ceiling on
-// finding count and a wall-clock budget that keeps the stage under the runner's
-// 600s watchdog — NOT a fixed batch count, and never contract size. Concurrency
-// (bounded, well under TokenHub QPM=60) makes "all findings" fast even with a slow
-// reasoning model. Severity ordering means any rail only ever costs low/info.
-const MAX_FINDINGS = Number(process.env.ARCHON_AI_ENRICHMENT_MAX_FINDINGS ?? 200);
-const ENRICH_BUDGET_MS = Number(process.env.ARCHON_AI_ENRICHMENT_BUDGET_MS ?? 480_000);
-const CONCURRENCY = Math.max(1, Number(process.env.ARCHON_AI_ENRICHMENT_CONCURRENCY ?? 4));
+// Enrich EVERY finding — no compromise. The wall-clock budget is generous (it only
+// exists so a pathological scan can't run unbounded) and sits under the runner's
+// raised stage watchdog. CONCURRENCY (bounded, well under TokenHub QPM=60) is what
+// makes "all findings" fast even with a slow reasoning model — a 126-finding scan
+// drops from ~9min to a few minutes at 8-way. Severity ordering means that if the
+// (generous) budget is ever exhausted, only the lowest-priority findings degrade.
+const MAX_FINDINGS = Number(process.env.ARCHON_AI_ENRICHMENT_MAX_FINDINGS ?? 400);
+const ENRICH_BUDGET_MS = Number(process.env.ARCHON_AI_ENRICHMENT_BUDGET_MS ?? 1_020_000); // 17 min, < 20 min stage watchdog
+const CONCURRENCY = Math.max(1, Number(process.env.ARCHON_AI_ENRICHMENT_CONCURRENCY ?? 8));
 const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
 type FindingRow = {
@@ -106,9 +107,9 @@ async function emitAiProgress(scanId: string, batchIndex: number, totalBatches: 
 type Miss = { finding: FindingRow; key: string };
 
 async function applyFallback(item: Miss) {
-  const safe = fallbackEnrichment(item.finding);
-  await storeCache(item.key, safe);
-  await updateFinding(item.finding.id, safe);
+  // Write the deterministic explanation but do NOT cache it — so a later re-scan
+  // retries the model for this finding instead of being stuck on the fallback.
+  await updateFinding(item.finding.id, fallbackEnrichment(item.finding));
 }
 
 async function enrichMisses(scanId: string, chain: AIProvider[], misses: Miss[]) {
@@ -117,24 +118,24 @@ async function enrichMisses(scanId: string, chain: AIProvider[], misses: Miss[])
   // critical/high are always AI-enriched first.
   const ordered = [...misses].sort((a, b) => (SEVERITY_RANK[a.finding.severity] ?? 5) - (SEVERITY_RANK[b.finding.severity] ?? 5));
   const eligible = ordered.slice(0, MAX_FINDINGS);
-  const overCap = ordered.slice(MAX_FINDINGS); // sanity ceiling, rarely hit
-  const batches: Miss[][] = [];
-  for (let i = 0; i < eligible.length; i += batchSize) batches.push(eligible.slice(i, i + batchSize));
+  const overCap = ordered.slice(MAX_FINDINGS); // sanity ceiling only
 
   let enrichedCount = 0;
-  let fallbackCount = 0;
-  // Cause distribution so the real reason is diagnosable from the log.
+  // Cause distribution so a residual fallback is diagnosable from the log.
   const reasons: Partial<Record<EnrichmentErrorKind | "no_provider" | "budget" | "capped", number>> = {};
   const bump = (kind: keyof typeof reasons, n: number) => { reasons[kind] = (reasons[kind] ?? 0) + n; };
   const providersUsed = new Set<string>();
   const startedAt = Date.now();
-  const budgetSkipped: Miss[] = [];
+  const overBudget = () => Date.now() - startedAt > ENRICH_BUDGET_MS;
+  const totalBatches = Math.max(1, Math.ceil(eligible.length / batchSize));
   let completed = 0;
 
-  // Process one batch through the failover chain (primary → fallbacks →
-  // per-finding deterministic). Batch parsing is per-finding tolerant (tolerantBatch),
-  // so one finding's bad JSON never loses the rest of the batch.
-  const processBatch = async (batch: Miss[]) => {
+  // Enrich one batch via the failover chain (primary → fallbacks). Applies the
+  // enrichments it receives and RETURNS the items it could not enrich, so a retry
+  // pass can take another run at them. tolerantBatch already salvages per-finding,
+  // so one bad item never loses the rest of the batch. No deterministic write here.
+  const processBatch = async (batch: Miss[]): Promise<Miss[]> => {
+    if (overBudget()) { bump("budget", batch.length); return batch; }
     let byId = new Map<string, Enrichment>();
     let servedBy: AIProvider | null = null;
     let lastKind: EnrichmentErrorKind = "unknown";
@@ -152,57 +153,62 @@ async function enrichMisses(scanId: string, chain: AIProvider[], misses: Miss[])
         if (next) await appendScanLog(scanId, "WARN", `AI enrichment: ${provider.label} failed (${lastKind}) → failing over to ${next.label}.`);
       }
     }
+    const missing: Miss[] = [];
     for (const item of batch) {
       const enrichment = byId.get(item.finding.id);
-      const safe = enrichmentSchema.catch(fallbackEnrichment(item.finding)).parse(enrichment ?? fallbackEnrichment(item.finding));
-      await storeCache(item.key, safe);
-      await updateFinding(item.finding.id, safe);
-      if (enrichment) enrichedCount += 1; else fallbackCount += 1;
+      if (enrichment) { await storeCache(item.key, enrichment); await updateFinding(item.finding.id, enrichment); enrichedCount += 1; }
+      else missing.push(item);
     }
-    if (servedBy) {
-      const partial = batch.length - byId.size;
-      if (partial > 0) bump("schema", partial);
-      await appendScanLog(scanId, partial > 0 ? "WARN" : "INFO", `AI enrichment: ${servedBy.label} (${servedBy.model}) enriched ${byId.size}/${batch.length} finding(s)${partial > 0 ? ` — ${partial} → deterministic` : ""}.`);
-    } else {
-      bump(lastKind, batch.length);
-      await appendScanLog(scanId, "WARN", `AI enrichment: all providers failed (${lastKind}) → deterministic for ${batch.length} finding(s).`);
-    }
+    if (servedBy) await appendScanLog(scanId, missing.length ? "WARN" : "INFO", `AI enrichment: ${servedBy.label} (${servedBy.model}) enriched ${byId.size}/${batch.length} finding(s)${missing.length ? ` — ${missing.length} to retry` : ""}.`);
+    else bump(lastKind, batch.length);
     completed += 1;
-    await emitAiProgress(scanId, completed - 1, batches.length);
+    await emitAiProgress(scanId, completed - 1, totalBatches);
+    return missing;
   };
 
-  if (chain.length) {
-    // Bounded-concurrency pool over severity-ordered batches; stop launching new
-    // batches once the wall-clock budget is spent (remaining → deterministic).
+  // Bounded-concurrency pool over a list of items; returns the items left unenriched.
+  const runPool = async (items: Miss[]): Promise<Miss[]> => {
+    const batches: Miss[][] = [];
+    for (let i = 0; i < items.length; i += batchSize) batches.push(items.slice(i, i + batchSize));
     let nextIndex = 0;
+    const leftovers: Miss[] = [];
     const worker = async () => {
       while (true) {
         const i = nextIndex++;
         if (i >= batches.length) return;
-        if (Date.now() - startedAt > ENRICH_BUDGET_MS) { budgetSkipped.push(...batches[i]!); continue; }
-        await processBatch(batches[i]!);
+        leftovers.push(...await processBatch(batches[i]!));
       }
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker));
+    return leftovers;
+  };
+
+  let leftover: Miss[] = eligible;
+  if (chain.length) {
+    // Pass 1 over everything, then ONE retry pass for whatever didn't return usable
+    // AI output (model schema variance / a transient failure), budget permitting.
+    leftover = await runPool(eligible);
+    if (leftover.length && !overBudget()) {
+      await appendScanLog(scanId, "INFO", `Re-enriching ${leftover.length} finding(s) that didn't return usable AI output…`);
+      leftover = await runPool(leftover);
+    }
   } else {
-    for (const batch of batches) budgetSkipped.push(...batch);
-    bump("no_provider", budgetSkipped.length);
+    bump("no_provider", eligible.length);
   }
 
-  // Deterministic floor for the rails (over-cap + budget-skipped).
-  for (const item of [...overCap, ...budgetSkipped]) { await applyFallback(item); fallbackCount += 1; }
+  // Deterministic floor: anything still unenriched after retries + over the ceiling.
+  for (const item of [...leftover, ...overCap]) await applyFallback(item);
+  const fallbackCount = leftover.length + overCap.length;
   if (overCap.length) bump("capped", overCap.length);
-  if (budgetSkipped.length && chain.length) bump("budget", budgetSkipped.length);
 
-  // Honest, COUNT-based message — only when something was not AI-enriched, and never
-  // framed as "large contract / N lines".
+  // Honest, COUNT-based message — only when something wasn't AI-enriched.
   if (fallbackCount > 0) {
     const dist = Object.entries(reasons).filter(([, n]) => (n ?? 0) > 0).map(([k, n]) => `${k}×${n}`).join(", ");
     await appendScanLog(scanId, "WARN", `AI-enriched ${enrichedCount} of ${misses.length} findings; the remaining ${fallbackCount} used deterministic explanations${dist ? ` (${dist})` : ""}.`);
   } else if (enrichedCount > 0) {
     await appendScanLog(scanId, "INFO", `AI-enriched all ${enrichedCount} of ${misses.length} findings.`);
   }
-  return { batches: batches.length, enriched: enrichedCount, fallbackCount, skipped: overCap.length + budgetSkipped.length, reasons, providersUsed: [...providersUsed] };
+  return { batches: totalBatches, enriched: enrichedCount, fallbackCount, skipped: overCap.length, reasons, providersUsed: [...providersUsed] };
 }
 
 async function updateFinding(id: string, enrichment: Enrichment) {

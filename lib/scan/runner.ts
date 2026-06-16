@@ -4,8 +4,11 @@ import { appendScanLog, publishScanEvent } from "./events";
 import { cleanupContext, createInitialContext, STAGES } from "./stages";
 import { PIPELINE_STAGES, type ScanContext, type ScanFinding, type ScanRecord } from "./types";
 
-const configuredStageTimeoutMs = Number(process.env.ARCHON_STAGE_TIMEOUT_MS ?? 600_000);
-const STAGE_TIMEOUT_MS = Math.max(Number.isFinite(configuredStageTimeoutMs) ? configuredStageTimeoutMs : 600_000, 600_000);
+// 20-min default watchdog so AI Reasoning can fully enrich large contracts (its own
+// ~17-min budget sits under this); still a hard ceiling against a genuinely hung
+// stage. Other stages have their own tighter internal timeouts (Slither 90s, etc.).
+const configuredStageTimeoutMs = Number(process.env.ARCHON_STAGE_TIMEOUT_MS ?? 1_200_000);
+const STAGE_TIMEOUT_MS = Math.max(Number.isFinite(configuredStageTimeoutMs) ? configuredStageTimeoutMs : 1_200_000, 600_000);
 
 function progressForStage(index: number) {
   return Math.round(((index + 1) / PIPELINE_STAGES.length) * 100);
