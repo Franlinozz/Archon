@@ -1,9 +1,13 @@
 import { z } from "zod";
 
 // Pluggable AI enrichment providers (R3.1). One interface, two adapters —
-// OpenAI and Tencent Cloud Hunyuan (OpenAI-compatible chat completions) —
-// selected by env. Adapters whose credentials are absent are INERT and are
-// reported as such; nothing here ever pretends an unconfigured provider is live.
+// OpenAI and Tencent Cloud TokenHub (Tencent's MaaS, OpenAI-compatible chat
+// completions) — selected by env, with runtime failover (primary → the other
+// configured provider → deterministic templates). Adapters whose credentials
+// are absent are INERT and reported as such; nothing here pretends an
+// unconfigured provider is live. HONESTY: TokenHub *serves* third-party
+// reasoning models (minimax-m3, glm, deepseek); it is NOT a Hunyuan model, so
+// labels say "served on Tencent Cloud TokenHub", never "powered by Hunyuan".
 // (ELFA was removed — it is a market-data API, not an LLM; see note below.)
 
 export const FINDING_ENRICHMENT_PROMPT_VERSION = "finding-enrichment-v1-2026-05-22";
@@ -36,7 +40,7 @@ export type EnrichableFinding = {
   code_snippet: string | null;
 };
 
-export type AiProviderId = "openai" | "hunyuan";
+export type AiProviderId = "openai" | "tokenhub";
 
 export type EnrichmentErrorKind =
   | "timeout"
@@ -94,6 +98,9 @@ export interface AIProvider {
   readonly id: AiProviderId;
   readonly label: string;
   readonly model: string;
+  /** Findings per call. Slow reasoning models (TokenHub) need a small batch to stay
+   *  inside the per-call timeout; fast models (OpenAI) batch larger. Undefined → default. */
+  readonly batchSize?: number;
   /** True when every credential the adapter needs is present in the environment. */
   configured(): boolean;
   /** What is missing when not configured (env var names only — never values). */
@@ -102,7 +109,12 @@ export interface AIProvider {
 }
 
 function stripJsonFences(content: string) {
-  return content.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  // Reasoning models served on TokenHub (e.g. minimax-m3) prepend a
+  // <think>…</think> block before the JSON; strip it (and an unclosed leading
+  // <think> if the model truncated) so the payload parses, then strip ``` fences.
+  let c = content.trim().replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  if (/^<think>/i.test(c)) c = c.replace(/^<think>[\s\S]*$/i, "").trim();
+  return c.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
 }
 
 // V5.3: send only a tight code window per finding, never a whole file. Smaller
@@ -148,6 +160,8 @@ type ChatCompletionsConfig = {
   model: () => string;
   /** Whether the endpoint accepts OpenAI's response_format json_object hint. */
   jsonMode: boolean;
+  /** Findings per call (slow reasoning models need a small batch). */
+  batchSize?: number;
   requires: string[];
 };
 
@@ -156,6 +170,7 @@ class ChatCompletionsProvider implements AIProvider {
   get id() { return this.cfg.id; }
   get label() { return this.cfg.label; }
   get model() { return this.cfg.model(); }
+  get batchSize() { return this.cfg.batchSize; }
 
   configured(): boolean {
     return Boolean(this.cfg.apiKey() && this.cfg.baseUrl());
@@ -269,23 +284,49 @@ const openai = new ChatCompletionsProvider({
 // back, it must be an "external data enrichment" feature gated behind its own
 // env, never an LLM/AI provider in this chain. See lib/data/* if added.
 
-// Tencent Cloud Hunyuan exposes an OpenAI-compatible endpoint; the adapter is
-// fully built and activates the moment TENCENT_HUNYUAN_KEY is present.
-const hunyuan = new ChatCompletionsProvider({
-  id: "hunyuan",
-  label: "Tencent Cloud Hunyuan",
-  baseUrl: () => process.env.TENCENT_HUNYUAN_BASE_URL ?? "https://api.hunyuan.cloud.tencent.com/v1",
-  apiKey: () => process.env.TENCENT_HUNYUAN_KEY,
-  model: () => process.env.TENCENT_HUNYUAN_MODEL ?? "hunyuan-turbo",
+// Tencent Cloud TokenHub (Tencent's MaaS) exposes an OpenAI-compatible endpoint
+// that SERVES third-party reasoning models (minimax-m3, glm, deepseek). The
+// adapter activates the moment TENCENT_TOKENHUB_KEY is present. The intl TokenHub
+// has no Hunyuan reasoning model, so this is deliberately NOT branded Hunyuan.
+const tokenhub = new ChatCompletionsProvider({
+  id: "tokenhub",
+  label: "Tencent Cloud TokenHub",
+  baseUrl: () => process.env.TENCENT_TOKENHUB_BASE_URL ?? "https://tokenhub-intl.tencentcloudmaas.com/v1",
+  apiKey: () => process.env.TENCENT_TOKENHUB_KEY,
+  // deepseek-v4-pro chosen by eval: ~19s/finding, schema-clean, no fabrication.
+  // minimax-m3 (~61s/finding) and glm-5.1 (timeout) were too slow at any batch.
+  model: () => process.env.TENCENT_TOKENHUB_MODEL ?? "deepseek-v4-pro",
   jsonMode: true,
-  requires: ["TENCENT_HUNYUAN_KEY"],
+  // Reasoning models are slow → 2 findings/call keeps each request well under the
+  // 75s budget; OpenAI failover catches any outlier that still times out.
+  batchSize: Number(process.env.TENCENT_TOKENHUB_BATCH_SIZE ?? 2),
+  requires: ["TENCENT_TOKENHUB_KEY"],
 });
 
 export function providers(): AIProvider[] {
-  return [openai, hunyuan];
+  return [openai, tokenhub];
 }
 
 export type ProviderSelection = { provider: AIProvider | null; source: "env" | "fallback" | "none"; reason: string };
+
+/**
+ * Ordered providers to try at runtime (option C failover): the selected primary,
+ * then any OTHER configured provider as a LIVE fallback, before the deterministic
+ * floor. The failover tail is only built when a provider was explicitly requested
+ * via AI_PROVIDER — so rollback (unset AI_PROVIDER) returns to single-provider
+ * (OpenAI) behavior unchanged.
+ */
+export function providerChain(): { chain: AIProvider[]; primarySource: ProviderSelection["source"]; reason: string } {
+  const primary = selectProvider();
+  if (!primary.provider) return { chain: [], primarySource: primary.source, reason: primary.reason };
+  const chain = [primary.provider];
+  if (primary.source === "env") {
+    for (const p of providers()) {
+      if (p.id !== primary.provider.id && p.configured()) chain.push(p);
+    }
+  }
+  return { chain, primarySource: primary.source, reason: primary.reason };
+}
 
 /**
  * AI_PROVIDER wins when that adapter is fully configured; otherwise fall back

@@ -47,7 +47,7 @@ type GasOptimizerScope = {
   } | null;
 };
 type ReducedModeScope = { reason: string; unresolvedImports?: string[]; detail?: string };
-type AiReasoningScope = { fallbackCount?: number; skipped?: number; timeoutMs?: number; batches?: number };
+type AiReasoningScope = { fallbackCount?: number; skipped?: number; timeoutMs?: number; batches?: number; provider?: string | null; providersUsed?: string[] };
 type ReportScope = Record<string, unknown> & { gasOptimizer?: GasOptimizerScope | null; reducedMode?: ReducedModeScope | null; aiReasoning?: AiReasoningScope | null; lineCount?: number; pragma?: string; solcVersion?: string; sourceKind?: string; protocols?: string[]; dependencies?: string[]; blockNumber?: string | number | null };
 type Report = { id: string; scanId: string; contractName: string; riskScore: number; severityCounts: Record<string, number>; scope: ReportScope; executiveSummary: string; reportHash: string; createdAt: string; startedAt: string | null; finishedAt: string | null; scanDepth: string; network: string };
 type Challenge = { id: string; targetType: string; challenger: string | null; title: string; rationale: string; evidenceUrl: string | null; status: string; challengeHash: string; referenceTxHash: string | null; referenceReportHash: string | null; createdAt: string };
@@ -115,6 +115,7 @@ export function ReportClient({ report, findings, challenges }: { report: Report;
       <summary className="flex cursor-pointer items-center gap-2 font-semibold"><AlertTriangle size={16} /> AI enrichment partial — deterministic explanations were used.</summary>
       <p className="mt-2 leading-6 text-text-mid">{Number(aiReasoning.fallbackCount ?? 0)} finding(s) used deterministic fallback after bounded AI enrichment. Timed calls are capped at {Math.round(Number(aiReasoning.timeoutMs ?? 45000) / 1000)}s per batch so large scans keep moving.</p>
     </details> : null}
+    {aiReasoning?.providersUsed?.length ? <p className="rounded-card border border-border-subtle bg-surface-1 px-4 py-2 text-xs text-text-mid">Models used: <span className="font-semibold text-text-hi">{aiReasoning.providersUsed.join(", ")}</span>{aiReasoning.providersUsed.some((m) => /TokenHub/.test(m)) ? " — AI reasoning served on Tencent Cloud TokenHub." : ""}</p> : null}
 
     <div className="grid gap-4 xl:grid-cols-4">
       <RiskScoreCard score={report.riskScore} severity={report.riskScore >= 85 ? "critical" : report.riskScore >= 65 ? "high" : "medium"} />
